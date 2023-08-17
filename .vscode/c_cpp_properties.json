@@ -1,0 +1,21 @@
+{
+    "configurations": [
+        {
+            "compileCommands": "${workspaceFolder}/build/compile_commands.json",
+            "name": "Linux",
+            "includePath": [
+                "${workspaceFolder}/**",
+                "${workspaceFolder}/build/config",
+                "${config:idf.espIdfPath}/components/**"
+            ],
+            "defines": [
+                "__XTENSA__"
+            ],
+            "cStandard": "c17",
+            "cppStandard": "gnu++17",
+            "intelliSenseMode": "linux-gcc-arm64",
+            "compilerPath": "/Users/pat/.espressif/tools/xtensa-esp32-elf/esp-2021r2-patch3-8.4.0/xtensa-esp32-elf/bin/xtensa-esp32-elf-g++"
+        }
+    ],
+    "version": 4
+}
