@@ -14,7 +14,7 @@
 #include "driver/uart.h"
 #include "argtable3/argtable3.h"
 
-#include "freeRTOS/FreeRTOS.h"
+#include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
 #include "sdkconfig.h"
