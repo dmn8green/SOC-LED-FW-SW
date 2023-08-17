@@ -1,2 +1,5 @@
 sdkconfig
 sdkconfig.old
+
+build
+.direnv/aliases
