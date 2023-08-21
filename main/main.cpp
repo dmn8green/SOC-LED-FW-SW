@@ -1,4 +1,5 @@
 #include "ReplConsole/repl_console.h"
+#include "pin_def.h"
 
 #include <string.h>
 #include "freertos/FreeRTOS.h"
@@ -25,11 +26,11 @@ extern "C" void app_main(void)
 {
     initialize_nvs();
     
-    repl_configure(1, 3, 115200);
+    repl_configure(REPL_UART_TX_PIN, REPL_UART_RX_PIN, REPL_UART_CHANNEL, REPL_UART_BAUD_RATE);
     repl_start();
 
     while(1) {
         vTaskDelay(5000 / portTICK_PERIOD_MS);
-        //ESP_LOGI(TAG, "Hello world!");
+        ESP_LOGI(TAG, "Hello world!");
     }
 }
