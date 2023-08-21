@@ -1,0 +1,18 @@
+stages:
+  - build
+
+build:
+  stage: build
+
+  image: espressif/idf:release-v5.1
+
+  variables:
+    GIT_SUBMODULE_STRATEGY: recursive
+
+  before_script:
+    - apt-get update
+    - apt-get install -yq cmake
+
+  script:
+    - idf.py build
+
