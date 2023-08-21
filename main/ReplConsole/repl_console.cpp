@@ -5,11 +5,19 @@
 
 // Path: main/configuration_interface/configuration_interface.cpp
 
-// eth: Physical lan config
-// wifi: Wifi config
+// ifconfig (no arg prints all interfaces with info)
+// ifconfig eth/wifi dhcp on/off
+// ifconfig eth/wifi ipadress netmask gateway
+// ifconfig eth/wifi macaddress
+// ifconfig eth/wifi status
+// ifconfig eth/wifi up/down
+//
+// join-wifi SSID password
+//
 // chp: Chargepoint config
 // dev: Device specific config (number of leds)
 // test: ledpattern/network/eth/wifi/brightness...
+// 
 
 static esp_console_repl_t *repl = nullptr;
 

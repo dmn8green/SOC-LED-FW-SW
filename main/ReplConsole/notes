@@ -1,0 +1,36 @@
+/**
+ * @brief  Initialize the underlying TCP/IP stack
+ *
+ * @return
+ *         - ESP_OK on success
+ *         - ESP_FAIL if initializing failed
+
+ * @note This function should be called exactly once from application code, when the application starts up.
+ */
+esp_err_t esp_netif_init(void);
+
+
+ esp_netif_dhcpc_stop(esp_netif);
+
+ char* ip= "192.168.137.113";
+ char* gateway = "192.168.137.1";
+ char* netmask = "255.255.255.0";
+ esp_netif_ip_info_t info_t;
+ memset(&info_t, 0, sizeof(esp_netif_ip_info_t));
+ ipaddr_aton((const char *)ip, &info_t.ip.addr);
+ ipaddr_aton((const char *)gateway, &info_t.gw.addr);
+ ipaddr_aton((const char *)netmask, &info_t.netmask.addr);
+ esp_netif_set_ip_info(esp_netif, &info_t);
+ 
+ 
+ // eth0
+esp_netif_dhcpc_stop(eth_netif);
+ char* ip= "192.168.12.15";
+ char* gateway = "192.168.12.1";
+ char* netmask = "255.255.255.0";
+ esp_netif_ip_info_t info_t;
+ memset(&info_t, 0, sizeof(esp_netif_ip_info_t));
+ ipaddr_aton((const char *)ip, &info_t.ip.addr);
+ ipaddr_aton((const char *)gateway, &info_t.gw.addr);
+ ipaddr_aton((const char *)netmask, &info_t.netmask.addr);
+ esp_netif_set_ip_info(eth_netif, &info_t);
