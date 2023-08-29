@@ -1,0 +1,24 @@
+join --timeout=10000 Tabarnak hide39!bangs
+
+network_interface wifi
+network_interface eth
+
+wifi_network_config
+eth_network_config
+
+connectionø
+  provides callback to listener on network event
+    got ip
+    disconnected...
+  wifi_connection
+    -> wifi_interface
+  eth_connection
+    -> eth_interface
+
+network
+  -> wifi_connection
+  -> eth_connection
+  activate_eth_interface
+  activate_wifi_interface
+  
+on boot, activate both network

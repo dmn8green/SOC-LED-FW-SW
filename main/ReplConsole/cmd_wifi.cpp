@@ -9,79 +9,24 @@
 #include "esp_netif.h"
 #include "esp_event.h"
 
-#define JOIN_TIMEOUT_MS (10000)
+#include "MN8App.h"
+
 #pragma GCC diagnostic ignored "-Wmissing-field-initializers" 
+#define JOIN_TIMEOUT_MS (10000)
 
-
-static EventGroupHandle_t wifi_event_group;
-const int CONNECTED_BIT = BIT0;
-
-
-static void event_handler(void* arg, esp_event_base_t event_base,
-                                int32_t event_id, void* event_data)
-{
-    if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_DISCONNECTED) {
-        esp_wifi_connect();
-        xEventGroupClearBits(wifi_event_group, CONNECTED_BIT);
-    } else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
-        ip_event_got_ip_t *event = (ip_event_got_ip_t *)event_data;
-        ESP_LOGI(__func__, "Got IPv4 event: Interface \"%s\" address: " IPSTR, esp_netif_get_desc(event->esp_netif), IP2STR(&event->ip_info.ip));
-        // if (!this->isOurNetif(TAG, event->esp_netif)) {
-        //     ESP_LOGW(TAG, "Got IPv4 from another interface \"%s\": ignored", esp_netif_get_desc(event->esp_netif));
-        //     return;
-        // }
-        // ESP_LOGI(TAG, "Got IPv4 event: Interface \"%s\" address: " IPSTR, esp_netif_get_desc(event->esp_netif), IP2STR(&event->ip_info.ip));
-        // this->ipAddr = event->ip_info.ip.addr;
-        // this->gwAddr = event->ip_info.gw.addr;
-        // ESP_LOGI(TAG, "WE ARE CONNECTED");
-
-        xEventGroupSetBits(wifi_event_group, CONNECTED_BIT);
-    }
-}
-
-esp_netif_t *sta_netif;
-static void initialise_wifi(void)
-{
-    esp_log_level_set("wifi", ESP_LOG_WARN);
-    static bool initialized = false;
-    if (initialized) {
-        return;
-    }
-    ESP_ERROR_CHECK(esp_netif_init());
-    wifi_event_group = xEventGroupCreate();
-    ESP_ERROR_CHECK(esp_event_loop_create_default());
-    esp_netif_t *ap_netif = esp_netif_create_default_wifi_ap();
-    assert(ap_netif);
-    sta_netif = esp_netif_create_default_wifi_sta();
-    assert(sta_netif);
-    wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
-    
-    ESP_ERROR_CHECK( esp_wifi_init(&cfg) );
-    ESP_ERROR_CHECK( esp_event_handler_register(WIFI_EVENT, WIFI_EVENT_STA_DISCONNECTED, &event_handler, NULL) );
-    ESP_ERROR_CHECK( esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP, &event_handler, NULL) );
-    ESP_ERROR_CHECK( esp_wifi_set_storage(WIFI_STORAGE_RAM) );
-    ESP_ERROR_CHECK( esp_wifi_set_mode(WIFI_MODE_NULL) );
-    ESP_ERROR_CHECK( esp_wifi_start() );
-    initialized = true;
-}
-
-static bool wifi_join(const char *ssid, const char *pass, int timeout_ms)
-{
-    initialise_wifi();
-    wifi_config_t wifi_config = { 0 };
-
-    strlcpy((char *) wifi_config.sta.ssid, ssid, sizeof(wifi_config.sta.ssid));
+static bool wifi_join(const char *ssid, const char *pass, int timeout_ms) {
+    MN8App& app = MN8App::instance();
+    WifiConnection* wifi_connection = app.get_wifi_connection();
+    wifi_creds_t creds = { 0 };
+    strlcpy((char *) creds.ssid, ssid, sizeof(creds.ssid));
     if (pass) {
-        strlcpy((char *) wifi_config.sta.password, pass, sizeof(wifi_config.sta.password));
+        strlcpy((char *) creds.password, pass, sizeof(creds.password));
     }
 
-    ESP_ERROR_CHECK( esp_wifi_set_mode(WIFI_MODE_STA) );
-    ESP_ERROR_CHECK( esp_wifi_set_config(WIFI_IF_STA, &wifi_config) );
-    esp_wifi_connect();
-
-    int bits = xEventGroupWaitBits(wifi_event_group, CONNECTED_BIT,
-                                   pdFALSE, pdTRUE, timeout_ms / portTICK_PERIOD_MS);
-    return (bits & CONNECTED_BIT) != 0;
+    wifi_connection->set_credentials(creds);
+    wifi_connection->on();
+    wifi_connection->connect();
+    return true;
 }
 
 /** Arguments used by 'join' function */
@@ -102,10 +47,10 @@ static int connect(int argc, char **argv)
     ESP_LOGI(__func__, "Connecting to '%s'",
              join_args.ssid->sval[0]);
 
-    /* set default value*/
-    if (join_args.timeout->count == 0) {
-        join_args.timeout->ival[0] = JOIN_TIMEOUT_MS;
-    }
+    // /* set default value*/
+    // if (join_args.timeout->count == 0) {
+    //     join_args.timeout->ival[0] = JOIN_TIMEOUT_MS;
+    // }
 
     bool connected = wifi_join(join_args.ssid->sval[0],
                                join_args.password->sval[0],
@@ -116,13 +61,13 @@ static int connect(int argc, char **argv)
     }
 
     
-    ESP_LOGI(__func__, "Connected");
+    // ESP_LOGI(__func__, "Connected");
 
-    esp_netif_ip_info_t ip_info;
-    esp_netif_get_ip_info(sta_netif, &ip_info);
-    printf("My IP: " IPSTR "\n", IP2STR(&ip_info.ip));
-    printf("My GW: " IPSTR "\n", IP2STR(&ip_info.gw));
-    printf("My NETMASK: " IPSTR "\n", IP2STR(&ip_info.netmask));
+    // esp_netif_ip_info_t ip_info;
+    // esp_netif_get_ip_info(sta_netif, &ip_info);
+    // printf("My IP: " IPSTR "\n", IP2STR(&ip_info.ip));
+    // printf("My GW: " IPSTR "\n", IP2STR(&ip_info.gw));
+    // printf("My NETMASK: " IPSTR "\n", IP2STR(&ip_info.netmask));
 
     return 0;
 }

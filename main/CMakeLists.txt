@@ -7,6 +7,14 @@ set(COMPONENT_SRCS
     ReplConsole/repl_console.cpp
     ReplConsole/cmd_tasks.cpp
     ReplConsole/cmd_wifi.cpp
+    ReplConsole/cmd_ifconfig.cpp
+    ReplConsole/cmd_reboot.cpp
+    Network/ethernet_init.cpp
+    Network/NetworkInterface.cpp
+    Network/WifiConnection.cpp
+    Network/EthConnection.cpp
+    Network/NetworkManager.cpp
+    MN8App.cpp
     main.cpp
 )
 

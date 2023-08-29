@@ -19,20 +19,20 @@
 
 #include "sdkconfig.h"
 
-static int ifconfig_cmd(int argc, char **argv)
+static int reboot(int argc, char **argv)
 {
-    ESP_LOGI(__func__, "tasks_info");
+    esp_restart();
     return 0;
 }
 
-void register_ifconfig(void)
+void register_reboot(void)
 {
     #pragma GCC diagnostic ignored "-Wmissing-field-initializers" 
     const esp_console_cmd_t cmd = {
-        .command = "ifconfig",
-        .help = "Get information about network interfaces (wifi/ethernet)",
+        .command = "reboot",
+        .help = "Reboot board",
         .hint = NULL,
-        .func = &ifconfig_cmd,
+        .func = &reboot,
     };
     ESP_ERROR_CHECK( esp_console_cmd_register(&cmd) );
 }

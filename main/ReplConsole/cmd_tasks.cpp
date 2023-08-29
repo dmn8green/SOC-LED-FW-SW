@@ -19,14 +19,12 @@
 
 #include "sdkconfig.h"
 
-static const char *TAG = "MN8 REPL TASKS: ";
-
 static int tasks_info(int argc, char **argv)
 {
     const size_t bytes_per_task = 40; /* see vTaskList description */
     char *task_list_buffer = (char*) malloc(uxTaskGetNumberOfTasks() * bytes_per_task);
     if (task_list_buffer == NULL) {
-        ESP_LOGE(TAG, "failed to allocate buffer for vTaskList output");
+        ESP_LOGE(__func__, "failed to allocate buffer for vTaskList output");
         return 1;
     }
     fputs("Task Name\tStatus\tPrio\tHWM\tTask#", stdout);
