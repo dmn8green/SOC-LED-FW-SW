@@ -1,0 +1,25 @@
+overall design
+
+one task for the repl console
+
+main task
+  receives network stack events
+  handle state transition based on events
+  calls the mqtt loop (or we will have an task polling the api)
+
+one task per led strip to modulate the signal
+
+main
+  -> Repl console (uses the MN8App)
+  -> MN8App
+    -> NetworkManager
+      -> Wifi interface
+      -> Wifi connection
+      -> Eth interface
+      -> Eth connection
+      -> Event callbacks
+      
+    -> State Machine
+    
+    -> LedStripEncoder
+    
