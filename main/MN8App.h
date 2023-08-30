@@ -34,6 +34,8 @@ public:
     inline NetworkInterface* get_ethernet_interface(void) { return this->ethernet_interface; }
     inline EthernetConnection* get_ethernet_connection(void) { return this->ethernet_connection; }
 
+    Connection* get_connection(const char* interface);
+
 private:
     esp_err_t setup_wifi_connection(void);
     esp_err_t setup_ethernet_connection(void);

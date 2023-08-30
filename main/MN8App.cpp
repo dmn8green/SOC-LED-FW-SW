@@ -10,6 +10,8 @@
 #include "nvs.h"
 #include "nvs_flash.h"
 
+#include <string.h>
+
 
 //*****************************************************************************
 static void initialize_nvs(void)
@@ -86,6 +88,17 @@ void MN8App::loop(void) {
     vTaskDelay(5000 / portTICK_PERIOD_MS);
     // ESP_LOGI(__func__, "Hello world!");
 }
+
+Connection* MN8App::get_connection(const char* interface) {
+    if (strcmp(interface, "wifi") == 0 || strcmp(interface, "wireless") == 0) {
+        return this->wifi_connection;
+    } else if (strcmp(interface, "eth") == 0 || strcmp(interface, "ethernet") == 0) {
+        return this->ethernet_connection;
+    } else {
+        return nullptr;
+    }
+}
+
 
 //*****************************************************************************
 esp_err_t MN8App::setup_wifi_connection(void) {

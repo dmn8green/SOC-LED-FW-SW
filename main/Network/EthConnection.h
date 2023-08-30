@@ -6,6 +6,8 @@
 class EthernetConnection : public Connection {
 public:
     EthernetConnection(NetworkInterface* interface) : Connection(interface) {}
+    virtual const char* get_name(void) override { return "eth"; };
+
     esp_err_t initialize(esp_eth_handle_t* eth_handle);
 
     virtual esp_err_t on(void) override;
