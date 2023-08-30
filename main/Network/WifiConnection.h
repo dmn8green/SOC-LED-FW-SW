@@ -11,6 +11,8 @@ typedef struct {
 class WifiConnection : public Connection {
 public:
     WifiConnection(NetworkInterface* interface) : Connection(interface) {}
+    virtual const char* get_name(void) override { return "wifi"; };
+
     esp_err_t initialize(void);
 
     virtual esp_err_t on(void) override;
