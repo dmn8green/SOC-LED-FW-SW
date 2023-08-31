@@ -57,7 +57,14 @@ esp_err_t NetworkConfiguration::load() {
     ESP_GET_VALUE("ip", this->ipAddress);
     ESP_GET_VALUE("netmask", this->netmask);
     ESP_GET_VALUE("gateway", this->gateway);
-    
+
+    res = this->load_extra(store);
+    if (res != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to load extra");
+        return res;
+    }
+
+    this->isConfigured = true;
     return ESP_OK;
 }
 
@@ -77,11 +84,20 @@ esp_err_t NetworkConfiguration::save() {
     ESP_SET_VALUE("netmask", this->netmask, false);
     ESP_SET_VALUE("gateway", this->gateway, false);
 
+    res = this->save_extra(store);
+    if (res != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to save extra");
+        return res;
+    }
+
     res = store.commit();
     if (res != ESP_OK) {
         ESP_LOGE(TAG, "Failed to commit eth config store");
         return res;
     }
 
-    return ESP_OK;    
+    // It might have already been configured.  Checking for that would add
+    // unneeded extra instructions and slow things down (not that it matters)
+    this->isConfigured = true;
+    return ESP_OK;
 }

@@ -4,6 +4,8 @@
 
 #include "esp_log.h"
 
+#include <string.h>
+
 static const char *TAG = "WifiConfiguration";
 
 //******************************************************************************
@@ -15,8 +17,8 @@ static const char *TAG = "WifiConfiguration";
  * 
  * @return bool false on error.  On success is goes through.
  */
-#define ESP_GET_VALUE(key, value) \
-    res = store.getKeyValue(key, value); \
+#define ESP_GET_VALUE(key, value, length) \
+    res = store.getKeyValue(key, value, length); \
     if (res != ESP_OK) { \
         ESP_LOGE(TAG, "Failed to get " key " value"); \
         return res; \
@@ -43,45 +45,21 @@ static const char *TAG = "WifiConfiguration";
  * @return true   load successful
  * @return false  load failed  -- 
  */
-esp_err_t WifiConfiguration::load() {
-    KeyStore store;
+esp_err_t WifiConfiguration::load_extra(KeyStore& store) {
     esp_err_t res;
 
-    if (store.openKeyStore(this->get_store_section_name(), e_ro) != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to open eth config store");
-        return false;
-    }
-
-    ESP_GET_VALUE("enabled", this->isEnabled);
-    ESP_GET_VALUE("dhcp", this->useDHCP);
-    ESP_GET_VALUE("ip", this->ipAddress);
-    ESP_GET_VALUE("netmask", this->netmask);
-    ESP_GET_VALUE("gateway", this->gateway);
+    ESP_GET_VALUE("enabled", this->ssid, sizeof(this->ssid));
+    ESP_GET_VALUE("dhcp", this->password, sizeof(this->password));
     
     return ESP_OK;
 }
 
-esp_err_t WifiConfiguration::save() {
-    KeyStore store;
+esp_err_t WifiConfiguration::save_extra(KeyStore& store) {
     esp_err_t res;
 
-    if (store.openKeyStore(this->get_store_section_name(), e_rw) != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to open eth config store");
-        return false;
-    }
-
     // No commit until we are all done.
-    ESP_SET_VALUE("enabled", this->isEnabled, false);
-    ESP_SET_VALUE("dhcp", this->useDHCP, false);
-    ESP_SET_VALUE("ip", this->ipAddress, false);
-    ESP_SET_VALUE("netmask", this->netmask, false);
-    ESP_SET_VALUE("gateway", this->gateway, false);
-
-    res = store.commit();
-    if (res != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to commit eth config store");
-        return res;
-    }
+    ESP_SET_VALUE("enabled", this->ssid, false);
+    ESP_SET_VALUE("enabled", this->password, false);
 
     return ESP_OK;    
 }

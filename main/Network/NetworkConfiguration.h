@@ -2,6 +2,7 @@
 
 #include "esp_netif.h"
 
+class KeyStore;
 class NetworkConfiguration {
 public:
     NetworkConfiguration() {};
@@ -23,11 +24,15 @@ public:
     inline void set_netmask(esp_ip4_addr_t netmask) { this->netmask = netmask; }
     inline void set_gateway(esp_ip4_addr_t gateway) { this->gateway = gateway; }
 
+    inline bool is_configured(void) { return this->isConfigured; }
+
     esp_err_t load(void);
     esp_err_t save(void);
     
 protected:
     virtual const char * get_store_section_name(void) = 0;
+    virtual esp_err_t load_extra(KeyStore& store) { return ESP_OK; };
+    virtual esp_err_t save_extra(KeyStore& store) { return ESP_OK; };
 
 protected:
     bool useDHCP = true;
@@ -35,4 +40,5 @@ protected:
     esp_ip4_addr_t ipAddress;
     esp_ip4_addr_t netmask;
     esp_ip4_addr_t gateway;
+    bool isConfigured = false;
 };
