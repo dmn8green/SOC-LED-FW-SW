@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Connection.h"
+#include "WifiConfiguration.h"
 
 typedef struct {
     uint8_t ssid[32];                         /**< SSID of target AP. */
@@ -10,7 +11,8 @@ typedef struct {
 // Represent a connection.  It can be unconfigured/connected/disconnected/connecting/on/off
 class WifiConnection : public Connection {
 public:
-    WifiConnection(NetworkInterface* interface) : Connection(interface) {}
+    WifiConnection(NetworkInterface* interface, WifiConfiguration* configuration) 
+        : Connection(interface), configuration(configuration) {}
     virtual const char* get_name(void) override { return "wifi"; };
 
     esp_err_t initialize(void);
@@ -35,5 +37,6 @@ protected:
 
 private:
     wifi_creds_t wifi_creds;
+    WifiConfiguration* configuration = nullptr;
 
 };  // class WifiConnection

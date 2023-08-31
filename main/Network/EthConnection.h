@@ -1,11 +1,13 @@
 #pragma once
 
 #include "Connection.h"
+#include "NetworkConfiguration.h"
 
 // Ethernet connection
 class EthernetConnection : public Connection {
 public:
-    EthernetConnection(NetworkInterface* interface) : Connection(interface) {}
+    EthernetConnection(NetworkInterface* interface, NetworkConfiguration* configuration) 
+        : Connection(interface), configuration(configuration) {}
     virtual const char* get_name(void) override { return "eth"; };
 
     esp_err_t initialize(esp_eth_handle_t* eth_handle);
@@ -24,6 +26,7 @@ protected:
     void onEthEvent(esp_event_base_t event_base, int32_t event_id, void *event_data);
 
 private:
-    esp_eth_handle_t* eth_handle;
+    esp_eth_handle_t* eth_handle = nullptr;
+    NetworkConfiguration* configuration = nullptr;
 
 };  // class EthernetConnection

@@ -12,6 +12,8 @@ set(COMPONENT_SRCS
     ReplConsole/cmd_reboot.cpp
     Network/ethernet_init.cpp
     Network/NetworkInterface.cpp
+    Network/NetworkConfiguration.cpp
+    Network/WifiConfiguration.cpp
     Network/WifiConnection.cpp
     Network/EthConfiguration.cpp
     Network/EthConnection.cpp

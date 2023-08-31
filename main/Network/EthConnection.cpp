@@ -19,13 +19,21 @@ static const char *TAG = "eth_wifi";
  * @return esp_err_t 
  */
 esp_err_t EthernetConnection::initialize(esp_eth_handle_t* eth_handle) {
+    esp_err_t res = ESP_OK;
     this->eth_handle = eth_handle;
 
     // Here read the config info from flash.
     // If there is no config info, then use DHCP.
     // If there is config info, then use it.
-    
-    auto config = EthernetConfiguration::instance().load();
+    res = this->configuration->load();
+    if (res == ESP_OK) {
+        this->useDHCP = this->configuration->is_dhcp_enabled();
+        this->ipAddress = this->configuration->get_ip_address();
+        this->netmask = this->configuration->get_netmask();
+        this->gateway = this->configuration->get_gateway();
+    } else {
+        this->useDHCP = true;
+    }
 
     ESP_ERROR_CHECK( esp_event_handler_register(ETH_EVENT, ESP_EVENT_ANY_ID, &EthernetConnection::sOnEthEvent, this) );
     ESP_ERROR_CHECK( esp_event_handler_register(IP_EVENT, IP_EVENT_ETH_GOT_IP, &EthernetConnection::sOnGotIp, this) );
@@ -34,7 +42,7 @@ esp_err_t EthernetConnection::initialize(esp_eth_handle_t* eth_handle) {
     this->useDHCP = true;
     this->on();
 
-    return ESP_OK;
+    return res;
 }
 
 //*****************************************************************************

@@ -2,7 +2,9 @@
 
 #include "Network/NetworkInterface.h"
 #include "Network/WifiConnection.h"
+#include "Network/WifiConfiguration.h"
 #include "Network/EthConnection.h"
+#include "Network/EthConfiguration.h"
 
 #include "Utils/Singleton.h"
 
@@ -43,8 +45,10 @@ private:
 private:
     NetworkInterface* wifi_interface = nullptr;
     WifiConnection* wifi_connection = nullptr;
+    WifiConfiguration* wifi_config = nullptr;
 
     NetworkInterface* ethernet_interface = nullptr;
+    NetworkConfiguration* ethernet_config = nullptr;
     EthernetConnection* ethernet_connection = nullptr;
 
     esp_eth_handle_t *eth_handle;

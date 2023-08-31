@@ -114,7 +114,7 @@ esp_err_t MN8App::setup_wifi_connection(void) {
         ESP_LOGE(__func__, "Failed to create default wifi sta interface");
         return ESP_FAIL;
     }
-    
+
     this->wifi_interface = new NetworkInterface(sta_netif);
     if (!this->wifi_interface) {
         ESP_LOGE(__func__, "Failed to create wifi interface");
@@ -131,7 +131,8 @@ esp_err_t MN8App::setup_wifi_connection(void) {
         this->wifi_interface->get_mac_address()[5]
     );
 
-    this->wifi_connection = new WifiConnection(this->wifi_interface);
+    this->wifi_config = new WifiConfiguration();
+    this->wifi_connection = new WifiConnection(this->wifi_interface, this->wifi_config);
     if (!this->wifi_connection) {
         ESP_LOGE(__func__, "Failed to create wifi connection");
         return ESP_FAIL;
@@ -156,7 +157,9 @@ esp_err_t MN8App::setup_ethernet_connection(void) {
         return ESP_FAIL;
     }
 
-    this->ethernet_connection = new EthernetConnection(this->ethernet_interface);
+    this->ethernet_config = new EthernetConfiguration();
+
+    this->ethernet_connection = new EthernetConnection(this->ethernet_interface, this->ethernet_config);
     if (!this->ethernet_connection) {
         ESP_LOGE(__func__, "Failed to create ethernet connection");
         return ESP_FAIL;
