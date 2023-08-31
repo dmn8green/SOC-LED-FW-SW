@@ -1,17 +1,35 @@
 #include "EthConnection.h"
+#include "EthConfiguration.h"
 
 #include "esp_err.h"
 #include "esp_log.h"
 
 static const char *TAG = "eth_wifi";
 
+//*****************************************************************************
+/**
+ * @brief Initialize the ethernet connection.
+ * 
+ * This function will initialize the ethernet connection.
+ * Takes care of registering callbacks for the different events.
+ * 
+ * Load the config info from flash.
+ * 
+ * @param eth_handle 
+ * @return esp_err_t 
+ */
 esp_err_t EthernetConnection::initialize(esp_eth_handle_t* eth_handle) {
     this->eth_handle = eth_handle;
+
+    // Here read the config info from flash.
+    // If there is no config info, then use DHCP.
+    // If there is config info, then use it.
+    
+    auto config = EthernetConfiguration::instance().load();
 
     ESP_ERROR_CHECK( esp_event_handler_register(ETH_EVENT, ESP_EVENT_ANY_ID, &EthernetConnection::sOnEthEvent, this) );
     ESP_ERROR_CHECK( esp_event_handler_register(IP_EVENT, IP_EVENT_ETH_GOT_IP, &EthernetConnection::sOnGotIp, this) );
 
-    // Here read the config info from flash.
 
     this->useDHCP = true;
     this->on();
@@ -19,6 +37,12 @@ esp_err_t EthernetConnection::initialize(esp_eth_handle_t* eth_handle) {
     return ESP_OK;
 }
 
+//*****************************************************************************
+/**
+ * @brief Turn on the ethernet connection.
+ * 
+ * @return esp_err_t 
+ */
 esp_err_t EthernetConnection::on(void) {
     
     esp_err_t res = esp_eth_start(eth_handle);
@@ -36,11 +60,11 @@ esp_err_t EthernetConnection::off(void) {
     return esp_eth_stop(eth_handle);
 }
 
-esp_err_t EthernetConnection::connect(void) {
+esp_err_t EthernetConnection::set_network_info(uint32_t ip, uint32_t netmask, uint32_t gateway) {
     return ESP_OK;
 }
 
-esp_err_t EthernetConnection::disconnect(void) {
+esp_err_t EthernetConnection::use_dhcp(bool use) {
     return ESP_OK;
 }
 

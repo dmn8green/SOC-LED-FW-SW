@@ -36,7 +36,10 @@ esp_err_t WifiConnection::off(void) {
 }
 
 esp_err_t WifiConnection::connect(void) {
+    #pragma GCC diagnostic pop "-Wmissing-field-initializers" 
+    #pragma GCC diagnostic ignored "-Wmissing-field-initializers" 
     wifi_config_t wifi_config = { 0 };
+    #pragma GCC diagnostic push "-Wmissing-field-initializers" 
 
     // wifi_config.sta.scan_method = WIFI_ALL_CHANNEL_SCAN;     // WIFI_ALL_CHANNEL_SCAN or WIFI_FAST_SCAN
     // wifi_config.sta.sort_method = WIFI_CONNECT_AP_BY_SIGNAL; // WIFI_CONNECT_AP_BY_SIGNAL or WIFI_CONNECT_AP_BY_SECURITY
@@ -53,6 +56,13 @@ esp_err_t WifiConnection::disconnect(void) {
     return esp_wifi_disconnect();
 }
 
+esp_err_t WifiConnection::set_network_info(uint32_t ip, uint32_t netmask, uint32_t gateway) {
+    return ESP_OK;
+}
+
+esp_err_t WifiConnection::use_dhcp(bool use) {
+    return ESP_OK;
+}
 
 void WifiConnection::onGotIp(esp_event_base_t event_base, int32_t event_id, void *event_data)
 {

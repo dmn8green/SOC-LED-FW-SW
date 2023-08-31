@@ -18,8 +18,11 @@ public:
     virtual esp_err_t on(void) override;
     virtual esp_err_t off(void) override;
 
-    virtual esp_err_t connect(void) override;
-    virtual esp_err_t disconnect(void) override;
+    esp_err_t connect(void);
+    esp_err_t disconnect(void);
+
+    virtual esp_err_t set_network_info(uint32_t ip, uint32_t netmask, uint32_t gateway) override;
+    virtual esp_err_t use_dhcp(bool use) override;
 
     void set_credentials(const wifi_creds_t& creds) { this->wifi_creds = creds; }
 

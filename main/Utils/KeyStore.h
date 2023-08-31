@@ -1,35 +1,48 @@
 #pragma once
 
-#include <esp_wifi_types.h>
+#include "esp_wifi_types.h"
+#include "nvs_flash.h"
+#include "esp_wifi.h"
+#include "esp_netif.h"
+#include "esp_eth.h"
 
-#include <nvs_flash.h>
 #include <string>
 
+typedef enum {
+    e_rw,
+    e_ro
+} e_keyStoreMode;
+
+//*****************************************************************************
+/**
+ * @brief KeyStore class.
+ * 
+ * This class is a wrapper around the nvs functions.
+ * It is used to store and retrieve key/value pairs.
+ * The key/value pairs are stored in flash.
+ * 
+ * This class is not thread safe.  Be careful when using it.
+ */
 class KeyStore
 {
 public:
-    static KeyStore* 
-
-private:
     KeyStore();
-    ~KeyStore();
+    ~KeyStore(void);
 
+    KeyStore &operator=(const KeyStore &) = delete;
     KeyStore(const KeyStore &) = delete;
-    KeyStore &operator=(KeyStore &) = delete;
 
 public:
-    esp_err_t openKeyStore(const char *storeName, const char *sectionName, nvs_open_mode_t mode = NVS_READWRITE);
-    esp_err_t getKeyValue(const char *keyName, char *&value, size_t &valueLength);
-    esp_err_t getKeyValue(const char *keyName, std::string &value);
-    esp_err_t getKeyValue(const char *keyName, IPAddress &value);
+    esp_err_t openKeyStore(const char *sectionName, e_keyStoreMode ksMode = e_ro);
+    esp_err_t getKeyValue(const char *keyName, char *value, size_t maxValueLength);
+    esp_err_t getKeyValue(const char *keyName, esp_ip4_addr_t &value);
     esp_err_t getKeyValue(const char *keyName, uint16_t &value);
     esp_err_t getKeyValue(const char *keyName, bool &value);
     esp_err_t getKeyValue(const char *keyName, wifi_mode_t &value);
     esp_err_t getKeyValue(const char *keyName, wifi_auth_mode_t &value);
 
     esp_err_t setKeyValue(const char *keyName, const char *value, bool commit = true);
-    esp_err_t setKeyValue(const char *keyName, std::string &value, bool commit = true);
-    esp_err_t setKeyValue(const char *keyName, IPAddress &value, bool commit = true);
+    esp_err_t setKeyValue(const char *keyName, esp_ip4_addr_t &value, bool commit = true);
     esp_err_t setKeyValue(const char *keyName, uint16_t value, bool commit = true);
     esp_err_t setKeyValue(const char *keyName, bool value, bool commit = true);
     esp_err_t setKeyValue(const char *keyName, wifi_mode_t value, bool commit = true);
@@ -41,5 +54,5 @@ public:
 
 protected:
 private:
-    nvs_handle handle;
+    nvs_handle handle = 0;
 };

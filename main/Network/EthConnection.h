@@ -13,8 +13,8 @@ public:
     virtual esp_err_t on(void) override;
     virtual esp_err_t off(void) override;
 
-    virtual esp_err_t connect(void) override;
-    virtual esp_err_t disconnect(void) override;
+    virtual esp_err_t set_network_info(uint32_t ip, uint32_t netmask, uint32_t gateway) override;
+    virtual esp_err_t use_dhcp(bool use) override;
 
 protected:
     static void sOnGotIp(void* arg, esp_event_base_t event_base, int32_t event_id, void *event_data);
