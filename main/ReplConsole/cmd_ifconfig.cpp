@@ -5,6 +5,7 @@
 #include <unistd.h>
 
 #include "esp_log.h"
+#include "esp_netif.h"
 #include "esp_console.h"
 #include "esp_chip_info.h"
 #include "esp_sleep.h"
@@ -43,9 +44,13 @@ static void print_interface_information(Connection *connection)
 {
     printf("\nInterface information:\n");
     printf("  %-20s: %s\n", "Interface", connection->get_name());
-    printf("  %-20s: %s\n", "Active", connection->is_active() ? "true" : "false");
-    printf("  %-20s: %s\n", "Connected", connection->is_connected() ? "true" : "false");
-    printf("  %-20s: %s\n", "DHCP", connection->is_dhcp() ? "true" : "false");
+
+    printf("  %-20s: %s\n", "Enabled", connection->is_enabled() ? "Yes" : "No");
+
+    if (connection->is_enabled()) {
+        printf("  %-20s: %s\n", "Connected", connection->is_connected() ? "Yes" : "No");
+        printf("  %-20s: %s\n", "DHCP", connection->is_dhcp() ? "Yes" : "No");
+    }
 
     if (connection->is_connected()) {
         esp_ip4_addr_t ip = connection->get_ip_address();
@@ -55,6 +60,10 @@ static void print_interface_information(Connection *connection)
         printf("  %-20s: " IPSTR "\n", "IP Address", IP2STR(&ip));
         printf("  %-20s: " IPSTR "\n", "Netmask", IP2STR(&netmask));
         printf("  %-20s: " IPSTR "\n", "Gateway", IP2STR(&gateway));
+
+        printf("  %-20s: %08lx\n", "IP Address", ip.addr);
+        printf("  %-20s: %08lx\n", "Netmask", netmask.addr);
+        printf("  %-20s: %08lx\n", "Gateway", gateway.addr);
     }
     printf("~~~~~~~~~~~\n");
 }
@@ -63,6 +72,8 @@ typedef enum {
     e_print_interface_information_op,
     e_set_interface_up_op,
     e_set_interface_down_op,
+    e_set_interface_enable_op,
+    e_set_interface_disable_op,
     e_set_interface_dhcp_op,
     e_set_interface_manual_op,
     e_unknown_op
@@ -87,6 +98,9 @@ static bool is_cmd_valid(const char *cmd)
         return true;
     }
     if (STR_IS_EQUAL(cmd, "dhcp") || STR_IS_EQUAL(cmd, "manual")) {
+        return true;
+    }
+    if (STR_IS_EQUAL(cmd, "enable") || STR_IS_EQUAL(cmd, "disable")) {
         return true;
     }
     return false;
@@ -123,12 +137,15 @@ static operation_t infer_operation_from_args(void) {
     if (STR_IS_EQUAL(command, "up"))   { return e_set_interface_up_op; }
     if (STR_IS_EQUAL(command, "down")) { return e_set_interface_down_op; }
     if (STR_IS_EQUAL(command, "dhcp")) { return e_set_interface_dhcp_op; }
+    if (STR_IS_EQUAL(command, "enable")) { return e_set_interface_enable_op; }
+    if (STR_IS_EQUAL(command, "disable")) { return e_set_interface_disable_op; }
 
     if (STR_IS_EQUAL(command, "manual")) {
         if (STR_IS_EMPTY(ip) || STR_IS_EMPTY(netmask) || STR_IS_EMPTY(gateway)) {
             printf("ERROR: IP, netmask and gateway must be specified for manual configuration");
             return e_unknown_op;
         }
+
         return e_set_interface_manual_op;
     }
 
@@ -150,17 +167,148 @@ static int op_set_interface_down(Connection *connection)
 }
 
 //*****************************************************************************
+static int op_set_interface_enable(Connection *connection)
+{
+    printf("Enabling interface %s\n", connection->get_name());
+    return (connection->set_enabled(true) == ESP_OK) ? 0 : 1;
+}
+
+//*****************************************************************************
+static int op_set_interface_disable(Connection *connection)
+{
+    printf("Disabling interface %s\n", connection->get_name());
+    return (connection->set_enabled(false) == ESP_OK) ? 0 : 1;
+}
+
+//*****************************************************************************
 static int op_set_interface_dhcp(Connection *connection)
 {
     printf("Turning on dhcp on interface %s\n", connection->get_name());
     return (connection->use_dhcp(true) == ESP_OK) ? 0 : 1;
 }
 
+int
+ip4addr1_aton(const char *cp, ip4_addr_t *addr)
+{
+  u32_t val;
+  u8_t base;
+  char c;
+  u32_t parts[4];
+  u32_t *pp = parts;
+
+  c = *cp;
+  for (;;) {
+    /*
+     * Collect number up to ``.''.
+     * Values are specified as for C:
+     * 0x=hex, 0=octal, 1-9=decimal.
+     */
+    if (!lwip_isdigit(c)) {
+      return 0;
+    }
+    val = 0;
+    base = 10;
+    if (c == '0') {
+      c = *++cp;
+      if (c == 'x' || c == 'X') {
+        base = 16;
+        c = *++cp;
+      } else {
+        base = 8;
+      }
+    }
+    for (;;) {
+      if (lwip_isdigit(c)) {
+        if((base == 8) && ((u32_t)(c - '0') >= 8))
+          break;
+        val = (val * base) + (u32_t)(c - '0');
+        c = *++cp;
+      } else if (base == 16 && lwip_isxdigit(c)) {
+        val = (val << 4) | (u32_t)(c + 10 - (lwip_islower(c) ? 'a' : 'A'));
+        c = *++cp;
+      } else {
+        break;
+      }
+    }
+    if (c == '.') {
+      /*
+       * Internet format:
+       *  a.b.c.d
+       *  a.b.c   (with c treated as 16 bits)
+       *  a.b (with b treated as 24 bits)
+       */
+      if (pp >= parts + 3) {
+        return 0;
+      }
+      *pp++ = val;
+      c = *++cp;
+    } else {
+      break;
+    }
+  }
+  /*
+   * Check for trailing characters.
+   */
+  if (c != '\0' && !lwip_isspace(c)) {
+    return 0;
+  }
+  /*
+   * Concoct the address according to
+   * the number of parts specified.
+   */
+  switch (pp - parts + 1) {
+
+    case 0:
+      return 0;       /* initial nondigit */
+
+    case 1:             /* a -- 32 bits */
+      break;
+
+    case 2:             /* a.b -- 8.24 bits */
+      if (val > 0xffffffUL) {
+        return 0;
+      }
+      if (parts[0] > 0xff) {
+        return 0;
+      }
+      val |= parts[0] << 24;
+      break;
+
+    case 3:             /* a.b.c -- 8.8.16 bits */
+      if (val > 0xffff) {
+        return 0;
+      }
+      if ((parts[0] > 0xff) || (parts[1] > 0xff)) {
+        return 0;
+      }
+      val |= (parts[0] << 24) | (parts[1] << 16);
+      break;
+
+    case 4:             /* a.b.c.d -- 8.8.8.8 bits */
+      if (val > 0xff) {
+        return 0;
+      }
+      if ((parts[0] > 0xff) || (parts[1] > 0xff) || (parts[2] > 0xff)) {
+        return 0;
+      }
+      val |= (parts[0] << 24) | (parts[1] << 16) | (parts[2] << 8);
+      break;
+    default:
+      LWIP_ASSERT("unhandled", 0);
+      break;
+  }
+  if (addr) {
+    ip4_addr_set_u32(addr, lwip_htonl(val));
+  }
+  return 1;
+}
+
+
 //*****************************************************************************
 static int op_set_interface_manual(Connection *connection)
 {
 #define IPSTR_TO_ESPIP(ipstr, espip, msg) \
-    if (ipaddr_aton(ipstr, &ip_addr) == 0) { \
+    if (ip4addr_aton(ipstr, &espip) == 0) { \
         printf(msg " %s\n", ipstr); \
         return 1; \
     } 
@@ -169,24 +317,29 @@ static int op_set_interface_manual(Connection *connection)
     const char * netmask_str = ifconfig_args.netmask->sval[0];
     const char * gateway_str = ifconfig_args.gateway->sval[0];
 
-    #pragma GCC diagnostic pop "-Wmissing-field-initializers" 
-    #pragma GCC diagnostic ignored "-Wmissing-field-initializers" 
-    ip_addr_t ip_addr = { 0 };
-    ip_addr_t netmask_addr = { 0 };
-    ip_addr_t gateway_addr = { 0 };
-    #pragma GCC diagnostic push "-Wmissing-field-initializers" 
+    ip4_addr_t ip_addr = { 0 };
+    ip4_addr_t netmask_addr = { 0 };
+    ip4_addr_t gateway_addr = { 0 };
 
     IPSTR_TO_ESPIP(ip_str,      ip_addr,      "Invalid IP address")
     IPSTR_TO_ESPIP(netmask_str, netmask_addr, "Invalid netmask")
     IPSTR_TO_ESPIP(gateway_str, gateway_addr, "Invalid gateway")
 
+    printf("  %-20s: %s\n", "IP Address", ip_str);
+    printf("  %-20s: %s\n", "Netmask"   , netmask_str);
+    printf("  %-20s: %s\n", "Gateway"   , gateway_str);
+
+    printf("  %-20s: %08lx\n", "IP Address4", ip_addr.addr);
+    printf("  %-20s: %08lx\n", "Netmask4"   , netmask_addr.addr);
+    printf("  %-20s: %08lx\n", "Gateway4"   , gateway_addr.addr);
+
+
     printf("Setting manual configuration on interface %s\n", connection->get_name());
     connection->set_network_info(
-        ip_addr.u_addr.ip4.addr,
-        netmask_addr.u_addr.ip4.addr,
-        gateway_addr.u_addr.ip4.addr
+        ip_addr.addr,
+        netmask_addr.addr,
+        gateway_addr.addr
     );
-    connection->use_dhcp(false);
     return 0;
 }
 
@@ -225,6 +378,8 @@ static int ifconfig_cmd(int argc, char **argv)
         case e_print_interface_information_op: return print_interface_information_op(connection);
         case e_set_interface_up_op:            return op_set_interface_up(connection);
         case e_set_interface_down_op:          return op_set_interface_down(connection);
+        case e_set_interface_enable_op:        return op_set_interface_enable(connection);
+        case e_set_interface_disable_op:       return op_set_interface_disable(connection);
         case e_set_interface_dhcp_op:          return op_set_interface_dhcp(connection);
         case e_set_interface_manual_op:        return op_set_interface_manual(connection);
         case e_unknown_op:

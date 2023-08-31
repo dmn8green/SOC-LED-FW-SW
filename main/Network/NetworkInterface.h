@@ -7,17 +7,20 @@
 
 class NetworkInterface {
 public:
-    NetworkInterface(const esp_netif_t*);
+    NetworkInterface(esp_netif_t* netif);
     virtual ~NetworkInterface(void) {}
 
-    NetworkInterface& operator= (const esp_netif_t*);
-    inline operator esp_netif_t*() { return netif; }
+    NetworkInterface& operator= (const NetworkInterface*) = delete;
+    NetworkInterface(const NetworkInterface*) = delete;
 
     esp_err_t get_ip_info(esp_netif_ip_info_t& ip_info) {
         return esp_netif_get_ip_info(netif, &ip_info);
     }
 
     uint8_t* get_mac_address() { return mac; }
+
+    inline esp_netif_t* get_netif(void) { return this->netif; }
+
 
 private:
     esp_netif_t *netif = nullptr;

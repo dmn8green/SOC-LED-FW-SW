@@ -39,7 +39,17 @@ esp_err_t KeyStore::openKeyStore(const char *sectionName, e_keyStoreMode ksMode)
     nvs_open_mode_t mode = ksMode == e_rw ? NVS_READWRITE : NVS_READONLY;
 
     NVS_CALL_WITH_ERROR_CHECK(nvs_flash_init_partition(KEYSTORE_NAME));
-    NVS_CALL_WITH_ERROR_CHECK(nvs_open_from_partition(KEYSTORE_NAME, sectionName, mode, &handle));
+    err = nvs_open_from_partition(KEYSTORE_NAME, sectionName, mode, &handle);
+    if (err == ESP_ERR_NVS_NOT_FOUND) {
+        // Passing NVS_READWRITE will create the partition
+        ESP_LOGI(TAG, "Creating key store partition %s", sectionName);
+        err = nvs_open_from_partition(KEYSTORE_NAME, sectionName, NVS_READWRITE, &handle);
+    }
+
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to open key store");
+        return err;
+    }
 
     this->handle = handle;
     return ESP_OK;

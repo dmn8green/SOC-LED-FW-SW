@@ -3,8 +3,9 @@
 
 #include "esp_err.h"
 #include "esp_log.h"
+#include "esp_check.h"
 
-static const char *TAG = "eth_wifi";
+static const char *TAG = "eth_connection";
 
 //*****************************************************************************
 /**
@@ -19,30 +20,33 @@ static const char *TAG = "eth_wifi";
  * @return esp_err_t 
  */
 esp_err_t EthernetConnection::initialize(esp_eth_handle_t* eth_handle) {
-    esp_err_t res = ESP_OK;
+    esp_err_t ret = ESP_OK;
     this->eth_handle = eth_handle;
-
-    // Here read the config info from flash.
-    // If there is no config info, then use DHCP.
-    // If there is config info, then use it.
-    res = this->configuration->load();
-    if (res == ESP_OK) {
-        this->useDHCP = this->configuration->is_dhcp_enabled();
-        this->ipAddress = this->configuration->get_ip_address();
-        this->netmask = this->configuration->get_netmask();
-        this->gateway = this->configuration->get_gateway();
-    } else {
-        this->useDHCP = true;
-    }
 
     ESP_ERROR_CHECK( esp_event_handler_register(ETH_EVENT, ESP_EVENT_ANY_ID, &EthernetConnection::sOnEthEvent, this) );
     ESP_ERROR_CHECK( esp_event_handler_register(IP_EVENT, IP_EVENT_ETH_GOT_IP, &EthernetConnection::sOnGotIp, this) );
 
+    // Here read the config info from flash.
+    // If there is no config info, then use DHCP.
+    // If there is config info, then use it.
+    ret = this->configuration->load();
+    if (ret != ESP_OK || !this->configuration->is_configured()) {
+        this->useDHCP = true;
+        return ESP_OK;
+    }
 
-    this->useDHCP = true;
-    this->on();
+    this->isEnabled = this->configuration->is_enabled();
+    this->isConnected = false;
 
-    return res;
+    // this->ipAddress = this->configuration->get_ip_address();
+    // this->netmask = this->configuration->get_netmask();
+    // this->gateway = this->configuration->get_gateway();
+
+    if (this->isEnabled) {
+        ret = this->on();
+    }
+
+    return ret;
 }
 
 //*****************************************************************************
@@ -52,46 +56,113 @@ esp_err_t EthernetConnection::initialize(esp_eth_handle_t* eth_handle) {
  * @return esp_err_t 
  */
 esp_err_t EthernetConnection::on(void) {
-    
-    esp_err_t res = esp_eth_start(eth_handle);
-    if (res == ESP_OK) {
-        ESP_LOGI(TAG, "Ethernet Started");
-        isActive = true;
+    esp_err_t ret = ESP_OK;
+    esp_netif_dhcp_status_t status = ESP_NETIF_DHCP_INIT;
+    esp_netif_t * netif = this->interface->get_netif();
+
+    if (this->is_connected()) { return ESP_ERR_INVALID_STATE; }
+
+    ESP_LOGI(TAG, "Turning on ethernet");
+    ESP_GOTO_ON_ERROR(esp_eth_start(eth_handle), err, TAG, "Failed to start ethernet");
+    ESP_GOTO_ON_ERROR(esp_netif_dhcpc_get_status(netif, &status), err, TAG, "Failed to get DHCP status err: %d", err_rc_);
+
+    if (!this->configuration->is_dhcp_enabled()) {
+        esp_netif_ip_info_t info;
+        ESP_LOGI(TAG, "USING_STATIC_IP");
+
+        info.ip = this->configuration->get_ip_address();
+        info.netmask = this->configuration->get_netmask();
+        info.gw = this->configuration->get_gateway();
+
+        ESP_GOTO_ON_ERROR(esp_netif_dhcpc_get_status(netif, &status), err, TAG, "Failed to get DHCP status");
+        if (status == ESP_NETIF_DHCP_STARTED || status == ESP_NETIF_DHCP_INIT) {
+            ESP_GOTO_ON_ERROR(esp_netif_dhcpc_stop(netif), err, TAG, "Failed to stop DHCP");
+        }
+        ESP_GOTO_ON_ERROR(esp_netif_set_ip_info(netif, &info), err, TAG, "Failed to set IP info");
+
+        this->useDHCP = false;
+        //ESP_ERROR_CHECK(set_esp_interface_dns(this->netIf, config.ip_config.primarydns, config.ip_config.secondarydns));
     } else {
-        ESP_LOGE(TAG, "Ethernet Start Failed");
+        ESP_LOGI(TAG, "Starting dhcp");
+        if (status == ESP_NETIF_DHCP_STOPPED) {
+            ESP_GOTO_ON_ERROR(esp_netif_dhcpc_start(netif), err, TAG, "Failed to start DHCP");
+        }
+        this->useDHCP = true;
     }
-    return res;
+
+err:
+    return ret;
 }
 
 esp_err_t EthernetConnection::off(void) {
-    isActive = false;
+    ESP_LOGI(TAG, "Turning off ethernet");
+    this->isConnected = false;
     return esp_eth_stop(eth_handle);
 }
 
 esp_err_t EthernetConnection::set_network_info(uint32_t ip, uint32_t netmask, uint32_t gateway) {
-    return ESP_OK;
+    esp_err_t ret = ESP_OK;
+    if (this->is_connected()) { this->off(); }
+
+    esp_ip4_addr_t eip = {ip};
+    esp_ip4_addr_t enetmask = {netmask};
+    esp_ip4_addr_t egateway = {gateway};
+
+    this->configuration->set_ip_address(eip);
+    this->configuration->set_netmask(enetmask);
+    this->configuration->set_gateway(egateway);
+    this->configuration->set_dhcp_enabled(false);
+
+    ESP_GOTO_ON_ERROR(this->configuration->save(), err, TAG, "Failed to save configuration");
+    return this->on();
+err:
+    return ret;
 }
 
 esp_err_t EthernetConnection::use_dhcp(bool use) {
-    return ESP_OK;
+    esp_err_t ret = ESP_OK;
+    if (this->is_connected()) { this->off(); }
+
+    this->configuration->set_dhcp_enabled(use);
+    ESP_GOTO_ON_ERROR(this->configuration->save(), err, TAG, "Failed to save configuration");
+    return this->on();
+err:
+    return ret;
 }
 
+esp_err_t EthernetConnection::set_enabled(bool enabled) {
+    esp_err_t ret = ESP_OK;
+    if (this->is_connected()) { this->off(); }
 
-void EthernetConnection::onGotIp(esp_event_base_t event_base, int32_t event_id, void *event_data)
-{
+    this->isEnabled = enabled;
+    this->configuration->set_enabled(enabled);
+    ESP_GOTO_ON_ERROR(this->configuration->save(), err, TAG, "Failed to save configuration");
+
+    if (this->isEnabled) {
+        ret = this->on();
+    }
+
+err:
+    return ret;
+}
+
+void EthernetConnection::onGotIp(esp_event_base_t event_base, int32_t event_id, void *event_data) {
     ip_event_got_ip_t *event = (ip_event_got_ip_t *) event_data;
     const esp_netif_ip_info_t *ip_info = &event->ip_info;
-    this->ipAddress = ip_info->ip;
-    this->netmask = ip_info->netmask;
-    this->gateway = ip_info->gw;
-    this->isConnected = true;
 
-    ESP_LOGI(TAG, "Ethernet Got IP Address");
-    ESP_LOGI(TAG, "~~~~~~~~~~~");
-    ESP_LOGI(TAG, "ETHIP:" IPSTR, IP2STR(&this->ipAddress));
-    ESP_LOGI(TAG, "ETHMASK:" IPSTR, IP2STR(&ip_info->netmask));
-    ESP_LOGI(TAG, "ETHGW:" IPSTR, IP2STR(&ip_info->gw));
-    ESP_LOGI(TAG, "~~~~~~~~~~~");
+    if (event->ip_changed) {
+        this->ipAddress = ip_info->ip;
+        this->netmask = ip_info->netmask;
+        this->gateway = ip_info->gw;
+        this->isConnected = true;
+
+        ESP_LOGI(TAG, "Ethernet Got IP Address");
+        ESP_LOGI(TAG, "~~~~~~~~~~~");
+        ESP_LOGI(TAG, "ETHIP:" IPSTR, IP2STR(&this->ipAddress));
+        ESP_LOGI(TAG, "ETHMASK:" IPSTR, IP2STR(&ip_info->netmask));
+        ESP_LOGI(TAG, "ETHGW:" IPSTR, IP2STR(&ip_info->gw));
+        ESP_LOGI(TAG, "~~~~~~~~~~~");
+    }
 }
 
 void EthernetConnection::onEthEvent(esp_event_base_t event_base, int32_t event_id, void *event_data)
@@ -119,14 +190,12 @@ void EthernetConnection::onEthEvent(esp_event_base_t event_base, int32_t event_i
 
 void EthernetConnection::sOnGotIp(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data)
 {
-    ESP_LOGI(TAG, "Wi-Fi got ip.");
     EthernetConnection *theThis = static_cast<EthernetConnection *>(arg);
     theThis->onGotIp(event_base, event_id, event_data);
 }
 
 void EthernetConnection::sOnEthEvent(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data)
 {
-    ESP_LOGI(TAG, "Wi-Fi disconnected, trying to reconnect...");
     EthernetConnection *theThis = static_cast<EthernetConnection *>(arg);
     theThis->onEthEvent(event_base, event_id, event_data);
 }

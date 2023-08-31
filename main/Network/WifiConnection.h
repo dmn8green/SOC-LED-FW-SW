@@ -25,6 +25,7 @@ public:
 
     virtual esp_err_t set_network_info(uint32_t ip, uint32_t netmask, uint32_t gateway) override;
     virtual esp_err_t use_dhcp(bool use) override;
+    virtual esp_err_t set_enabled(bool enabled) override {return ESP_OK;};
 
     void set_credentials(const wifi_creds_t& creds) { this->wifi_creds = creds; }
 

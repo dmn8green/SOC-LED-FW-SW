@@ -58,6 +58,10 @@ esp_err_t NetworkConfiguration::load() {
     ESP_GET_VALUE("netmask", this->netmask);
     ESP_GET_VALUE("gateway", this->gateway);
 
+    ESP_LOGI(TAG, "  %-20s: " IPSTR, "IP Address", IP2STR(&this->ipAddress));
+    ESP_LOGI(TAG, "  %-20s: " IPSTR, "Netmask"   , IP2STR(&this->netmask));
+    ESP_LOGI(TAG, "  %-20s: " IPSTR, "Gateway"   , IP2STR(&this->gateway));
+
     res = this->load_extra(store);
     if (res != ESP_OK) {
         ESP_LOGE(TAG, "Failed to load extra");
@@ -76,6 +80,10 @@ esp_err_t NetworkConfiguration::save() {
         ESP_LOGE(TAG, "Failed to open eth config store");
         return false;
     }
+
+    ESP_LOGI(TAG, "  %-20s: " IPSTR, "IP Address", IP2STR(&this->ipAddress));
+    ESP_LOGI(TAG, "  %-20s: " IPSTR, "Netmask"   , IP2STR(&this->netmask));
+    ESP_LOGI(TAG, "  %-20s: " IPSTR, "Gateway"   , IP2STR(&this->gateway));
 
     // No commit until we are all done.
     ESP_SET_VALUE("enabled", this->isEnabled, false);

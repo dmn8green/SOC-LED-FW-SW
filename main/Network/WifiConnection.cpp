@@ -64,12 +64,19 @@ esp_err_t WifiConnection::use_dhcp(bool use) {
     return ESP_OK;
 }
 
+// bool WifiStationConnection::isOurNetif(const char *prefix, esp_netif_t *netif)
+// {
+//     return strncmp(prefix, esp_netif_get_desc(netif), strlen(prefix) - 1) == 0;
+// }
+
 void WifiConnection::onGotIp(esp_event_base_t event_base, int32_t event_id, void *event_data)
 {
     ip_event_got_ip_t *event = (ip_event_got_ip_t *) event_data;
     const esp_netif_ip_info_t *ip_info = &event->ip_info;
 
-    ESP_LOGI(TAG, "Ethernet Got IP Address");
+    ESP_LOGI(TAG, "Interface is %s", esp_netif_get_desc(event->esp_netif));
+
+    ESP_LOGI(TAG, "Wifi Got IP Address");
     ESP_LOGI(TAG, "~~~~~~~~~~~");
     ESP_LOGI(TAG, "ETHIP:" IPSTR, IP2STR(&ip_info->ip));
     ESP_LOGI(TAG, "ETHMASK:" IPSTR, IP2STR(&ip_info->netmask));

@@ -2,6 +2,7 @@
     "files.associations": {
         "*.symlink": "shellscript",
         "led_strip_encoder.h": "c",
-        "string": "cpp"
+        "string": "cpp",
+        "regex": "cpp"
     }
 }

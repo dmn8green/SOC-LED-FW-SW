@@ -14,7 +14,7 @@ public:
     virtual esp_err_t off(void) = 0;
 
     inline bool is_connected() { return this->isConnected; }
-    inline bool is_active() { return this->isActive; }
+    inline bool is_enabled() { return this->isEnabled; }
     inline bool is_dhcp() { return this->useDHCP; }
     inline esp_ip4_addr_t get_ip_address(void) { return this->ipAddress; }
     inline esp_ip4_addr_t get_netmask(void) { return this->netmask; }
@@ -22,9 +22,10 @@ public:
 
     virtual esp_err_t set_network_info(uint32_t ip, uint32_t netmask, uint32_t gateway) = 0;
     virtual esp_err_t use_dhcp(bool use) = 0;
+    virtual esp_err_t set_enabled(bool enabled) = 0;
 
 protected:
-    bool isActive = false;
+    bool isEnabled = false;
     bool isConnected = false;
     bool useDHCP = true;
     esp_ip4_addr_t ipAddress;
