@@ -48,8 +48,7 @@ esp_err_t WifiConnection::on_initialize(void) {
     // is_configured flag guarantees that the ssid and password are valid and not null.
     WifiConfiguration* config = (WifiConfiguration*)this->configuration;
     if (config->is_configured()) {
-        strlcpy((char *) this->wifi_creds.ssid, (const char*) config->get_ssid(), sizeof(this->wifi_creds.ssid));
-        strlcpy((char *) this->wifi_creds.password, (const char*) config->get_password(), sizeof(this->wifi_creds.password));
+        this->wifi_creds = config->get_wifi_creds();
     }
 
     return ret;
@@ -105,6 +104,7 @@ esp_err_t WifiConnection::set_credentials(const wifi_creds_t& creds) {
     }
     
     this->wifi_creds = creds;
+    config->set_wifi_creds(creds);
     ESP_GOTO_ON_ERROR(this->configuration->save(), err, TAG, "Failed to save configuration");
 
     ESP_GOTO_ON_ERROR(this->on(), err, TAG, "Failed to turn on wifi");
