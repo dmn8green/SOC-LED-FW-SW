@@ -1,8 +1,10 @@
 #pragma once
 
 #include "Network/NetworkInterface.h"
-#include "Network/WifiConnection.h"
-#include "Network/EthConnection.h"
+#include "Network/Connection/WifiConnection.h"
+#include "Network/Configuration/WifiConfiguration.h"
+#include "Network/Connection/EthConnection.h"
+#include "Network/Configuration/EthConfiguration.h"
 
 #include "Utils/Singleton.h"
 
@@ -43,8 +45,10 @@ private:
 private:
     NetworkInterface* wifi_interface = nullptr;
     WifiConnection* wifi_connection = nullptr;
+    WifiConfiguration* wifi_config = nullptr;
 
     NetworkInterface* ethernet_interface = nullptr;
+    NetworkConfiguration* ethernet_config = nullptr;
     EthernetConnection* ethernet_connection = nullptr;
 
     esp_eth_handle_t *eth_handle;

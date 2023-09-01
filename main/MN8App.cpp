@@ -1,6 +1,6 @@
 #include "MN8App.h"
 
-#include "Network/ethernet_init.h"
+#include "Network/Utils/ethernet_init.h"
 
 #include "esp_log.h"
 #include "esp_chip_info.h"
@@ -105,7 +105,6 @@ esp_err_t MN8App::setup_wifi_connection(void) {
     // esp_netif_t* sta_netif = esp_netif_create_default_wifi_sta();
 
     esp_netif_inherent_config_t esp_netif_config = ESP_NETIF_INHERENT_DEFAULT_WIFI_STA();
-
     esp_netif_config.if_desc = "BOO";
     esp_netif_config.route_prio = 128;
     esp_netif_t* sta_netif = esp_netif_create_wifi(WIFI_IF_STA, &esp_netif_config);
@@ -114,7 +113,7 @@ esp_err_t MN8App::setup_wifi_connection(void) {
         ESP_LOGE(__func__, "Failed to create default wifi sta interface");
         return ESP_FAIL;
     }
-    
+
     this->wifi_interface = new NetworkInterface(sta_netif);
     if (!this->wifi_interface) {
         ESP_LOGE(__func__, "Failed to create wifi interface");
@@ -131,7 +130,8 @@ esp_err_t MN8App::setup_wifi_connection(void) {
         this->wifi_interface->get_mac_address()[5]
     );
 
-    this->wifi_connection = new WifiConnection(this->wifi_interface);
+    this->wifi_config = new WifiConfiguration();
+    this->wifi_connection = new WifiConnection(this->wifi_interface, this->wifi_config);
     if (!this->wifi_connection) {
         ESP_LOGE(__func__, "Failed to create wifi connection");
         return ESP_FAIL;
@@ -144,25 +144,40 @@ esp_err_t MN8App::setup_wifi_connection(void) {
 
 //*****************************************************************************
 esp_err_t MN8App::setup_ethernet_connection(void) {
-    esp_netif_config_t cfg = ESP_NETIF_DEFAULT_ETH();
+
+    esp_netif_inherent_config_t esp_netif_config = ESP_NETIF_INHERENT_DEFAULT_ETH();
+
+    esp_netif_config_t cfg = {
+        .base = &esp_netif_config,
+        .driver = NULL,
+        .stack = ESP_NETIF_NETSTACK_DEFAULT_ETH,
+    };
+    
     esp_netif_t *eth_netif = esp_netif_new(&cfg);
+    ESP_LOGI(__func__, "if %p", eth_netif);
 
     // Attach Ethernet driver to TCP/IP stack
     ESP_ERROR_CHECK(esp_netif_attach(eth_netif, esp_eth_new_netif_glue(this->eth_handle)));
-    
+    ESP_LOGI(__func__, "if %p", eth_netif);
+
     this->ethernet_interface = new NetworkInterface(eth_netif);
     if (!this->ethernet_interface) {
         ESP_LOGE(__func__, "Failed to create ethernet interface");
         return ESP_FAIL;
     }
+    ESP_LOGI(__func__, "oif is %p", this->ethernet_interface);
+    ESP_LOGI(__func__, "netif is %p", this->ethernet_interface->get_netif());
 
-    this->ethernet_connection = new EthernetConnection(this->ethernet_interface);
+
+    this->ethernet_config = new EthernetConfiguration();
+    this->ethernet_connection = new EthernetConnection(this->ethernet_interface, this->ethernet_config, this->eth_handle);
+    ESP_LOGI(__func__, "st is %p", this->ethernet_connection);
     if (!this->ethernet_connection) {
         ESP_LOGE(__func__, "Failed to create ethernet connection");
         return ESP_FAIL;
     }
 
-    this->ethernet_connection->initialize(this->eth_handle);
+    this->ethernet_connection->initialize();
 
 
     return ESP_OK;

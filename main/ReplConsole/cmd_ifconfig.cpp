@@ -5,6 +5,7 @@
 #include <unistd.h>
 
 #include "esp_log.h"
+#include "esp_netif.h"
 #include "esp_console.h"
 #include "esp_chip_info.h"
 #include "esp_sleep.h"
@@ -20,7 +21,7 @@
 
 #include "sdkconfig.h"
 
-#include "Network/Connection.h"
+#include "Network/Connection/Connection.h"
 #include "MN8App.h"
 
 // ifconfig interface up/down
@@ -43,9 +44,13 @@ static void print_interface_information(Connection *connection)
 {
     printf("\nInterface information:\n");
     printf("  %-20s: %s\n", "Interface", connection->get_name());
-    printf("  %-20s: %s\n", "Active", connection->is_active() ? "true" : "false");
-    printf("  %-20s: %s\n", "Connected", connection->is_connected() ? "true" : "false");
-    printf("  %-20s: %s\n", "DHCP", connection->is_dhcp() ? "true" : "false");
+    printf("  %-20s: %s\n", "Is Up", connection->is_enabled() ? "Yes" : "No");
+
+    if (connection->is_enabled()) {
+        printf("\nCurrent connection state:\n");
+        printf("  %-20s: %s\n", "Connected", connection->is_connected() ? "Yes" : "No");
+        printf("  %-20s: %s\n", "DHCP", connection->is_dhcp() ? "Yes" : "No");
+    }
 
     if (connection->is_connected()) {
         esp_ip4_addr_t ip = connection->get_ip_address();
@@ -56,15 +61,21 @@ static void print_interface_information(Connection *connection)
         printf("  %-20s: " IPSTR "\n", "Netmask", IP2STR(&netmask));
         printf("  %-20s: " IPSTR "\n", "Gateway", IP2STR(&gateway));
     }
+
+    printf("\nCurrent connection saved settings:\n");
+    connection->dump_config();
+
     printf("~~~~~~~~~~~\n");
 }
 
 typedef enum {
     e_print_interface_information_op,
-    e_set_interface_up_op,
-    e_set_interface_down_op,
-    e_set_interface_dhcp_op,
-    e_set_interface_manual_op,
+    e_interface_up_op,
+    e_interface_down_op,
+    e_interface_dhcp_op,
+    e_interface_manual_op,
+    e_interface_reset_conf_op,
+    e_interface_dump_conf_op,
     e_unknown_op
 } operation_t;
 
@@ -89,6 +100,12 @@ static bool is_cmd_valid(const char *cmd)
     if (STR_IS_EQUAL(cmd, "dhcp") || STR_IS_EQUAL(cmd, "manual")) {
         return true;
     }
+
+    // secret commands
+    if (STR_IS_EQUAL(cmd, "reset") || STR_IS_EQUAL(cmd, "dump_conf")) {
+        return true;
+    }
+
     return false;
 }
 
@@ -120,47 +137,65 @@ static operation_t infer_operation_from_args(void) {
         return e_unknown_op;
     }
 
-    if (STR_IS_EQUAL(command, "up"))   { return e_set_interface_up_op; }
-    if (STR_IS_EQUAL(command, "down")) { return e_set_interface_down_op; }
-    if (STR_IS_EQUAL(command, "dhcp")) { return e_set_interface_dhcp_op; }
+    if (STR_IS_EQUAL(command, "up"))         { return e_interface_up_op; }
+    if (STR_IS_EQUAL(command, "down"))       { return e_interface_down_op; }
+    if (STR_IS_EQUAL(command, "dhcp"))       { return e_interface_dhcp_op; }
+    if (STR_IS_EQUAL(command, "reset"))      { return e_interface_reset_conf_op; }
+    if (STR_IS_EQUAL(command, "dump_conf"))  { return e_interface_dump_conf_op; }
 
     if (STR_IS_EQUAL(command, "manual")) {
         if (STR_IS_EMPTY(ip) || STR_IS_EMPTY(netmask) || STR_IS_EMPTY(gateway)) {
             printf("ERROR: IP, netmask and gateway must be specified for manual configuration");
             return e_unknown_op;
         }
-        return e_set_interface_manual_op;
+
+        return e_interface_manual_op;
     }
 
     return e_unknown_op;
 }
 
 //*****************************************************************************
-static int op_set_interface_up(Connection *connection)
+static int op_interface_up(Connection *connection)
 {
     printf("Turning on interface %s\n", connection->get_name());
-    return (connection->on() == ESP_OK) ? 0 : 1;
+    return (connection->up(true) == ESP_OK) ? 0 : 1;
 }
 
 //*****************************************************************************
-static int op_set_interface_down(Connection *connection)
+static int op_interface_down(Connection *connection)
 {
     printf("Turning off interface %s\n", connection->get_name());
-    return (connection->off() == ESP_OK) ? 0 : 1;
+    return (connection->down(true) == ESP_OK) ? 0 : 1;
 }
 
 //*****************************************************************************
-static int op_set_interface_dhcp(Connection *connection)
+static int op_interface_dhcp(Connection *connection)
 {
     printf("Turning on dhcp on interface %s\n", connection->get_name());
     return (connection->use_dhcp(true) == ESP_OK) ? 0 : 1;
 }
 
 //*****************************************************************************
-static int op_set_interface_manual(Connection *connection)
+static int op_interface_reset_conf(Connection *connection)
+{
+    printf("Reseting configuration for interface %s\n", connection->get_name());
+    return (connection->reset_config() == ESP_OK) ? 0 : 1;
+}
+
+//*****************************************************************************
+static int op_interface_dump_conf(Connection *connection)
+{
+    printf("Dumping configuration for interface %s\n", connection->get_name());
+    return (connection->dump_config() == ESP_OK) ? 0 : 1;
+}
+
+
+//*****************************************************************************
+static int op_interface_manual(Connection *connection)
 {
 #define IPSTR_TO_ESPIP(ipstr, espip, msg) \
-    if (ipaddr_aton(ipstr, &ip_addr) == 0) { \
+    if (ip4addr_aton(ipstr, &espip) == 0) { \
         printf(msg " %s\n", ipstr); \
         return 1; \
     } 
@@ -169,24 +204,29 @@ static int op_set_interface_manual(Connection *connection)
     const char * netmask_str = ifconfig_args.netmask->sval[0];
     const char * gateway_str = ifconfig_args.gateway->sval[0];
 
-    #pragma GCC diagnostic pop "-Wmissing-field-initializers" 
-    #pragma GCC diagnostic ignored "-Wmissing-field-initializers" 
-    ip_addr_t ip_addr = { 0 };
-    ip_addr_t netmask_addr = { 0 };
-    ip_addr_t gateway_addr = { 0 };
-    #pragma GCC diagnostic push "-Wmissing-field-initializers" 
+    ip4_addr_t ip_addr = { 0 };
+    ip4_addr_t netmask_addr = { 0 };
+    ip4_addr_t gateway_addr = { 0 };
 
     IPSTR_TO_ESPIP(ip_str,      ip_addr,      "Invalid IP address")
     IPSTR_TO_ESPIP(netmask_str, netmask_addr, "Invalid netmask")
     IPSTR_TO_ESPIP(gateway_str, gateway_addr, "Invalid gateway")
 
+    printf("  %-20s: %s\n", "IP Address", ip_str);
+    printf("  %-20s: %s\n", "Netmask"   , netmask_str);
+    printf("  %-20s: %s\n", "Gateway"   , gateway_str);
+
+    printf("  %-20s: %08lx\n", "IP Address4", ip_addr.addr);
+    printf("  %-20s: %08lx\n", "Netmask4"   , netmask_addr.addr);
+    printf("  %-20s: %08lx\n", "Gateway4"   , gateway_addr.addr);
+
+
     printf("Setting manual configuration on interface %s\n", connection->get_name());
     connection->set_network_info(
-        ip_addr.u_addr.ip4.addr,
-        netmask_addr.u_addr.ip4.addr,
-        gateway_addr.u_addr.ip4.addr
+        ip_addr.addr,
+        netmask_addr.addr,
+        gateway_addr.addr
     );
-    connection->use_dhcp(false);
     return 0;
 }
 
@@ -210,23 +250,18 @@ static int ifconfig_cmd(int argc, char **argv)
         arg_print_errors(stderr, ifconfig_args.end, argv[0]);
         return 1;
     }
-
-    printf("ifconfig: interface=%s, command=%s, ip=%s, netmask=%s, gateway=%s\n",
-        ifconfig_args.interface->sval[0],
-        ifconfig_args.command->sval[0],
-        ifconfig_args.ip->sval[0],
-        ifconfig_args.netmask->sval[0],
-        ifconfig_args.gateway->sval[0]);
         
     Connection *connection = MN8App::instance().get_connection(ifconfig_args.interface->sval[0]);
 
     operation_t op = infer_operation_from_args();
     switch (op) {
         case e_print_interface_information_op: return print_interface_information_op(connection);
-        case e_set_interface_up_op:            return op_set_interface_up(connection);
-        case e_set_interface_down_op:          return op_set_interface_down(connection);
-        case e_set_interface_dhcp_op:          return op_set_interface_dhcp(connection);
-        case e_set_interface_manual_op:        return op_set_interface_manual(connection);
+        case e_interface_up_op:            return op_interface_up(connection);
+        case e_interface_down_op:          return op_interface_down(connection);
+        case e_interface_dhcp_op:          return op_interface_dhcp(connection);
+        case e_interface_manual_op:        return op_interface_manual(connection);
+        case e_interface_reset_conf_op:    return op_interface_reset_conf(connection);
+        case e_interface_dump_conf_op:     return op_interface_dump_conf(connection);
         case e_unknown_op:
             printf("Unknown operation\n");
             return 1;
@@ -239,19 +274,21 @@ static int ifconfig_cmd(int argc, char **argv)
 void register_ifconfig(void)
 {
     ifconfig_args.interface = arg_str0(NULL, NULL, "<eth/wifi>", "Which interface to configure");
-    ifconfig_args.command   = arg_str0(NULL, NULL, "<up/down/dhcp/manual>", "Command to execute");
+    ifconfig_args.command   = arg_str0(NULL, NULL, "<up/down/dhcp/manual/reset>", "Command to execute");
     ifconfig_args.ip        = arg_str0(NULL, NULL, "<ip>", "IP address");
     ifconfig_args.netmask   = arg_str0(NULL, NULL, "<netmask>", "Netmask");
     ifconfig_args.gateway   = arg_str0(NULL, NULL, "<gateway>", "Gateway");
     ifconfig_args.end       = arg_end(5);
 
+    #pragma GCC diagnostic pop "-Wmissing-field-initializers" 
     #pragma GCC diagnostic ignored "-Wmissing-field-initializers" 
     const esp_console_cmd_t cmd = {
         .command = "ifconfig",
-        .help = "Get information about network interfaces (wifi/ethernet)",
+        .help = "Operate on network interfaces (wifi/ethernet)",
         .hint = NULL,
         .func = &ifconfig_cmd,
         .argtable = &ifconfig_args
     };
+    #pragma GCC diagnostic push "-Wmissing-field-initializers" 
     ESP_ERROR_CHECK( esp_console_cmd_register(&cmd) );
 }
