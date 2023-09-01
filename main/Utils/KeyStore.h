@@ -48,7 +48,7 @@ public:
     esp_err_t setKeyValue(const char *keyName, wifi_mode_t value, bool commit = true);
     esp_err_t setKeyValue(const char *keyName, wifi_auth_mode_t value, bool commit = true);
 
-    esp_err_t eraseKey(const char *keyName);
+    esp_err_t eraseKey(const char *keyName, bool commit = true);
 
     esp_err_t commit(void);
 

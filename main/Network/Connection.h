@@ -12,6 +12,9 @@ public:
 
     virtual const char* get_name(void) = 0;
 
+    esp_err_t reset_config(void);
+    esp_err_t dump_config(void);
+
     virtual esp_err_t initialize(void);
     virtual esp_err_t on(void) = 0;
     virtual esp_err_t off(void) = 0;

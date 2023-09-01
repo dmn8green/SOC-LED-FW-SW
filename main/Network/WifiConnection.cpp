@@ -10,10 +10,17 @@
 
 static const char *TAG = "mn8_wifi";
 
+WifiConnection::WifiConnection(NetworkInterface* interface, WifiConfiguration* configuration) 
+    : Connection(interface, configuration)
+{
+    memset(&this->wifi_creds, 0, sizeof(this->wifi_creds));
+}
+
+
 esp_err_t WifiConnection::on_initialize(void) {
     esp_err_t ret = ESP_OK;
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
-    
+
     ret = esp_wifi_init(&cfg);
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Failed to initialize wifi");
@@ -48,30 +55,91 @@ esp_err_t WifiConnection::on_initialize(void) {
     // is_configured flag guarantees that the ssid and password are valid and not null.
     WifiConfiguration* config = (WifiConfiguration*)this->configuration;
     if (config->is_configured()) {
-        this->wifi_creds = config->get_wifi_creds();
+        memcpy(&this->wifi_creds, &config->get_wifi_creds(), sizeof(this->wifi_creds));
     }
 
     return ret;
 }
 
 esp_err_t WifiConnection::on(void) {
-    return esp_wifi_start();
+    esp_err_t ret = ESP_OK;
+
+    if (!this->is_enabled()) {
+        ESP_LOGE(TAG, "Wifi interface is not enabled");
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    if (this->is_connected()) {
+        ESP_LOGE(TAG, "Wifi is already connected");
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    ESP_GOTO_ON_ERROR(esp_wifi_start(), err, TAG, "Failed to start wifi");
+
+    this->useDHCP = this->configuration->is_dhcp_enabled();
+    this->interface->use_dhcp(this->useDHCP);
+
+    if (!this->useDHCP) {
+        this->interface->set_network_info(
+            this->configuration->get_ip_address(), 
+            this->configuration->get_netmask(), 
+            this->configuration->get_gateway()
+        );
+    }
+
+    if (this->wifi_creds.ssid[0] != 0) {
+        this->join();
+    }
+
+
+err:
+    return ret;
 }
 
 esp_err_t WifiConnection::off(void) {
-    return esp_wifi_stop();
+    esp_err_t ret = ESP_OK;
+
+    if (!this->is_enabled()) {
+        ESP_LOGE(TAG, "Wifi interface is not enabled");
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    if (this->is_connected()) {
+        ESP_GOTO_ON_ERROR(this->leave(), err, TAG, "Failed to disconnect from wifi");
+    }
+
+    ESP_GOTO_ON_ERROR(esp_wifi_stop(), err, TAG, "Failed to stop wifi");
+
+err:
+    return ret;
 }
 
-esp_err_t WifiConnection::connect(void) {
+esp_err_t WifiConnection::join(void) {
+
+    if (!this->wifi_creds.ssid[0]) {
+        ESP_LOGE(TAG, "No SSID configured");
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    if (!this->is_enabled()) {
+        ESP_LOGE(TAG, "Wifi interface is not enabled");
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    if (this->is_connected()) {
+        ESP_LOGE(TAG, "Wifi is already connected");
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    // wifi_config.sta.scan_method = WIFI_ALL_CHANNEL_SCAN;     // WIFI_ALL_CHANNEL_SCAN or WIFI_FAST_SCAN
+    // wifi_config.sta.sort_method = WIFI_CONNECT_AP_BY_SIGNAL; // WIFI_CONNECT_AP_BY_SIGNAL or WIFI_CONNECT_AP_BY_SECURITY
+    // wifi_config.sta.threshold.rssi = -127;
+
     #pragma GCC diagnostic pop "-Wmissing-field-initializers" 
     #pragma GCC diagnostic ignored "-Wmissing-field-initializers" 
     wifi_config_t wifi_config = { 0 };
     #pragma GCC diagnostic push "-Wmissing-field-initializers" 
 
-    // wifi_config.sta.scan_method = WIFI_ALL_CHANNEL_SCAN;     // WIFI_ALL_CHANNEL_SCAN or WIFI_FAST_SCAN
-    // wifi_config.sta.sort_method = WIFI_CONNECT_AP_BY_SIGNAL; // WIFI_CONNECT_AP_BY_SIGNAL or WIFI_CONNECT_AP_BY_SECURITY
-    // wifi_config.sta.threshold.rssi = -127;
-    
     strlcpy((char *) wifi_config.sta.ssid, (const char*) this->wifi_creds.ssid, sizeof(wifi_config.sta.ssid));
     strlcpy((char *) wifi_config.sta.password, (const char*) this->wifi_creds.password, sizeof(wifi_config.sta.password));
 
@@ -79,7 +147,12 @@ esp_err_t WifiConnection::connect(void) {
     return esp_wifi_connect();
 }
 
-esp_err_t WifiConnection::disconnect(void) {
+esp_err_t WifiConnection::leave(void) {
+    if (!this->is_connected()) {
+        ESP_LOGE(TAG, "Wifi is not connected");
+        return ESP_ERR_INVALID_STATE;
+    }
+
     return esp_wifi_disconnect();
 }
 
@@ -98,17 +171,13 @@ esp_err_t WifiConnection::set_credentials(const wifi_creds_t& creds) {
     esp_err_t ret = ESP_OK;
     WifiConfiguration* config = (WifiConfiguration*)this->configuration;
 
-    if (this->is_connected()) { 
-        this->disconnect(); 
-        this->off();
-    }
+    if (this->is_enabled()) { this->off(); }
     
     this->wifi_creds = creds;
     config->set_wifi_creds(creds);
     ESP_GOTO_ON_ERROR(this->configuration->save(), err, TAG, "Failed to save configuration");
 
     ESP_GOTO_ON_ERROR(this->on(), err, TAG, "Failed to turn on wifi");
-    ESP_GOTO_ON_ERROR(this->connect(), err, TAG, "Failed to attempt to connect to wifi");
 
 err:
     return ret;
@@ -120,6 +189,10 @@ void WifiConnection::onGotIp(esp_event_base_t event_base, int32_t event_id, void
     const esp_netif_ip_info_t *ip_info = &event->ip_info;
 
     ESP_LOGI(TAG, "Interface is %s", esp_netif_get_desc(event->esp_netif));
+    this->ipAddress = ip_info->ip;
+    this->netmask = ip_info->netmask;
+    this->gateway = ip_info->gw;
+    this->isConnected = true;
 
     ESP_LOGI(TAG, "Wifi Got IP Address");
     ESP_LOGI(TAG, "~~~~~~~~~~~");
@@ -136,6 +209,8 @@ void WifiConnection::onGotIp(esp_event_base_t event_base, int32_t event_id, void
 void WifiConnection::onWifiDisconnect(esp_event_base_t event_base, int32_t event_id, void *event_data)
 {
     wifi_event_sta_disconnected_t *event = (wifi_event_sta_disconnected_t *)event_data;
+    this->isConnected = false;
+
     //ESP_LOGI(TAG, "Wi-Fi disconnected, trying to reconnect... %d, %d", event_id, (uint32_t)event->reason);
     // this->lastRSSI = 0;  // Reset stored RSSI readings
     // this->lastNoise = 0; // Reset stored Noise readings
@@ -151,7 +226,7 @@ void WifiConnection::sOnGotIp(void *arg, esp_event_base_t event_base, int32_t ev
 
 void WifiConnection::sOnWifiDisconnect(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data)
 {
-    ESP_LOGI(TAG, "Wi-Fi disconnected, trying to reconnect...");
+    ESP_LOGI(TAG, "Wi-Fi disconnected");
     WifiConnection *theThis = static_cast<WifiConnection *>(arg);
     theThis->onWifiDisconnect(event_base, event_id, event_data);
 }

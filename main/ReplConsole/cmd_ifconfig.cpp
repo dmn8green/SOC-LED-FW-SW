@@ -70,12 +70,14 @@ static void print_interface_information(Connection *connection)
 
 typedef enum {
     e_print_interface_information_op,
-    e_set_interface_up_op,
-    e_set_interface_down_op,
-    e_set_interface_enable_op,
-    e_set_interface_disable_op,
-    e_set_interface_dhcp_op,
-    e_set_interface_manual_op,
+    e_interface_up_op,
+    e_interface_down_op,
+    e_interface_enable_op,
+    e_interface_disable_op,
+    e_interface_dhcp_op,
+    e_interface_manual_op,
+    e_interface_reset_conf_op,
+    e_interface_dump_conf_op,
     e_unknown_op
 } operation_t;
 
@@ -103,6 +105,12 @@ static bool is_cmd_valid(const char *cmd)
     if (STR_IS_EQUAL(cmd, "enable") || STR_IS_EQUAL(cmd, "disable")) {
         return true;
     }
+
+    // secret commands
+    if (STR_IS_EQUAL(cmd, "reset_conf") || STR_IS_EQUAL(cmd, "dump_conf")) {
+        return true;
+    }
+
     return false;
 }
 
@@ -134,11 +142,13 @@ static operation_t infer_operation_from_args(void) {
         return e_unknown_op;
     }
 
-    if (STR_IS_EQUAL(command, "up"))   { return e_set_interface_up_op; }
-    if (STR_IS_EQUAL(command, "down")) { return e_set_interface_down_op; }
-    if (STR_IS_EQUAL(command, "dhcp")) { return e_set_interface_dhcp_op; }
-    if (STR_IS_EQUAL(command, "enable")) { return e_set_interface_enable_op; }
-    if (STR_IS_EQUAL(command, "disable")) { return e_set_interface_disable_op; }
+    if (STR_IS_EQUAL(command, "up"))         { return e_interface_up_op; }
+    if (STR_IS_EQUAL(command, "down"))       { return e_interface_down_op; }
+    if (STR_IS_EQUAL(command, "dhcp"))       { return e_interface_dhcp_op; }
+    if (STR_IS_EQUAL(command, "enable"))     { return e_interface_enable_op; }
+    if (STR_IS_EQUAL(command, "disable"))    { return e_interface_disable_op; }
+    if (STR_IS_EQUAL(command, "reset_conf")) { return e_interface_reset_conf_op; }
+    if (STR_IS_EQUAL(command, "dump_conf"))  { return e_interface_dump_conf_op; }
 
     if (STR_IS_EQUAL(command, "manual")) {
         if (STR_IS_EMPTY(ip) || STR_IS_EMPTY(netmask) || STR_IS_EMPTY(gateway)) {
@@ -146,49 +156,64 @@ static operation_t infer_operation_from_args(void) {
             return e_unknown_op;
         }
 
-        return e_set_interface_manual_op;
+        return e_interface_manual_op;
     }
 
     return e_unknown_op;
 }
 
 //*****************************************************************************
-static int op_set_interface_up(Connection *connection)
+static int op_interface_up(Connection *connection)
 {
     printf("Turning on interface %s\n", connection->get_name());
     return (connection->on() == ESP_OK) ? 0 : 1;
 }
 
 //*****************************************************************************
-static int op_set_interface_down(Connection *connection)
+static int op_interface_down(Connection *connection)
 {
     printf("Turning off interface %s\n", connection->get_name());
     return (connection->off() == ESP_OK) ? 0 : 1;
 }
 
 //*****************************************************************************
-static int op_set_interface_enable(Connection *connection)
+static int op_interface_enable(Connection *connection)
 {
     printf("Enabling interface %s\n", connection->get_name());
     return (connection->set_enabled(true) == ESP_OK) ? 0 : 1;
 }
 
 //*****************************************************************************
-static int op_set_interface_disable(Connection *connection)
+static int op_interface_disable(Connection *connection)
 {
     printf("Disabling interface %s\n", connection->get_name());
     return (connection->set_enabled(false) == ESP_OK) ? 0 : 1;
 }
 
 //*****************************************************************************
-static int op_set_interface_dhcp(Connection *connection)
+static int op_interface_dhcp(Connection *connection)
 {
     printf("Turning on dhcp on interface %s\n", connection->get_name());
     return (connection->use_dhcp(true) == ESP_OK) ? 0 : 1;
 }
 
 //*****************************************************************************
-static int op_set_interface_manual(Connection *connection)
+static int op_interface_reset_conf(Connection *connection)
+{
+    printf("Reseting configuration for interface %s\n", connection->get_name());
+    return (connection->reset_config() == ESP_OK) ? 0 : 1;
+}
+
+//*****************************************************************************
+static int op_interface_dump_conf(Connection *connection)
+{
+    printf("Dumping configuration for interface %s\n", connection->get_name());
+    return (connection->dump_config() == ESP_OK) ? 0 : 1;
+}
+
+
+//*****************************************************************************
+static int op_interface_manual(Connection *connection)
 {
 #define IPSTR_TO_ESPIP(ipstr, espip, msg) \
     if (ip4addr_aton(ipstr, &espip) == 0) { \
@@ -252,12 +277,14 @@ static int ifconfig_cmd(int argc, char **argv)
     operation_t op = infer_operation_from_args();
     switch (op) {
         case e_print_interface_information_op: return print_interface_information_op(connection);
-        case e_set_interface_up_op:            return op_set_interface_up(connection);
-        case e_set_interface_down_op:          return op_set_interface_down(connection);
-        case e_set_interface_enable_op:        return op_set_interface_enable(connection);
-        case e_set_interface_disable_op:       return op_set_interface_disable(connection);
-        case e_set_interface_dhcp_op:          return op_set_interface_dhcp(connection);
-        case e_set_interface_manual_op:        return op_set_interface_manual(connection);
+        case e_interface_up_op:            return op_interface_up(connection);
+        case e_interface_down_op:          return op_interface_down(connection);
+        case e_interface_enable_op:        return op_interface_enable(connection);
+        case e_interface_disable_op:       return op_interface_disable(connection);
+        case e_interface_dhcp_op:          return op_interface_dhcp(connection);
+        case e_interface_manual_op:        return op_interface_manual(connection);
+        case e_interface_reset_conf_op:    return op_interface_reset_conf(connection);
+        case e_interface_dump_conf_op:     return op_interface_dump_conf(connection);
         case e_unknown_op:
             printf("Unknown operation\n");
             return 1;
@@ -276,13 +303,15 @@ void register_ifconfig(void)
     ifconfig_args.gateway   = arg_str0(NULL, NULL, "<gateway>", "Gateway");
     ifconfig_args.end       = arg_end(5);
 
+    #pragma GCC diagnostic pop "-Wmissing-field-initializers" 
     #pragma GCC diagnostic ignored "-Wmissing-field-initializers" 
     const esp_console_cmd_t cmd = {
         .command = "ifconfig",
-        .help = "Get information about network interfaces (wifi/ethernet)",
+        .help = "Operate on network interfaces (wifi/ethernet)",
         .hint = NULL,
         .func = &ifconfig_cmd,
         .argtable = &ifconfig_args
     };
+    #pragma GCC diagnostic push "-Wmissing-field-initializers" 
     ESP_ERROR_CHECK( esp_console_cmd_register(&cmd) );
 }

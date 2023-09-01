@@ -21,9 +21,10 @@ esp_err_t NetworkInterface::use_dhcp(bool use) {
 
     ESP_GOTO_ON_ERROR(esp_netif_dhcpc_get_status(netif, &status), err, TAG, "Failed to get DHCP status err: %d", err_rc_);
 
+    ESP_LOGI(TAG, "NetworkInterface::use_dhcp use: %d status %d", use, status);
     if (use && status == ESP_NETIF_DHCP_STOPPED) {
         ESP_GOTO_ON_ERROR(esp_netif_dhcpc_start(netif), err, TAG, "Failed to start DHCP");
-    } else if (!use && status == ESP_NETIF_DHCP_STARTED) {
+    } else if (!use && status != ESP_NETIF_DHCP_STOPPED) {
         ESP_GOTO_ON_ERROR(esp_netif_dhcpc_stop(netif), err, TAG, "Failed to stop DHCP");
     }
 
@@ -39,7 +40,7 @@ esp_err_t NetworkInterface::set_network_info(esp_ip4_addr_t ip, esp_ip4_addr_t n
     info.netmask = netmask;
     info.gw = gateway;
 
-    ESP_GOTO_ON_ERROR(esp_netif_set_ip_info(netif, &info), err, TAG, "Failed to set IP info");
+    ESP_GOTO_ON_ERROR(esp_netif_set_ip_info(netif, &info), err, TAG, "Failed to set IP info err: %d", err_rc_);
 
 err:
     return ret;

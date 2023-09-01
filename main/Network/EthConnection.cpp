@@ -99,52 +99,6 @@ esp_err_t EthernetConnection::off(void) {
     return esp_eth_stop(eth_handle);
 }
 
-// esp_err_t EthernetConnection::set_network_info(uint32_t ip, uint32_t netmask, uint32_t gateway) {
-//     esp_err_t ret = ESP_OK;
-//     if (this->is_connected()) { this->off(); }
-
-//     esp_ip4_addr_t eip = {ip};
-//     esp_ip4_addr_t enetmask = {netmask};
-//     esp_ip4_addr_t egateway = {gateway};
-
-//     this->configuration->set_ip_address(eip);
-//     this->configuration->set_netmask(enetmask);
-//     this->configuration->set_gateway(egateway);
-//     this->configuration->set_dhcp_enabled(false);
-
-//     ESP_GOTO_ON_ERROR(this->configuration->save(), err, TAG, "Failed to save configuration");
-//     return this->on();
-// err:
-//     return ret;
-// }
-
-// esp_err_t EthernetConnection::use_dhcp(bool use) {
-//     esp_err_t ret = ESP_OK;
-//     if (this->is_connected()) { this->off(); }
-
-//     this->configuration->set_dhcp_enabled(use);
-//     ESP_GOTO_ON_ERROR(this->configuration->save(), err, TAG, "Failed to save configuration");
-//     return this->on();
-// err:
-//     return ret;
-// }
-
-// esp_err_t EthernetConnection::set_enabled(bool enabled) {
-//     esp_err_t ret = ESP_OK;
-//     if (this->is_connected()) { this->off(); }
-
-//     this->isEnabled = enabled;
-//     this->configuration->set_enabled(enabled);
-//     ESP_GOTO_ON_ERROR(this->configuration->save(), err, TAG, "Failed to save configuration");
-
-//     if (this->isEnabled) {
-//         ret = this->on();
-//     }
-
-// err:
-//     return ret;
-// }
-
 void EthernetConnection::onGotIp(esp_event_base_t event_base, int32_t event_id, void *event_data) {
     ip_event_got_ip_t *event = (ip_event_got_ip_t *) event_data;
     const esp_netif_ip_info_t *ip_info = &event->ip_info;

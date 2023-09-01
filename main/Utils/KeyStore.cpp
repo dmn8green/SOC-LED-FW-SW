@@ -38,6 +38,8 @@ esp_err_t KeyStore::openKeyStore(const char *sectionName, e_keyStoreMode ksMode)
     nvs_handle handle;
     nvs_open_mode_t mode = ksMode == e_rw ? NVS_READWRITE : NVS_READONLY;
 
+    ESP_LOGI("Opening key store", "sectionName: %s, mode: %d", sectionName, mode);
+
     NVS_CALL_WITH_ERROR_CHECK(nvs_flash_init_partition(KEYSTORE_NAME));
     err = nvs_open_from_partition(KEYSTORE_NAME, sectionName, mode, &handle);
     if (err == ESP_ERR_NVS_NOT_FOUND) {
@@ -64,7 +66,7 @@ esp_err_t KeyStore::getKeyValue(const char *keyName, char *value, size_t maxValu
     NVS_CALL_WITH_ERROR_CHECK(nvs_get_str(this->handle, keyName, NULL, &valueSize));
 
     if (valueSize > maxValueLength) {
-        ESP_LOGE(TAG, "%s: value size %d is larger than max value length %d", __FUNCTION__, valueSize, maxValueLength);
+        ESP_LOGE(TAG, "%s: value size %d is larger than max value length %d", keyName, valueSize, maxValueLength);
         return ESP_ERR_NVS_INVALID_LENGTH;
     }
 
@@ -167,11 +169,12 @@ esp_err_t KeyStore::setKeyValue(const char *keyName, wifi_auth_mode_t value, boo
 }
 
 //******************************************************************************
-esp_err_t KeyStore::eraseKey(const char *keyName)
+esp_err_t KeyStore::eraseKey(const char *keyName, bool commit)
 {
     esp_err_t err = ESP_OK;
     NVS_CALL_WITH_ERROR_CHECK(nvs_erase_key(this->handle, keyName));
-    NVS_CALL_WITH_ERROR_CHECK(nvs_commit(this->handle));
+    
+    if (commit) { return this->commit(); }
     return ESP_OK;
 }
 

@@ -35,6 +35,22 @@ esp_err_t Connection::initialize(void) {
     return ret;
 }
 
+esp_err_t Connection::reset_config(void) {
+    esp_err_t ret = ESP_OK;
+    if (this->is_connected()) { this->off(); }
+
+    this->isEnabled = false;
+    this->isConnected = false;
+    this->useDHCP = true;
+
+    this->configuration->reset_config();
+    return ret;
+}
+
+esp_err_t Connection::dump_config(void) {
+    return this->configuration->dump_config();
+}
+
 esp_err_t Connection::set_network_info(uint32_t ip, uint32_t netmask, uint32_t gateway) {
     esp_err_t ret = ESP_OK;
     if (this->is_connected()) { this->off(); }

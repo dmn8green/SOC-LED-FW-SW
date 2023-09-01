@@ -6,16 +6,15 @@
 // Represent a connection.  It can be unconfigured/connected/disconnected/connecting/on/off
 class WifiConnection : public Connection {
 public:
-    WifiConnection(NetworkInterface* interface, WifiConfiguration* configuration) 
-        : Connection(interface, configuration) {}
+    WifiConnection(NetworkInterface* interface, WifiConfiguration* configuration);
 
     virtual const char* get_name(void) override { return "wifi"; };
 
     virtual esp_err_t on(void) override;
     virtual esp_err_t off(void) override;
 
-    esp_err_t connect(void);
-    esp_err_t disconnect(void);
+    esp_err_t join(void);
+    esp_err_t leave(void);
 
     esp_err_t set_credentials(const wifi_creds_t& creds);
 
