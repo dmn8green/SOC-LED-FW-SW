@@ -170,14 +170,14 @@ esp_err_t MN8App::setup_ethernet_connection(void) {
 
 
     this->ethernet_config = new EthernetConfiguration();
-    this->ethernet_connection = new EthernetConnection(this->ethernet_interface, this->ethernet_config);
+    this->ethernet_connection = new EthernetConnection(this->ethernet_interface, this->ethernet_config, this->eth_handle);
     ESP_LOGI(__func__, "st is %p", this->ethernet_connection);
     if (!this->ethernet_connection) {
         ESP_LOGE(__func__, "Failed to create ethernet connection");
         return ESP_FAIL;
     }
 
-    this->ethernet_connection->initialize(this->eth_handle);
+    this->ethernet_connection->initialize();
 
 
     return ESP_OK;

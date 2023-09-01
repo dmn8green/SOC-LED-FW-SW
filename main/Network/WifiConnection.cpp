@@ -3,28 +3,56 @@
 #include "esp_err.h"
 #include "esp_wifi.h"
 #include "esp_wifi_types.h"
-
+#include "esp_check.h"
 #include "esp_log.h"
 
 #include <string.h>
 
 static const char *TAG = "mn8_wifi";
 
-esp_err_t WifiConnection::initialize(void) {
-
+esp_err_t WifiConnection::on_initialize(void) {
+    esp_err_t ret = ESP_OK;
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
     
-    ESP_ERROR_CHECK( esp_wifi_init(&cfg) );
-
+    ret = esp_wifi_init(&cfg);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to initialize wifi");
+        return ret;
+    }
 
     esp_wifi_set_default_wifi_sta_handlers();
-    ESP_ERROR_CHECK( esp_event_handler_register(WIFI_EVENT, WIFI_EVENT_STA_DISCONNECTED, &WifiConnection::sOnWifiDisconnect, this) );
-    ESP_ERROR_CHECK( esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP, &WifiConnection::sOnGotIp, this) );
+    ret = esp_event_handler_register(WIFI_EVENT, WIFI_EVENT_STA_DISCONNECTED, &WifiConnection::sOnWifiDisconnect, this);
+    if (ret != ESP_OK) { 
+        ESP_LOGE(TAG, "Failed to register WIFI_EVENT handler");
+        return ret;
+    }
 
-    ESP_ERROR_CHECK( esp_wifi_set_storage(WIFI_STORAGE_RAM) );
-    ESP_ERROR_CHECK( esp_wifi_set_mode(WIFI_MODE_STA) );
+    ret = esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP, &WifiConnection::sOnGotIp, this);
+    if (ret != ESP_OK) { 
+        ESP_LOGE(TAG, "Failed to register IP_EVENT handler");
+        return ret;
+    }
 
-    return ESP_OK;
+    ret = esp_wifi_set_storage(WIFI_STORAGE_RAM);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to set wifi storage");
+        return ret;
+    }
+
+    ret = esp_wifi_set_mode(WIFI_MODE_STA);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to set wifi mode");
+        return ret;
+    }
+
+    // is_configured flag guarantees that the ssid and password are valid and not null.
+    WifiConfiguration* config = (WifiConfiguration*)this->configuration;
+    if (config->is_configured()) {
+        strlcpy((char *) this->wifi_creds.ssid, (const char*) config->get_ssid(), sizeof(this->wifi_creds.ssid));
+        strlcpy((char *) this->wifi_creds.password, (const char*) config->get_password(), sizeof(this->wifi_creds.password));
+    }
+
+    return ret;
 }
 
 esp_err_t WifiConnection::on(void) {
@@ -56,18 +84,35 @@ esp_err_t WifiConnection::disconnect(void) {
     return esp_wifi_disconnect();
 }
 
-esp_err_t WifiConnection::set_network_info(uint32_t ip, uint32_t netmask, uint32_t gateway) {
-    return ESP_OK;
-}
+/**
+ * @brief Set the credentials object
+ * 
+ * This function will set the credentials for the wifi connection.
+ * It will leave the network if it is connected.
+ * It will save the credentials to flash.
+ * It will turn on the wifi connection and join the network.
+ * 
+ * @param creds {ssid, password}
+ * @return esp_err_t   ESP_OK on success.
+ */
+esp_err_t WifiConnection::set_credentials(const wifi_creds_t& creds) { 
+    esp_err_t ret = ESP_OK;
+    WifiConfiguration* config = (WifiConfiguration*)this->configuration;
 
-esp_err_t WifiConnection::use_dhcp(bool use) {
-    return ESP_OK;
-}
+    if (this->is_connected()) { 
+        this->disconnect(); 
+        this->off();
+    }
+    
+    this->wifi_creds = creds;
+    ESP_GOTO_ON_ERROR(this->configuration->save(), err, TAG, "Failed to save configuration");
 
-// bool WifiStationConnection::isOurNetif(const char *prefix, esp_netif_t *netif)
-// {
-//     return strncmp(prefix, esp_netif_get_desc(netif), strlen(prefix) - 1) == 0;
-// }
+    ESP_GOTO_ON_ERROR(this->on(), err, TAG, "Failed to turn on wifi");
+    ESP_GOTO_ON_ERROR(this->connect(), err, TAG, "Failed to attempt to connect to wifi");
+
+err:
+    return ret;
+}
 
 void WifiConnection::onGotIp(esp_event_base_t event_base, int32_t event_id, void *event_data)
 {

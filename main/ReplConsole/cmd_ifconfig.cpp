@@ -187,123 +187,6 @@ static int op_set_interface_dhcp(Connection *connection)
     return (connection->use_dhcp(true) == ESP_OK) ? 0 : 1;
 }
 
-int
-ip4addr1_aton(const char *cp, ip4_addr_t *addr)
-{
-  u32_t val;
-  u8_t base;
-  char c;
-  u32_t parts[4];
-  u32_t *pp = parts;
-
-  c = *cp;
-  for (;;) {
-    /*
-     * Collect number up to ``.''.
-     * Values are specified as for C:
-     * 0x=hex, 0=octal, 1-9=decimal.
-     */
-    if (!lwip_isdigit(c)) {
-      return 0;
-    }
-    val = 0;
-    base = 10;
-    if (c == '0') {
-      c = *++cp;
-      if (c == 'x' || c == 'X') {
-        base = 16;
-        c = *++cp;
-      } else {
-        base = 8;
-      }
-    }
-    for (;;) {
-      if (lwip_isdigit(c)) {
-        if((base == 8) && ((u32_t)(c - '0') >= 8))
-          break;
-        val = (val * base) + (u32_t)(c - '0');
-        c = *++cp;
-      } else if (base == 16 && lwip_isxdigit(c)) {
-        val = (val << 4) | (u32_t)(c + 10 - (lwip_islower(c) ? 'a' : 'A'));
-        c = *++cp;
-      } else {
-        break;
-      }
-    }
-    if (c == '.') {
-      /*
-       * Internet format:
-       *  a.b.c.d
-       *  a.b.c   (with c treated as 16 bits)
-       *  a.b (with b treated as 24 bits)
-       */
-      if (pp >= parts + 3) {
-        return 0;
-      }
-      *pp++ = val;
-      c = *++cp;
-    } else {
-      break;
-    }
-  }
-  /*
-   * Check for trailing characters.
-   */
-  if (c != '\0' && !lwip_isspace(c)) {
-    return 0;
-  }
-  /*
-   * Concoct the address according to
-   * the number of parts specified.
-   */
-  switch (pp - parts + 1) {
-
-    case 0:
-      return 0;       /* initial nondigit */
-
-    case 1:             /* a -- 32 bits */
-      break;
-
-    case 2:             /* a.b -- 8.24 bits */
-      if (val > 0xffffffUL) {
-        return 0;
-      }
-      if (parts[0] > 0xff) {
-        return 0;
-      }
-      val |= parts[0] << 24;
-      break;
-
-    case 3:             /* a.b.c -- 8.8.16 bits */
-      if (val > 0xffff) {
-        return 0;
-      }
-      if ((parts[0] > 0xff) || (parts[1] > 0xff)) {
-        return 0;
-      }
-      val |= (parts[0] << 24) | (parts[1] << 16);
-      break;
-
-    case 4:             /* a.b.c.d -- 8.8.8.8 bits */
-      if (val > 0xff) {
-        return 0;
-      }
-      if ((parts[0] > 0xff) || (parts[1] > 0xff) || (parts[2] > 0xff)) {
-        return 0;
-      }
-      val |= (parts[0] << 24) | (parts[1] << 16) | (parts[2] << 8);
-      break;
-    default:
-      LWIP_ASSERT("unhandled", 0);
-      break;
-  }
-  if (addr) {
-    ip4_addr_set_u32(addr, lwip_htonl(val));
-  }
-  return 1;
-}
-
-
 //*****************************************************************************
 static int op_set_interface_manual(Connection *connection)
 {
@@ -363,13 +246,6 @@ static int ifconfig_cmd(int argc, char **argv)
         arg_print_errors(stderr, ifconfig_args.end, argv[0]);
         return 1;
     }
-
-    printf("ifconfig: interface=%s, command=%s, ip=%s, netmask=%s, gateway=%s\n",
-        ifconfig_args.interface->sval[0],
-        ifconfig_args.command->sval[0],
-        ifconfig_args.ip->sval[0],
-        ifconfig_args.netmask->sval[0],
-        ifconfig_args.gateway->sval[0]);
         
     Connection *connection = MN8App::instance().get_connection(ifconfig_args.interface->sval[0]);
 

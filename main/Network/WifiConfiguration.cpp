@@ -48,8 +48,14 @@ static const char *TAG = "WifiConfiguration";
 esp_err_t WifiConfiguration::load_extra(KeyStore& store) {
     esp_err_t res;
 
-    ESP_GET_VALUE("enabled", this->ssid, sizeof(this->ssid));
-    ESP_GET_VALUE("dhcp", this->password, sizeof(this->password));
+    ESP_LOGI(TAG, "Loading wifi configuration");
+
+    ESP_GET_VALUE("enabled", this->wifi_creds.ssid, sizeof(this->wifi_creds.ssid));
+    ESP_GET_VALUE("dhcp", this->wifi_creds.password, sizeof(this->wifi_creds.password));
+
+    ESP_LOGI(TAG, "Loaded wifi configuration");
+    ESP_LOGI(TAG, "SSID: %s", this->wifi_creds.ssid);
+    ESP_LOGI(TAG, "Password: %s", this->wifi_creds.password);
     
     return ESP_OK;
 }
@@ -58,8 +64,8 @@ esp_err_t WifiConfiguration::save_extra(KeyStore& store) {
     esp_err_t res;
 
     // No commit until we are all done.
-    ESP_SET_VALUE("enabled", this->ssid, false);
-    ESP_SET_VALUE("enabled", this->password, false);
+    ESP_SET_VALUE("enabled", this->wifi_creds.ssid, false);
+    ESP_SET_VALUE("enabled", this->wifi_creds.password, false);
 
     return ESP_OK;    
 }

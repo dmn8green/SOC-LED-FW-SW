@@ -3,19 +3,13 @@
 #include "Connection.h"
 #include "WifiConfiguration.h"
 
-typedef struct {
-    uint8_t ssid[32];                         /**< SSID of target AP. */
-    uint8_t password[64];                     /**< Password of target AP. */
-} wifi_creds_t;
-
 // Represent a connection.  It can be unconfigured/connected/disconnected/connecting/on/off
 class WifiConnection : public Connection {
 public:
     WifiConnection(NetworkInterface* interface, WifiConfiguration* configuration) 
-        : Connection(interface), configuration(configuration) {}
-    virtual const char* get_name(void) override { return "wifi"; };
+        : Connection(interface, configuration) {}
 
-    esp_err_t initialize(void);
+    virtual const char* get_name(void) override { return "wifi"; };
 
     virtual esp_err_t on(void) override;
     virtual esp_err_t off(void) override;
@@ -23,11 +17,11 @@ public:
     esp_err_t connect(void);
     esp_err_t disconnect(void);
 
-    virtual esp_err_t set_network_info(uint32_t ip, uint32_t netmask, uint32_t gateway) override;
-    virtual esp_err_t use_dhcp(bool use) override;
-    virtual esp_err_t set_enabled(bool enabled) override {return ESP_OK;};
+    // virtual esp_err_t set_network_info(uint32_t ip, uint32_t netmask, uint32_t gateway) override;
+    // virtual esp_err_t use_dhcp(bool use) override;
+    // virtual esp_err_t set_enabled(bool enabled) override {return ESP_OK;};
 
-    void set_credentials(const wifi_creds_t& creds) { this->wifi_creds = creds; }
+    esp_err_t set_credentials(const wifi_creds_t& creds);
 
 protected:
     static void sOnGotIp(void* arg, esp_event_base_t event_base, int32_t event_id, void *event_data);
@@ -36,8 +30,9 @@ protected:
     static void sOnWifiDisconnect(void* arg, esp_event_base_t event_base, int32_t event_id, void *event_data);
     void onWifiDisconnect(esp_event_base_t event_base, int32_t event_id, void *event_data);
 
+    virtual esp_err_t on_initialize(void);
+
 private:
     wifi_creds_t wifi_creds;
-    WifiConfiguration* configuration = nullptr;
 
 };  // class WifiConnection
