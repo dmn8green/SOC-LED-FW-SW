@@ -92,7 +92,7 @@ static int on_join(const char *ssid, const char *pass, int timeout_ms) {
 
     wifi_connection->set_credentials(creds);
 
-    return true;
+    return 0;
 }
 
 //*****************************************************************************
@@ -102,7 +102,7 @@ static int on_leave() {
     WifiConnection* wifi_connection = app.get_wifi_connection();
     wifi_creds_t creds = { 0 };
     wifi_connection->set_credentials(creds);
-    return true;
+    return 0;
 }
 
 //*****************************************************************************
@@ -113,7 +113,6 @@ static int connect(int argc, char **argv)
         arg_print_errors(stderr, join_args.end, argv[0]);
         return 1;
     }
-    ESP_LOGI(__func__, "Connecting to '%s'", join_args.ssid->sval[0]);
 
     /* set default value*/
     if (join_args.timeout->count == 0) {

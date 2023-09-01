@@ -14,13 +14,6 @@ public:
 
     virtual const char* get_name(void) override { return "eth"; };
 
-    virtual esp_err_t on(void) override;
-    virtual esp_err_t off(void) override;
-
-    // virtual esp_err_t set_network_info(uint32_t ip, uint32_t netmask, uint32_t gateway) override;
-    // virtual esp_err_t use_dhcp(bool use) override;
-    // virtual esp_err_t set_enabled(bool enabled) override;
-
 protected:
     static void sOnGotIp(void* arg, esp_event_base_t event_base, int32_t event_id, void *event_data);
     void onGotIp(esp_event_base_t event_base, int32_t event_id, void *event_data);
@@ -29,6 +22,9 @@ protected:
     void onEthEvent(esp_event_base_t event_base, int32_t event_id, void *event_data);
 
     virtual esp_err_t on_initialize(void);
+    virtual esp_err_t on_up(void) override;
+    virtual esp_err_t on_down(void) override;
+
 
 private:
     esp_eth_handle_t* eth_handle = nullptr;

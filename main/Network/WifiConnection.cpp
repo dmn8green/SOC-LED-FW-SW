@@ -8,7 +8,7 @@
 
 #include <string.h>
 
-static const char *TAG = "mn8_wifi";
+static const char *TAG = "wifi_connection";
 
 WifiConnection::WifiConnection(NetworkInterface* interface, WifiConfiguration* configuration) 
     : Connection(interface, configuration)
@@ -20,6 +20,7 @@ WifiConnection::WifiConnection(NetworkInterface* interface, WifiConfiguration* c
 esp_err_t WifiConnection::on_initialize(void) {
     esp_err_t ret = ESP_OK;
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
+    ESP_LOGI(TAG, "Initializing wifi");
 
     ret = esp_wifi_init(&cfg);
     if (ret != ESP_OK) {
@@ -61,20 +62,10 @@ esp_err_t WifiConnection::on_initialize(void) {
     return ret;
 }
 
-esp_err_t WifiConnection::on(void) {
+esp_err_t WifiConnection::on_up(void) {
     esp_err_t ret = ESP_OK;
 
-    if (!this->is_enabled()) {
-        ESP_LOGE(TAG, "Wifi interface is not enabled");
-        return ESP_ERR_INVALID_STATE;
-    }
-
-    if (this->is_connected()) {
-        ESP_LOGE(TAG, "Wifi is already connected");
-        return ESP_ERR_INVALID_STATE;
-    }
-
-    ESP_GOTO_ON_ERROR(esp_wifi_start(), err, TAG, "Failed to start wifi");
+    ESP_GOTO_ON_ERROR(esp_wifi_start(), err, TAG, "Failed to start wifi %d", err_rc_);
 
     this->useDHCP = this->configuration->is_dhcp_enabled();
     this->interface->use_dhcp(this->useDHCP);
@@ -91,23 +82,12 @@ esp_err_t WifiConnection::on(void) {
         this->join();
     }
 
-
 err:
     return ret;
 }
 
-esp_err_t WifiConnection::off(void) {
+esp_err_t WifiConnection::on_down(void) {
     esp_err_t ret = ESP_OK;
-
-    if (!this->is_enabled()) {
-        ESP_LOGE(TAG, "Wifi interface is not enabled");
-        return ESP_ERR_INVALID_STATE;
-    }
-
-    if (this->is_connected()) {
-        ESP_GOTO_ON_ERROR(this->leave(), err, TAG, "Failed to disconnect from wifi");
-    }
-
     ESP_GOTO_ON_ERROR(esp_wifi_stop(), err, TAG, "Failed to stop wifi");
 
 err:
@@ -171,13 +151,13 @@ esp_err_t WifiConnection::set_credentials(const wifi_creds_t& creds) {
     esp_err_t ret = ESP_OK;
     WifiConfiguration* config = (WifiConfiguration*)this->configuration;
 
-    if (this->is_enabled()) { this->off(); }
+    if (this->is_enabled()) { this->down(); }
     
     this->wifi_creds = creds;
     config->set_wifi_creds(creds);
     ESP_GOTO_ON_ERROR(this->configuration->save(), err, TAG, "Failed to save configuration");
 
-    ESP_GOTO_ON_ERROR(this->on(), err, TAG, "Failed to turn on wifi");
+    ESP_GOTO_ON_ERROR(this->up(), err, TAG, "Failed to turn on wifi");
 
 err:
     return ret;

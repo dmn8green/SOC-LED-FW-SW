@@ -38,8 +38,6 @@ esp_err_t KeyStore::openKeyStore(const char *sectionName, e_keyStoreMode ksMode)
     nvs_handle handle;
     nvs_open_mode_t mode = ksMode == e_rw ? NVS_READWRITE : NVS_READONLY;
 
-    ESP_LOGI("Opening key store", "sectionName: %s, mode: %d", sectionName, mode);
-
     NVS_CALL_WITH_ERROR_CHECK(nvs_flash_init_partition(KEYSTORE_NAME));
     err = nvs_open_from_partition(KEYSTORE_NAME, sectionName, mode, &handle);
     if (err == ESP_ERR_NVS_NOT_FOUND) {

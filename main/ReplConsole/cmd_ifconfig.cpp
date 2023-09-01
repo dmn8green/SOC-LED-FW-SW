@@ -44,10 +44,10 @@ static void print_interface_information(Connection *connection)
 {
     printf("\nInterface information:\n");
     printf("  %-20s: %s\n", "Interface", connection->get_name());
-
-    printf("  %-20s: %s\n", "Enabled", connection->is_enabled() ? "Yes" : "No");
+    printf("  %-20s: %s\n", "Is Up", connection->is_enabled() ? "Yes" : "No");
 
     if (connection->is_enabled()) {
+        printf("\nCurrent connection state:\n");
         printf("  %-20s: %s\n", "Connected", connection->is_connected() ? "Yes" : "No");
         printf("  %-20s: %s\n", "DHCP", connection->is_dhcp() ? "Yes" : "No");
     }
@@ -60,11 +60,11 @@ static void print_interface_information(Connection *connection)
         printf("  %-20s: " IPSTR "\n", "IP Address", IP2STR(&ip));
         printf("  %-20s: " IPSTR "\n", "Netmask", IP2STR(&netmask));
         printf("  %-20s: " IPSTR "\n", "Gateway", IP2STR(&gateway));
-
-        printf("  %-20s: %08lx\n", "IP Address", ip.addr);
-        printf("  %-20s: %08lx\n", "Netmask", netmask.addr);
-        printf("  %-20s: %08lx\n", "Gateway", gateway.addr);
     }
+
+    printf("\nCurrent connection saved settings:\n");
+    connection->dump_config();
+
     printf("~~~~~~~~~~~\n");
 }
 
@@ -72,8 +72,6 @@ typedef enum {
     e_print_interface_information_op,
     e_interface_up_op,
     e_interface_down_op,
-    e_interface_enable_op,
-    e_interface_disable_op,
     e_interface_dhcp_op,
     e_interface_manual_op,
     e_interface_reset_conf_op,
@@ -102,12 +100,9 @@ static bool is_cmd_valid(const char *cmd)
     if (STR_IS_EQUAL(cmd, "dhcp") || STR_IS_EQUAL(cmd, "manual")) {
         return true;
     }
-    if (STR_IS_EQUAL(cmd, "enable") || STR_IS_EQUAL(cmd, "disable")) {
-        return true;
-    }
 
     // secret commands
-    if (STR_IS_EQUAL(cmd, "reset_conf") || STR_IS_EQUAL(cmd, "dump_conf")) {
+    if (STR_IS_EQUAL(cmd, "reset") || STR_IS_EQUAL(cmd, "dump_conf")) {
         return true;
     }
 
@@ -145,9 +140,7 @@ static operation_t infer_operation_from_args(void) {
     if (STR_IS_EQUAL(command, "up"))         { return e_interface_up_op; }
     if (STR_IS_EQUAL(command, "down"))       { return e_interface_down_op; }
     if (STR_IS_EQUAL(command, "dhcp"))       { return e_interface_dhcp_op; }
-    if (STR_IS_EQUAL(command, "enable"))     { return e_interface_enable_op; }
-    if (STR_IS_EQUAL(command, "disable"))    { return e_interface_disable_op; }
-    if (STR_IS_EQUAL(command, "reset_conf")) { return e_interface_reset_conf_op; }
+    if (STR_IS_EQUAL(command, "reset"))      { return e_interface_reset_conf_op; }
     if (STR_IS_EQUAL(command, "dump_conf"))  { return e_interface_dump_conf_op; }
 
     if (STR_IS_EQUAL(command, "manual")) {
@@ -166,28 +159,14 @@ static operation_t infer_operation_from_args(void) {
 static int op_interface_up(Connection *connection)
 {
     printf("Turning on interface %s\n", connection->get_name());
-    return (connection->on() == ESP_OK) ? 0 : 1;
+    return (connection->up(true) == ESP_OK) ? 0 : 1;
 }
 
 //*****************************************************************************
 static int op_interface_down(Connection *connection)
 {
     printf("Turning off interface %s\n", connection->get_name());
-    return (connection->off() == ESP_OK) ? 0 : 1;
-}
-
-//*****************************************************************************
-static int op_interface_enable(Connection *connection)
-{
-    printf("Enabling interface %s\n", connection->get_name());
-    return (connection->set_enabled(true) == ESP_OK) ? 0 : 1;
-}
-
-//*****************************************************************************
-static int op_interface_disable(Connection *connection)
-{
-    printf("Disabling interface %s\n", connection->get_name());
-    return (connection->set_enabled(false) == ESP_OK) ? 0 : 1;
+    return (connection->down(true) == ESP_OK) ? 0 : 1;
 }
 
 //*****************************************************************************
@@ -279,8 +258,6 @@ static int ifconfig_cmd(int argc, char **argv)
         case e_print_interface_information_op: return print_interface_information_op(connection);
         case e_interface_up_op:            return op_interface_up(connection);
         case e_interface_down_op:          return op_interface_down(connection);
-        case e_interface_enable_op:        return op_interface_enable(connection);
-        case e_interface_disable_op:       return op_interface_disable(connection);
         case e_interface_dhcp_op:          return op_interface_dhcp(connection);
         case e_interface_manual_op:        return op_interface_manual(connection);
         case e_interface_reset_conf_op:    return op_interface_reset_conf(connection);
@@ -297,7 +274,7 @@ static int ifconfig_cmd(int argc, char **argv)
 void register_ifconfig(void)
 {
     ifconfig_args.interface = arg_str0(NULL, NULL, "<eth/wifi>", "Which interface to configure");
-    ifconfig_args.command   = arg_str0(NULL, NULL, "<up/down/dhcp/manual>", "Command to execute");
+    ifconfig_args.command   = arg_str0(NULL, NULL, "<up/down/dhcp/manual/reset>", "Command to execute");
     ifconfig_args.ip        = arg_str0(NULL, NULL, "<ip>", "IP address");
     ifconfig_args.netmask   = arg_str0(NULL, NULL, "<netmask>", "Netmask");
     ifconfig_args.gateway   = arg_str0(NULL, NULL, "<gateway>", "Gateway");

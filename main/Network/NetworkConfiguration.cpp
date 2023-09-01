@@ -43,19 +43,32 @@ esp_err_t NetworkConfiguration::reset_config() {
     return ESP_OK;
 }
 
+//******************************************************************************
+/**
+ * @brief Dump the network configuration to the console.
+ * 
+ * @return esp_err_t ESP_OK on success
+ */
 esp_err_t NetworkConfiguration::dump_config() {
     KeyStore store;
+
+    if (!is_configured()) {
+        printf("  Interface is not configured\n");
+        return ESP_OK;
+    }
 
     if (store.openKeyStore(this->get_store_section_name(), e_ro) != ESP_OK) {
         ESP_LOGE(TAG, "Failed to open eth config store");
         return false;
     }
 
-    ESP_LOGI("Network Configuration", "  %-20s: %s", "Enabled", this->isEnabled ? "true" : "false");
-    ESP_LOGI("Network Configuration", "  %-20s: %s", "DHCP", this->useDHCP ? "true" : "false");
-    ESP_LOGI("Network Configuration", "  %-20s: " IPSTR, "IP Address", IP2STR(&this->ipAddress));
-    ESP_LOGI("Network Configuration", "  %-20s: " IPSTR, "Netmask"   , IP2STR(&this->netmask));
-    ESP_LOGI("Network Configuration", "  %-20s: " IPSTR, "Gateway"   , IP2STR(&this->gateway));
+    printf("  %-20s: %s\n", "Enabled", this->isEnabled ? "true" : "false");
+    printf("  %-20s: %s\n", "DHCP", this->useDHCP ? "true" : "false");
+    if (!this->useDHCP) {
+        printf("  %-20s: " IPSTR "\n", "IP Address", IP2STR(&this->ipAddress));
+        printf("  %-20s: " IPSTR "\n", "Netmask"   , IP2STR(&this->netmask));
+        printf("  %-20s: " IPSTR "\n", "Gateway"   , IP2STR(&this->gateway));
+    }
 
     this->on_dump_config(store);
     return ESP_OK;
@@ -90,10 +103,6 @@ esp_err_t NetworkConfiguration::load() {
     ESP_GET_VALUE("netmask", this->netmask);
     ESP_GET_VALUE("gateway", this->gateway);
 
-    ESP_LOGI(TAG, "  %-20s: " IPSTR, "IP Address", IP2STR(&this->ipAddress));
-    ESP_LOGI(TAG, "  %-20s: " IPSTR, "Netmask"   , IP2STR(&this->netmask));
-    ESP_LOGI(TAG, "  %-20s: " IPSTR, "Gateway"   , IP2STR(&this->gateway));
-
     res = this->on_load(store);
     if (res != ESP_OK) {
         ESP_LOGE(TAG, "Failed to load extra");
@@ -105,6 +114,12 @@ esp_err_t NetworkConfiguration::load() {
     return ESP_OK;
 }
 
+//******************************************************************************
+/**
+ * @brief Save the ethernet configuration to flash.
+ * 
+ * @return esp_err_t ESP_OK on success.
+ */
 esp_err_t NetworkConfiguration::save() {
     KeyStore store;
     esp_err_t res;
@@ -113,10 +128,6 @@ esp_err_t NetworkConfiguration::save() {
         ESP_LOGE(TAG, "Failed to open eth config store");
         return false;
     }
-
-    ESP_LOGI(TAG, "  %-20s: " IPSTR, "IP Address", IP2STR(&this->ipAddress));
-    ESP_LOGI(TAG, "  %-20s: " IPSTR, "Netmask"   , IP2STR(&this->netmask));
-    ESP_LOGI(TAG, "  %-20s: " IPSTR, "Gateway"   , IP2STR(&this->gateway));
 
     // No commit until we are all done.
     ESP_SET_VALUE("enabled", this->isEnabled, false);
@@ -137,8 +148,6 @@ esp_err_t NetworkConfiguration::save() {
         return res;
     }
 
-    // It might have already been configured.  Checking for that would add
-    // unneeded extra instructions and slow things down (not that it matters)
     this->isConfigured = true;
     return ESP_OK;
 }

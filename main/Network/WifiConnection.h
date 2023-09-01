@@ -9,13 +9,6 @@ public:
     WifiConnection(NetworkInterface* interface, WifiConfiguration* configuration);
 
     virtual const char* get_name(void) override { return "wifi"; };
-
-    virtual esp_err_t on(void) override;
-    virtual esp_err_t off(void) override;
-
-    esp_err_t join(void);
-    esp_err_t leave(void);
-
     esp_err_t set_credentials(const wifi_creds_t& creds);
 
 protected:
@@ -25,7 +18,13 @@ protected:
     static void sOnWifiDisconnect(void* arg, esp_event_base_t event_base, int32_t event_id, void *event_data);
     void onWifiDisconnect(esp_event_base_t event_base, int32_t event_id, void *event_data);
 
-    virtual esp_err_t on_initialize(void);
+    virtual esp_err_t on_initialize(void) override;
+    virtual esp_err_t on_up(void) override;
+    virtual esp_err_t on_down(void) override;
+
+private:
+    esp_err_t join(void);
+    esp_err_t leave(void);
 
 private:
     wifi_creds_t wifi_creds;

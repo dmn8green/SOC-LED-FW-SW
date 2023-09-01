@@ -16,8 +16,8 @@ public:
     esp_err_t dump_config(void);
 
     virtual esp_err_t initialize(void);
-    virtual esp_err_t on(void) = 0;
-    virtual esp_err_t off(void) = 0;
+    virtual esp_err_t up(bool persistent = false);
+    virtual esp_err_t down(bool persistent = false);
 
     inline bool is_connected() { return this->isConnected; }
     inline bool is_enabled() { return this->isEnabled; }
@@ -29,10 +29,11 @@ public:
 
     virtual esp_err_t set_network_info(uint32_t ip, uint32_t netmask, uint32_t gateway);
     virtual esp_err_t use_dhcp(bool use);
-    virtual esp_err_t set_enabled(bool enabled);
 
 protected:
     virtual esp_err_t on_initialize(void) = 0;
+    virtual esp_err_t on_up(void) = 0;
+    virtual esp_err_t on_down(void) = 0;
 
 protected:
     bool isEnabled = false;

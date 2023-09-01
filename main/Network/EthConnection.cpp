@@ -7,45 +7,9 @@
 
 static const char *TAG = "eth_connection";
 
-// //*****************************************************************************
-// /**
-//  * @brief Initialize the ethernet connection.
-//  * 
-//  * This function will initialize the ethernet connection.
-//  * Takes care of registering callbacks for the different events.
-//  * 
-//  * Load the config info from flash.
-//  * 
-//  * @param eth_handle 
-//  * @return esp_err_t 
-//  */
-// esp_err_t EthernetConnection::initialize(esp_eth_handle_t* eth_handle) {
-//     esp_err_t ret = ESP_OK;
-//     this->eth_handle = eth_handle;
-
-//     ESP_ERROR_CHECK( esp_event_handler_register(ETH_EVENT, ESP_EVENT_ANY_ID, &EthernetConnection::sOnEthEvent, this) );
-//     ESP_ERROR_CHECK( esp_event_handler_register(IP_EVENT, IP_EVENT_ETH_GOT_IP, &EthernetConnection::sOnGotIp, this) );
-
-//     // Here read the config info from flash.
-//     // If there is no config info, then use DHCP.
-//     ret = this->configuration->load();
-//     if (ret != ESP_OK || !this->configuration->is_configured()) {
-//         this->useDHCP = true;
-//         return ESP_OK;
-//     }
-
-//     this->isEnabled = this->configuration->is_enabled();
-//     this->isConnected = false;
-
-//     if (this->isEnabled) {
-//         ret = this->on();
-//     }
-
-//     return ret;
-// }
-
 esp_err_t EthernetConnection::on_initialize(void) {
     esp_err_t ret = ESP_OK;
+    ESP_LOGI(TAG, "Initializing ethernet");
     ret = esp_event_handler_register(ETH_EVENT, ESP_EVENT_ANY_ID, &EthernetConnection::sOnEthEvent, this);
     if (ret != ESP_OK) { 
         ESP_LOGE(TAG, "Failed to register ETH_EVENT handler");
@@ -67,13 +31,8 @@ esp_err_t EthernetConnection::on_initialize(void) {
  * 
  * @return esp_err_t 
  */
-esp_err_t EthernetConnection::on(void) {
+esp_err_t EthernetConnection::on_up(void) {
     esp_err_t ret = ESP_OK;
-
-    if (this->is_connected()) { 
-        ESP_LOGE(TAG, "Ethernet is already connected");
-        return ESP_ERR_INVALID_STATE;
-    }
 
     ESP_LOGI(TAG, "Turning on ethernet");
     ESP_GOTO_ON_ERROR(esp_eth_start(eth_handle), err, TAG, "Failed to start ethernet");
@@ -93,7 +52,7 @@ err:
     return ret;
 }
 
-esp_err_t EthernetConnection::off(void) {
+esp_err_t EthernetConnection::on_down(void) {
     ESP_LOGI(TAG, "Turning off ethernet");
     this->isConnected = false;
     return esp_eth_stop(eth_handle);

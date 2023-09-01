@@ -30,6 +30,13 @@ WifiConfiguration::WifiConfiguration()
         return res; \
     }
 
+//******************************************************************************
+/**
+ * @brief Called when the configuration is being reseted.
+ * 
+ * @param store 
+ * @return esp_err_t 
+ */
 esp_err_t WifiConfiguration::on_reset_config(KeyStore& store) {
     esp_err_t res;
 
@@ -40,10 +47,16 @@ esp_err_t WifiConfiguration::on_reset_config(KeyStore& store) {
     return ESP_OK;
 }
 
+//******************************************************************************
+/**
+ * @brief Called when the configuration is being requested by the cli.
+ * 
+ * @param store 
+ * @return esp_err_t 
+ */
 esp_err_t WifiConfiguration::on_dump_config(KeyStore& store) {
-    // No commit until we are all done.
-    ESP_LOGI(TAG, "SSID: %s", this->wifi_creds.ssid);
-    ESP_LOGI(TAG, "Password: %s", this->wifi_creds.password);
+    printf("  %-20s: %s\n", "SSID", this->wifi_creds.ssid);
+    printf("  %-20s: %s\n", "Password", this->wifi_creds.password);
 
     return ESP_OK;    
 }
@@ -57,25 +70,23 @@ esp_err_t WifiConfiguration::on_dump_config(KeyStore& store) {
  */
 esp_err_t WifiConfiguration::on_load(KeyStore& store) {
     esp_err_t res;
-
     memset(&this->wifi_creds, 0, sizeof(this->wifi_creds));
-
-    ESP_LOGI(TAG, "Loading wifi configuration");
 
     ESP_GET_VALUE_WLEN("ssid", this->wifi_creds.ssid, sizeof(this->wifi_creds.ssid));
     ESP_GET_VALUE_WLEN("password", this->wifi_creds.password, sizeof(this->wifi_creds.password));
 
-    ESP_LOGI(TAG, "Loaded wifi configuration");
-    ESP_LOGI(TAG, "SSID: %s", this->wifi_creds.ssid);
-    ESP_LOGI(TAG, "Password: %s", this->wifi_creds.password);
-    
     return ESP_OK;
 }
 
+//******************************************************************************
+/**
+ * @brief Save the ethernet configuration to flash.
+ * 
+ * @return esp_err_t ESP_OK on success.
+ */
 esp_err_t WifiConfiguration::on_save(KeyStore& store) {
     esp_err_t res;
 
-    // No commit until we are all done.
     ESP_SET_VALUE("ssid", this->wifi_creds.ssid, false);
     ESP_SET_VALUE("password", this->wifi_creds.password, false);
 
