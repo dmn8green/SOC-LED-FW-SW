@@ -1,10 +1,10 @@
 #pragma once
 
 #include "Network/NetworkInterface.h"
-#include "Network/WifiConnection.h"
-#include "Network/WifiConfiguration.h"
-#include "Network/EthConnection.h"
-#include "Network/EthConfiguration.h"
+#include "Network/Connection/WifiConnection.h"
+#include "Network/Configuration/WifiConfiguration.h"
+#include "Network/Connection/EthConnection.h"
+#include "Network/Configuration/EthConfiguration.h"
 
 #include "Utils/Singleton.h"
 

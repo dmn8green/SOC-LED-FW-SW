@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Connection.h"
-#include "NetworkConfiguration.h"
+#include "Network/Configuration/EthConfiguration.h"
 
 // Ethernet connection
 class EthernetConnection : public Connection {

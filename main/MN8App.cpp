@@ -1,6 +1,6 @@
 #include "MN8App.h"
 
-#include "Network/ethernet_init.h"
+#include "Network/Utils/ethernet_init.h"
 
 #include "esp_log.h"
 #include "esp_chip_info.h"

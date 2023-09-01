@@ -21,7 +21,7 @@
 
 #include "sdkconfig.h"
 
-#include "Network/Connection.h"
+#include "Network/Connection/Connection.h"
 #include "MN8App.h"
 
 // ifconfig interface up/down

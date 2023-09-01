@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Connection.h"
-#include "WifiConfiguration.h"
+#include "Network/Configuration/WifiConfiguration.h"
 
 // Represent a connection.  It can be unconfigured/connected/disconnected/connecting/on/off
 class WifiConnection : public Connection {

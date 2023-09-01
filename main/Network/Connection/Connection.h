@@ -1,7 +1,7 @@
 #pragma once
 
-#include "NetworkInterface.h"
-#include "NetworkConfiguration.h"
+#include "Network/NetworkInterface.h"
+#include "Network/Configuration/NetworkConfiguration.h"
 
 #include <stdint.h>
 
