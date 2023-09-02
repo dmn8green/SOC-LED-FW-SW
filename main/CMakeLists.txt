@@ -10,6 +10,7 @@ set(COMPONENT_SRCS
     ReplConsole/cmd_wifi.cpp
     ReplConsole/cmd_ifconfig.cpp
     ReplConsole/cmd_reboot.cpp
+    ReplConsole/cmd_ping.cpp
     Network/NetworkInterface.cpp
     Network/Utils/ethernet_init.cpp
     Network/Connection/Connection.cpp

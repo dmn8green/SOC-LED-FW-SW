@@ -4,6 +4,7 @@
 #include "cmd_wifi.h"
 #include "cmd_ifconfig.h"
 #include "cmd_reboot.h"
+#include "cmd_ping.h"
 
 // Path: main/configuration_interface/configuration_interface.cpp
 
@@ -42,6 +43,7 @@ void repl_configure(uint16_t txPin, uint16_t rxPin, uint16_t channel, uint32_t b
     register_wifi();
     register_ifconfig();
     register_reboot();
+    register_ping();
 }
 
 void repl_start(void)
