@@ -77,6 +77,31 @@ esp_err_t Connection::dump_config(void) {
     return this->configuration->dump_config();
 }
 
+esp_err_t Connection::dump_connection_info(void) {
+    printf("\nInterface information:\n");
+    printf("  %-20s: %s\n", "Interface", this->get_name());
+    printf("  %-20s: %s\n", "Is Up", this->is_enabled() ? "Yes" : "No");
+
+    if (this->is_enabled()) {
+        printf("\nCurrent this state:\n");
+        printf("  %-20s: %s\n", "Connected", this->is_connected() ? "Yes" : "No");
+        printf("  %-20s: %s\n", "DHCP", this->is_dhcp() ? "Yes" : "No");
+    }
+
+    if (this->is_connected()) {
+        esp_ip4_addr_t ip = this->get_ip_address();
+        esp_ip4_addr_t netmask = this->get_netmask();
+        esp_ip4_addr_t gateway = this->get_gateway();
+        esp_ip4_addr_t dns = this->get_dns();
+        
+        printf("  %-20s: " IPSTR "\n", "IP Address", IP2STR(&ip));
+        printf("  %-20s: " IPSTR "\n", "Netmask", IP2STR(&netmask));
+        printf("  %-20s: " IPSTR "\n", "Gateway", IP2STR(&gateway));
+        printf("  %-20s: " IPSTR "\n", "DNS", IP2STR(&dns));
+    }
+    return ESP_OK;
+}
+
 //*****************************************************************************
 /**
  * @brief Set the network info.
@@ -89,17 +114,19 @@ esp_err_t Connection::dump_config(void) {
  * @param gateway 
  * @return esp_err_t 
  */
-esp_err_t Connection::set_network_info(uint32_t ip, uint32_t netmask, uint32_t gateway) {
+esp_err_t Connection::set_network_info(uint32_t ip, uint32_t netmask, uint32_t gateway, uint32_t dns) {
     esp_err_t ret = ESP_OK;
     if (this->is_connected()) { this->down(); }
 
     esp_ip4_addr_t eip = {ip};
     esp_ip4_addr_t enetmask = {netmask};
     esp_ip4_addr_t egateway = {gateway};
+    esp_ip4_addr_t edns = {dns};
 
     this->configuration->set_ip_address(eip);
     this->configuration->set_netmask(enetmask);
     this->configuration->set_gateway(egateway);
+    this->configuration->set_dns(edns);
     this->configuration->set_dhcp_enabled(false);
 
     ESP_GOTO_ON_ERROR(this->configuration->save(), err, TAG, "Failed to save configuration");

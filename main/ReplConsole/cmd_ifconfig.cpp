@@ -33,6 +33,7 @@ static struct {
     struct arg_str *ip;
     struct arg_str *netmask;
     struct arg_str *gateway;
+    struct arg_str *dns;
     struct arg_end *end;
 } ifconfig_args;
 
@@ -43,24 +44,27 @@ static struct {
 static void print_interface_information(Connection *connection)
 {
     printf("\nInterface information:\n");
-    printf("  %-20s: %s\n", "Interface", connection->get_name());
-    printf("  %-20s: %s\n", "Is Up", connection->is_enabled() ? "Yes" : "No");
+    connection->dump_connection_info();
+    // printf("  %-20s: %s\n", "Interface", connection->get_name());
+    // printf("  %-20s: %s\n", "Is Up", connection->is_enabled() ? "Yes" : "No");
 
-    if (connection->is_enabled()) {
-        printf("\nCurrent connection state:\n");
-        printf("  %-20s: %s\n", "Connected", connection->is_connected() ? "Yes" : "No");
-        printf("  %-20s: %s\n", "DHCP", connection->is_dhcp() ? "Yes" : "No");
-    }
+    // if (connection->is_enabled()) {
+    //     printf("\nCurrent connection state:\n");
+    //     printf("  %-20s: %s\n", "Connected", connection->is_connected() ? "Yes" : "No");
+    //     printf("  %-20s: %s\n", "DHCP", connection->is_dhcp() ? "Yes" : "No");
+    // }
 
-    if (connection->is_connected()) {
-        esp_ip4_addr_t ip = connection->get_ip_address();
-        esp_ip4_addr_t netmask = connection->get_netmask();
-        esp_ip4_addr_t gateway = connection->get_gateway();
+    // if (connection->is_connected()) {
+    //     esp_ip4_addr_t ip = connection->get_ip_address();
+    //     esp_ip4_addr_t netmask = connection->get_netmask();
+    //     esp_ip4_addr_t gateway = connection->get_gateway();
+    //     esp_ip4_addr_t dns = connection->get_dns();
         
-        printf("  %-20s: " IPSTR "\n", "IP Address", IP2STR(&ip));
-        printf("  %-20s: " IPSTR "\n", "Netmask", IP2STR(&netmask));
-        printf("  %-20s: " IPSTR "\n", "Gateway", IP2STR(&gateway));
-    }
+    //     printf("  %-20s: " IPSTR "\n", "IP Address", IP2STR(&ip));
+    //     printf("  %-20s: " IPSTR "\n", "Netmask", IP2STR(&netmask));
+    //     printf("  %-20s: " IPSTR "\n", "Gateway", IP2STR(&gateway));
+    //     printf("  %-20s: " IPSTR "\n", "DNS", IP2STR(&dns));
+    // }
 
     printf("\nCurrent connection saved settings:\n");
     connection->dump_config();
@@ -116,6 +120,7 @@ static operation_t infer_operation_from_args(void) {
     const char* ip = ifconfig_args.ip->sval[0];
     const char* netmask = ifconfig_args.netmask->sval[0];
     const char* gateway = ifconfig_args.gateway->sval[0];
+    const char* dns = ifconfig_args.dns->sval[0];
 
     if (STR_IS_EMPTY(interface)) {
         return e_print_interface_information_op;
@@ -144,7 +149,7 @@ static operation_t infer_operation_from_args(void) {
     if (STR_IS_EQUAL(command, "dump_conf"))  { return e_interface_dump_conf_op; }
 
     if (STR_IS_EQUAL(command, "manual")) {
-        if (STR_IS_EMPTY(ip) || STR_IS_EMPTY(netmask) || STR_IS_EMPTY(gateway)) {
+        if (STR_IS_EMPTY(ip) || STR_IS_EMPTY(netmask) || STR_IS_EMPTY(gateway) || STR_IS_EMPTY(dns)) {
             printf("ERROR: IP, netmask and gateway must be specified for manual configuration");
             return e_unknown_op;
         }
@@ -203,29 +208,29 @@ static int op_interface_manual(Connection *connection)
     const char * ip_str      = ifconfig_args.ip->sval[0];
     const char * netmask_str = ifconfig_args.netmask->sval[0];
     const char * gateway_str = ifconfig_args.gateway->sval[0];
+    const char * dns_str     = ifconfig_args.dns->sval[0];
 
     ip4_addr_t ip_addr = { 0 };
     ip4_addr_t netmask_addr = { 0 };
     ip4_addr_t gateway_addr = { 0 };
+    ip4_addr_t dns_addr = { 0 };
 
     IPSTR_TO_ESPIP(ip_str,      ip_addr,      "Invalid IP address")
     IPSTR_TO_ESPIP(netmask_str, netmask_addr, "Invalid netmask")
     IPSTR_TO_ESPIP(gateway_str, gateway_addr, "Invalid gateway")
+    IPSTR_TO_ESPIP(dns_str,     dns_addr,     "Invalid DNS")
 
     printf("  %-20s: %s\n", "IP Address", ip_str);
     printf("  %-20s: %s\n", "Netmask"   , netmask_str);
     printf("  %-20s: %s\n", "Gateway"   , gateway_str);
-
-    printf("  %-20s: %08lx\n", "IP Address4", ip_addr.addr);
-    printf("  %-20s: %08lx\n", "Netmask4"   , netmask_addr.addr);
-    printf("  %-20s: %08lx\n", "Gateway4"   , gateway_addr.addr);
-
+    printf("  %-20s: %s\n", "DNS"       , dns_str);
 
     printf("Setting manual configuration on interface %s\n", connection->get_name());
     connection->set_network_info(
         ip_addr.addr,
         netmask_addr.addr,
-        gateway_addr.addr
+        gateway_addr.addr,
+        dns_addr.addr
     );
     return 0;
 }
@@ -278,7 +283,8 @@ void register_ifconfig(void)
     ifconfig_args.ip        = arg_str0(NULL, NULL, "<ip>", "IP address");
     ifconfig_args.netmask   = arg_str0(NULL, NULL, "<netmask>", "Netmask");
     ifconfig_args.gateway   = arg_str0(NULL, NULL, "<gateway>", "Gateway");
-    ifconfig_args.end       = arg_end(5);
+    ifconfig_args.dns       = arg_str0(NULL, NULL, "<dns>", "DNS");
+    ifconfig_args.end       = arg_end(6);
 
     #pragma GCC diagnostic pop "-Wmissing-field-initializers" 
     #pragma GCC diagnostic ignored "-Wmissing-field-initializers" 

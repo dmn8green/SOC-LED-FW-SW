@@ -18,12 +18,14 @@ public:
     inline esp_ip4_addr_t get_ip_address(void) { return this->ipAddress; }
     inline esp_ip4_addr_t get_netmask(void) { return this->netmask; }
     inline esp_ip4_addr_t get_gateway(void) { return this->gateway; }
+    inline esp_ip4_addr_t get_dns(void) { return this->dns; }
 
     inline void set_enabled(bool enabled) { this->isEnabled = enabled; }
     inline void set_dhcp_enabled(bool enabled) { this->useDHCP = enabled; }
     inline void set_ip_address(esp_ip4_addr_t ip) { this->ipAddress = ip; }
     inline void set_netmask(esp_ip4_addr_t netmask) { this->netmask = netmask; }
     inline void set_gateway(esp_ip4_addr_t gateway) { this->gateway = gateway; }
+    inline void set_dns(esp_ip4_addr_t dns) { this->dns = dns; }
 
     inline bool is_configured(void) { return this->isConfigured; }
 
@@ -45,6 +47,7 @@ protected:
     esp_ip4_addr_t ipAddress = {0};
     esp_ip4_addr_t netmask = {0};
     esp_ip4_addr_t gateway = {0};
+    esp_ip4_addr_t dns = {0};
     bool isConfigured = false;
 };
 

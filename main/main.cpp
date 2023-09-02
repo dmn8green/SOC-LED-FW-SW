@@ -7,9 +7,6 @@
 #include "freertos/task.h"
 #include "esp_log.h"
 
-static const char *TAG = "MN8 LB: ";
-
-
 extern "C" void app_main(void)
 {
     MN8App& app = MN8App::instance();
