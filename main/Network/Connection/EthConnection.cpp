@@ -33,9 +33,6 @@ esp_err_t EthernetConnection::on_initialize(void) {
 esp_err_t EthernetConnection::on_up(void) {
     esp_err_t ret = ESP_OK;
 
-    ESP_LOGI(TAG, "Turning on ethernet");
-    ESP_GOTO_ON_ERROR(esp_eth_start(eth_handle), err, TAG, "Failed to start ethernet");
-
     this->useDHCP = this->configuration->is_dhcp_enabled();
     this->interface->use_dhcp(this->useDHCP);
 
@@ -47,6 +44,9 @@ esp_err_t EthernetConnection::on_up(void) {
             this->configuration->get_dns()
         );
     }
+
+    ESP_LOGI(TAG, "Turning on ethernet");
+    ESP_GOTO_ON_ERROR(esp_eth_start(eth_handle), err, TAG, "Failed to start ethernet");
 
 err:
     return ret;

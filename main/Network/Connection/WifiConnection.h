@@ -21,6 +21,7 @@ protected:
     virtual esp_err_t on_initialize(void) override;
     virtual esp_err_t on_up(void) override;
     virtual esp_err_t on_down(void) override;
+    virtual esp_err_t on_dump_connection_info(void);
 
 private:
     esp_err_t join(void);

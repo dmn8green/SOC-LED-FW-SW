@@ -17,6 +17,21 @@ WifiConnection::WifiConnection(NetworkInterface* interface, WifiConfiguration* c
 }
 
 
+//*****************************************************************************
+/**
+ * @brief Dump the interface info to the console.
+ * 
+ * This will dump the interface info to the console using printf.
+ * 
+ * @return esp_err_t 
+ */
+esp_err_t WifiConnection::on_dump_connection_info(void) {
+    printf("  %-20s: %s\n", "SSID", this->wifi_creds.ssid);
+    printf("  %-20s: %s\n", "Password", this->wifi_creds.password);
+
+    return ESP_OK;
+}
+
 esp_err_t WifiConnection::on_initialize(void) {
     esp_err_t ret = ESP_OK;
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();

@@ -36,6 +36,7 @@ protected:
     virtual esp_err_t on_initialize(void) = 0;
     virtual esp_err_t on_up(void) = 0;
     virtual esp_err_t on_down(void) = 0;
+    virtual esp_err_t on_dump_connection_info(void) { return ESP_OK; }
 
 protected:
     bool isEnabled = false;

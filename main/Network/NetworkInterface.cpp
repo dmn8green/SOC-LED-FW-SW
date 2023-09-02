@@ -33,8 +33,10 @@ esp_err_t NetworkInterface::use_dhcp(bool use) {
 
     ESP_LOGI(TAG, "NetworkInterface::use_dhcp use: %d status %d", use, status);
     if (use && status == ESP_NETIF_DHCP_STOPPED) {
+        ESP_LOGI("NetworkInterface::use_dhcp", "Starting DHCP");
         ESP_GOTO_ON_ERROR(esp_netif_dhcpc_start(netif), err, TAG, "Failed to start DHCP");
     } else if (!use && status != ESP_NETIF_DHCP_STOPPED) {
+        ESP_LOGI("NetworkInterface::use_dhcp", "Stopping DHCP");
         ESP_GOTO_ON_ERROR(esp_netif_dhcpc_stop(netif), err, TAG, "Failed to stop DHCP");
     }
 
@@ -62,23 +64,29 @@ esp_err_t NetworkInterface::set_network_info(esp_ip4_addr_t ip, esp_ip4_addr_t n
     info.ip = ip;
     info.netmask = netmask;
     info.gw = gateway;
-
     ESP_GOTO_ON_ERROR(esp_netif_set_ip_info(netif, &info), err, TAG, "Failed to set IP info err: %d", err_rc_);
 
     dns_info.ip.type = ESP_IPADDR_TYPE_V4;
-    dns_info.ip.u_addr.ip4.addr = static_cast<uint32_t>(dns.addr);
-    if (dns_info.ip.u_addr.ip4.addr) {
-        ret = esp_netif_set_dns_info(this->netif, ESP_NETIF_DNS_MAIN, &dns_info);
-        if (ret != ESP_OK) {
-            ESP_LOGE(TAG, "Failed to set DNS info err: %d, " IPSTR, ret, IP2STR(&dns));
-            return ESP_FAIL;
-        }
-    }
+    dns_info.ip.u_addr.ip4.addr = dns.addr;
+    ESP_GOTO_ON_ERROR(esp_netif_set_dns_info(netif, ESP_NETIF_DNS_MAIN, &dns_info), err, TAG, "Failed to set DNS info err: %d", err_rc_);
+
+    dns_info.ip.u_addr.ip4.addr = dns.addr;
+    ESP_GOTO_ON_ERROR(esp_netif_set_dns_info(netif, ESP_NETIF_DNS_BACKUP, &dns_info), err, TAG, "Failed to set DNS info err: %d", err_rc_);
+
+    dns_info.ip.u_addr.ip4.addr = dns.addr;
+    ESP_GOTO_ON_ERROR(esp_netif_set_dns_info(netif, ESP_NETIF_DNS_FALLBACK, &dns_info), err, TAG, "Failed to set DNS info err: %d", err_rc_);
 
 err:
     return ret;
 }
 
+//*****************************************************************************
+/**
+ * @brief Get the DNS info.
+ * 
+ * @param dns 
+ * @return esp_err_t 
+ */
 esp_err_t NetworkInterface::get_dns_info(esp_ip4_addr_t& dns) {
     esp_err_t ret = ESP_OK;
     esp_netif_dns_info_t dns_info;

@@ -77,8 +77,15 @@ esp_err_t Connection::dump_config(void) {
     return this->configuration->dump_config();
 }
 
+//*****************************************************************************
+/**
+ * @brief Dump the interface info to the console.
+ * 
+ * This will dump the interface info to the console using printf.
+ * 
+ * @return esp_err_t 
+ */
 esp_err_t Connection::dump_connection_info(void) {
-    printf("\nInterface information:\n");
     printf("  %-20s: %s\n", "Interface", this->get_name());
     printf("  %-20s: %s\n", "Is Up", this->is_enabled() ? "Yes" : "No");
 
@@ -89,15 +96,23 @@ esp_err_t Connection::dump_connection_info(void) {
     }
 
     if (this->is_connected()) {
-        esp_ip4_addr_t ip = this->get_ip_address();
-        esp_ip4_addr_t netmask = this->get_netmask();
-        esp_ip4_addr_t gateway = this->get_gateway();
-        esp_ip4_addr_t dns = this->get_dns();
+        esp_netif_ip_info_t ip_info;
+        esp_err_t res = this->interface->get_ip_info(ip_info);
+
+        if (res != ESP_OK) {
+            ESP_LOGE(TAG, "Failed to get IP info");
+            return res;
+        }
+
+        esp_ip4_addr_t dns;
+        this->interface->get_dns_info(dns);
         
-        printf("  %-20s: " IPSTR "\n", "IP Address", IP2STR(&ip));
-        printf("  %-20s: " IPSTR "\n", "Netmask", IP2STR(&netmask));
-        printf("  %-20s: " IPSTR "\n", "Gateway", IP2STR(&gateway));
+        printf("  %-20s: " IPSTR "\n", "IP Address", IP2STR(&ip_info.ip));
+        printf("  %-20s: " IPSTR "\n", "Netmask", IP2STR(&ip_info.netmask));
+        printf("  %-20s: " IPSTR "\n", "Gateway", IP2STR(&ip_info.gw));
         printf("  %-20s: " IPSTR "\n", "DNS", IP2STR(&dns));
+
+        this->on_dump_connection_info();
     }
     return ESP_OK;
 }
