@@ -26,6 +26,7 @@ esp_err_t NetworkConfiguration::reset_config() {
     ESP_ERASE_KEY("ip", false);
     ESP_ERASE_KEY("netmask", false);
     ESP_ERASE_KEY("gateway", false);
+    ESP_ERASE_KEY("dns", false);
 
     res = this->on_reset_config(store);
     if (res != ESP_OK) {
@@ -68,6 +69,7 @@ esp_err_t NetworkConfiguration::dump_config() {
         printf("  %-20s: " IPSTR "\n", "IP Address", IP2STR(&this->ipAddress));
         printf("  %-20s: " IPSTR "\n", "Netmask"   , IP2STR(&this->netmask));
         printf("  %-20s: " IPSTR "\n", "Gateway"   , IP2STR(&this->gateway));
+        printf("  %-20s: " IPSTR "\n", "DNS"       , IP2STR(&this->dns));
     }
 
     this->on_dump_config(store);
@@ -96,12 +98,14 @@ esp_err_t NetworkConfiguration::load() {
     this->ipAddress.addr = 0;
     this->netmask.addr = 0;
     this->gateway.addr = 0;
+    this->dns.addr = 0;
 
     ESP_GET_VALUE("enabled", this->isEnabled);
     ESP_GET_VALUE("dhcp", this->useDHCP);
     ESP_GET_VALUE("ip", this->ipAddress);
     ESP_GET_VALUE("netmask", this->netmask);
     ESP_GET_VALUE("gateway", this->gateway);
+    ESP_GET_VALUE("dns", this->dns);
 
     res = this->on_load(store);
     if (res != ESP_OK) {
@@ -135,6 +139,7 @@ esp_err_t NetworkConfiguration::save() {
     ESP_SET_VALUE("ip", this->ipAddress, false);
     ESP_SET_VALUE("netmask", this->netmask, false);
     ESP_SET_VALUE("gateway", this->gateway, false);
+    ESP_SET_VALUE("dns", this->dns, false);
 
     res = this->on_save(store);
     if (res != ESP_OK) {

@@ -10,6 +10,16 @@ void print_mac(const unsigned char *mac) {
 	ESP_LOGI(__func__, "%02X:%02X:%02X:%02X:%02X:%02X", mac[0],mac[1],mac[2],mac[3],mac[4],mac[5]);
 }
 
+//*****************************************************************************
+/**
+ * @brief Construct a new Network Interface:: Network Interface object
+ * 
+ * The network interface is the lowest level of the network stack.  It is a
+ * wrapper around the esp_netif_t structure.  It is used by the Connection
+ * class to manage the network interface.
+ * 
+ * @param netif 
+ */
 NetworkInterface::NetworkInterface(esp_netif_t* netif) : netif(netif) {
     esp_netif_get_mac(this->netif, mac);
     print_mac(mac);
@@ -32,15 +42,49 @@ err:
     return ret;
 }
 
-esp_err_t NetworkInterface::set_network_info(esp_ip4_addr_t ip, esp_ip4_addr_t netmask, esp_ip4_addr_t gateway) {
+//*****************************************************************************
+/**
+ * @brief Set the network info.
+ * 
+ * This configures the network interface with the given IP address, netmask,
+ * and gateway.  It also sets the DNS server.
+ * 
+ * @param ip 
+ * @param netmask 
+ * @param gateway 
+ * @return esp_err_t 
+ */
+esp_err_t NetworkInterface::set_network_info(esp_ip4_addr_t ip, esp_ip4_addr_t netmask, esp_ip4_addr_t gateway, esp_ip4_addr_t dns) {
     esp_err_t ret = ESP_OK;
     esp_netif_ip_info_t info;
+    esp_netif_dns_info_t dns_info;
 
     info.ip = ip;
     info.netmask = netmask;
     info.gw = gateway;
 
     ESP_GOTO_ON_ERROR(esp_netif_set_ip_info(netif, &info), err, TAG, "Failed to set IP info err: %d", err_rc_);
+
+    dns_info.ip.type = ESP_IPADDR_TYPE_V4;
+    dns_info.ip.u_addr.ip4.addr = static_cast<uint32_t>(dns.addr);
+    if (dns_info.ip.u_addr.ip4.addr) {
+        ret = esp_netif_set_dns_info(this->netif, ESP_NETIF_DNS_MAIN, &dns_info);
+        if (ret != ESP_OK) {
+            ESP_LOGE(TAG, "Failed to set DNS info err: %d, " IPSTR, ret, IP2STR(&dns));
+            return ESP_FAIL;
+        }
+    }
+
+err:
+    return ret;
+}
+
+esp_err_t NetworkInterface::get_dns_info(esp_ip4_addr_t& dns) {
+    esp_err_t ret = ESP_OK;
+    esp_netif_dns_info_t dns_info;
+
+    ESP_GOTO_ON_ERROR(esp_netif_get_dns_info(netif, ESP_NETIF_DNS_MAIN, &dns_info), err, TAG, "Failed to get DNS info err: %d", err_rc_);
+    dns = dns_info.ip.u_addr.ip4;
 
 err:
     return ret;

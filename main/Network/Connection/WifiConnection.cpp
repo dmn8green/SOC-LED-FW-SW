@@ -74,7 +74,8 @@ esp_err_t WifiConnection::on_up(void) {
         this->interface->set_network_info(
             this->configuration->get_ip_address(), 
             this->configuration->get_netmask(), 
-            this->configuration->get_gateway()
+            this->configuration->get_gateway(),
+            this->configuration->get_dns()
         );
     }
 
@@ -172,6 +173,7 @@ void WifiConnection::onGotIp(esp_event_base_t event_base, int32_t event_id, void
     this->ipAddress = ip_info->ip;
     this->netmask = ip_info->netmask;
     this->gateway = ip_info->gw;
+    this->interface->get_dns_info(this->dns);
     this->isConnected = true;
 
     ESP_LOGI(TAG, "Wifi Got IP Address");
@@ -179,6 +181,7 @@ void WifiConnection::onGotIp(esp_event_base_t event_base, int32_t event_id, void
     ESP_LOGI(TAG, "ETHIP:" IPSTR, IP2STR(&ip_info->ip));
     ESP_LOGI(TAG, "ETHMASK:" IPSTR, IP2STR(&ip_info->netmask));
     ESP_LOGI(TAG, "ETHGW:" IPSTR, IP2STR(&ip_info->gw));
+    ESP_LOGI(TAG, "ETHDNS:" IPSTR, IP2STR(&this->dns));
     ESP_LOGI(TAG, "~~~~~~~~~~~");
 
     // this->setCsiCb();
@@ -188,7 +191,7 @@ void WifiConnection::onGotIp(esp_event_base_t event_base, int32_t event_id, void
 
 void WifiConnection::onWifiDisconnect(esp_event_base_t event_base, int32_t event_id, void *event_data)
 {
-    wifi_event_sta_disconnected_t *event = (wifi_event_sta_disconnected_t *)event_data;
+    // wifi_event_sta_disconnected_t *event = (wifi_event_sta_disconnected_t *)event_data;
     this->isConnected = false;
 
     //ESP_LOGI(TAG, "Wi-Fi disconnected, trying to reconnect... %d, %d", event_id, (uint32_t)event->reason);
