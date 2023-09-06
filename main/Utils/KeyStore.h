@@ -34,6 +34,7 @@ public:
 
 public:
     esp_err_t openKeyStore(const char *sectionName, e_keyStoreMode ksMode = e_ro);
+    esp_err_t getKeyValueAlloc(const char *keyName, char *&value, size_t& valueLength);
     esp_err_t getKeyValue(const char *keyName, char *value, size_t maxValueLength);
     esp_err_t getKeyValue(const char *keyName, esp_ip4_addr_t &value);
     esp_err_t getKeyValue(const char *keyName, uint16_t &value);

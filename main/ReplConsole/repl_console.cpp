@@ -5,6 +5,9 @@
 #include "cmd_ifconfig.h"
 #include "cmd_reboot.h"
 #include "cmd_ping.h"
+#include "cmd_provision_iot.h"
+
+#include "MN8App.h"
 
 // Path: main/configuration_interface/configuration_interface.cpp
 
@@ -39,11 +42,15 @@ void repl_configure(uint16_t txPin, uint16_t rxPin, uint16_t channel, uint32_t b
     
     ESP_ERROR_CHECK(esp_console_new_repl_uart(&uart_config, &repl_config, &repl));
 
+    MN8App& app = MN8App::instance();
     register_tasks();
     register_wifi();
     register_ifconfig();
     register_reboot();
     register_ping();
+    if (!app.is_iot_thing_provisioned()) {
+        register_provision_iot();
+    }
 }
 
 void repl_start(void)

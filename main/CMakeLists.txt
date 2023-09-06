@@ -5,12 +5,15 @@ set(COMPONENT_REQUIRES )
 set(COMPONENT_PRIV_REQUIRES )
 set(COMPONENT_SRCS
     Utils/KeyStore.cpp
+    Utils/FuseMacAddress.cpp
+    IOT/ThingConfig.cpp
     ReplConsole/repl_console.cpp
     ReplConsole/cmd_tasks.cpp
     ReplConsole/cmd_wifi.cpp
     ReplConsole/cmd_ifconfig.cpp
     ReplConsole/cmd_reboot.cpp
     ReplConsole/cmd_ping.cpp
+    ReplConsole/cmd_provision_iot.cpp
     Network/NetworkInterface.cpp
     Network/Utils/ethernet_init.cpp
     Network/Connection/Connection.cpp

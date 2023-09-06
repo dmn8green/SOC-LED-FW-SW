@@ -2,6 +2,8 @@
 
 #include "esp_log.h"
 
+#include <memory.h>
+
 static const char *TAG = "KeyStore";
 static const char *KEYSTORE_NAME = "storage";
 
@@ -52,6 +54,23 @@ esp_err_t KeyStore::openKeyStore(const char *sectionName, e_keyStoreMode ksMode)
     }
 
     this->handle = handle;
+    return ESP_OK;
+}
+
+//******************************************************************************
+esp_err_t KeyStore::getKeyValueAlloc(const char *keyName, char *&value, size_t& valueLength)
+{
+    esp_err_t err = ESP_OK;
+    size_t valueSize = 0;
+
+    NVS_CALL_WITH_ERROR_CHECK(nvs_get_str(this->handle, keyName, NULL, &valueSize));
+
+    value = (char*)malloc(valueSize+1);
+    memset(value, 0, valueSize+1);
+    NVS_CALL_WITH_ERROR_CHECK(nvs_get_str(handle, keyName, value, &valueSize));
+
+    valueLength = valueSize;
+
     return ESP_OK;
 }
 
