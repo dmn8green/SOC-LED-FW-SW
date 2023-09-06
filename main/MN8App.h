@@ -7,6 +7,7 @@
 #include "Network/Configuration/EthConfiguration.h"
 
 #include "Utils/Singleton.h"
+#include "IOT/ThingConfig.h"
 
 /**
  * @brief MN8App class.
@@ -37,6 +38,8 @@ public:
     inline EthernetConnection* get_ethernet_connection(void) { return this->ethernet_connection; }
 
     Connection* get_connection(const char* interface);
+    
+    inline bool is_iot_thing_provisioned(void) { return thing_config.is_configured(); } 
 
 private:
     esp_err_t setup_wifi_connection(void);
@@ -53,4 +56,5 @@ private:
 
     esp_eth_handle_t *eth_handle;
 
+    ThingConfig thing_config;
 };  // class MN8App

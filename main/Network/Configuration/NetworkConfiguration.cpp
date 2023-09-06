@@ -88,7 +88,7 @@ esp_err_t NetworkConfiguration::load() {
     esp_err_t res;
 
     if (store.openKeyStore(this->get_store_section_name(), e_ro) != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to open eth config store");
+        ESP_LOGE(TAG, "Failed to open %s config store", this->get_store_section_name());
         return false;
     }
 
