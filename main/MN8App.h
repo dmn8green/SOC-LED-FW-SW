@@ -8,6 +8,7 @@
 
 #include "Utils/Singleton.h"
 #include "IOT/ThingConfig.h"
+#include "LED/LedTask.h"
 
 /**
  * @brief MN8App class.
@@ -40,6 +41,8 @@ public:
     Connection* get_connection(const char* interface);
     
     inline bool is_iot_thing_provisioned(void) { return thing_config.is_configured(); } 
+    inline LedTask& get_led_task_0(void) { return this->led_task_0; }
+    inline LedTask& get_led_task_1(void) { return this->led_task_1; }
 
 private:
     esp_err_t setup_wifi_connection(void);
@@ -57,4 +60,7 @@ private:
     esp_eth_handle_t *eth_handle;
 
     ThingConfig thing_config;
+
+    LedTask led_task_0;
+    LedTask led_task_1;
 };  // class MN8App
