@@ -181,6 +181,7 @@ void register_led(void)
         .help = "Control LED strips",
         .hint = NULL,
         .func = &led_task,
+        .argtable = &led_args
     };
     ESP_ERROR_CHECK( esp_console_cmd_register(&cmd) );
 }
