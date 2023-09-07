@@ -102,7 +102,7 @@ esp_err_t _http_event_handler(esp_http_client_event_t *evt)
                 if (evt->user_data) {
                     copy_len = MIN(evt->data_len, (MAX_HTTP_OUTPUT_BUFFER - output_len));
                     if (copy_len) {
-                        memcpy(evt->user_data + output_len, evt->data, copy_len);
+                        memcpy((void *)((char *)evt->user_data + output_len), evt->data, copy_len);
                     }
                 } else {
                     const int buffer_len = esp_http_client_get_content_length(evt->client);
