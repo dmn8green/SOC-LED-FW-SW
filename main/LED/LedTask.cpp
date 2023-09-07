@@ -73,11 +73,13 @@ void LedTask::vTaskCodeLed()
 	int pattern=0;
     int incoming_pattern = 0;
     bool pattern_updated=false;
+    int breathe_counter = 0;
+    bool increasing = true;
 
     LedTask* task_info = this;
 
     while(1) {
-        if (xQueueReceive(task_info->queue, &incoming_pattern,  500 / portTICK_PERIOD_MS) == pdTRUE)
+        if (xQueueReceive(task_info->queue, &incoming_pattern,  10 / portTICK_PERIOD_MS) == pdTRUE)
 		{
             ESP_LOGI(TAG, "Apply pattern %d", incoming_pattern);
             if (incoming_pattern != pattern) {
@@ -128,6 +130,71 @@ void LedTask::vTaskCodeLed()
                 vTaskDelay(pdMS_TO_TICKS(EXAMPLE_CHASE_SPEED_MS));
             }
             start_rgb += 60;
+        }
+
+        if (pattern == 3) {
+            // do a breathe pattern
+            if (breathe_counter == 255) { increasing = false; }
+            if (breathe_counter == 1) { increasing = true; }
+            if (increasing) { breathe_counter++; }
+            else { breathe_counter--; }
+
+            memset(task_info->led_pixels, breathe_counter, EXAMPLE_LED_NUMBERS*3);
+            ESP_ERROR_CHECK(rmt_transmit(task_info->led_chan, task_info->led_encoder, task_info->led_pixels, EXAMPLE_LED_NUMBERS*3, &task_info->tx_config));
+            ESP_ERROR_CHECK(rmt_tx_wait_all_done(task_info->led_chan, portMAX_DELAY));
+            pattern_updated = false;
+            // vTaskDelay(pdMS_TO_TICKS(EXAMPLE_CHASE_SPEED_MS));
+            continue;
+        }
+
+        if (pattern == 4) {
+            hue = 180;
+
+            if (breathe_counter == 100) { increasing = false; }
+            if (breathe_counter == 1) { increasing = true; }
+            if (increasing) { breathe_counter++; }
+            else { breathe_counter--; }
+
+
+            led_strip_hsv2rgb(hue, breathe_counter, 100, &red, &green, &blue);
+
+            for (int j = 0; j < EXAMPLE_LED_NUMBERS; j += 3) {
+                // Build RGB pixels
+                task_info->led_pixels[j * 3 + 0] = green;
+                task_info->led_pixels[j * 3 + 1] = blue;
+                task_info->led_pixels[j * 3 + 2] = red;
+            }
+
+            // memset(task_info->led_pixels, breathe_counter, EXAMPLE_LED_NUMBERS*3);
+            ESP_ERROR_CHECK(rmt_transmit(task_info->led_chan, task_info->led_encoder, task_info->led_pixels, EXAMPLE_LED_NUMBERS*3, &task_info->tx_config));
+            ESP_ERROR_CHECK(rmt_tx_wait_all_done(task_info->led_chan, portMAX_DELAY));
+            pattern_updated = false;
+
+            continue;
+        }
+        if (pattern == 5) {
+            hue = 144;
+
+            if (breathe_counter == 95) { increasing = false; }
+            if (breathe_counter == 10) { increasing = true; }
+            if (increasing) { breathe_counter++; }
+            else { breathe_counter--; }
+
+
+            led_strip_hsv2rgb(hue, 95, breathe_counter, &red, &green, &blue);
+
+            for (int j = 0; j < EXAMPLE_LED_NUMBERS; j++) {
+                // Build RGB pixels
+                task_info->led_pixels[j * 3 + 0] = green;
+                task_info->led_pixels[j * 3 + 1] = blue;
+                task_info->led_pixels[j * 3 + 2] = red;
+            }
+
+            ESP_ERROR_CHECK(rmt_transmit(task_info->led_chan, task_info->led_encoder, task_info->led_pixels, EXAMPLE_LED_NUMBERS*3, &task_info->tx_config));
+            ESP_ERROR_CHECK(rmt_tx_wait_all_done(task_info->led_chan, portMAX_DELAY));
+            pattern_updated = false;
+
+            continue;
         }
     }
 }
