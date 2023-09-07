@@ -7,6 +7,8 @@ set(COMPONENT_SRCS
     Utils/KeyStore.cpp
     Utils/FuseMacAddress.cpp
     IOT/ThingConfig.cpp
+    LED/led_strip_encoder.c
+    LED/LedTask.cpp
     ReplConsole/repl_console.cpp
     ReplConsole/cmd_tasks.cpp
     ReplConsole/cmd_wifi.cpp
@@ -14,6 +16,7 @@ set(COMPONENT_SRCS
     ReplConsole/cmd_reboot.cpp
     ReplConsole/cmd_ping.cpp
     ReplConsole/cmd_provision_iot.cpp
+    ReplConsole/cmd_led.cpp
     Network/NetworkInterface.cpp
     Network/Utils/ethernet_init.cpp
     Network/Connection/Connection.cpp

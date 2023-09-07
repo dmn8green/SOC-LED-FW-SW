@@ -1,5 +1,6 @@
 #include "MN8App.h"
 
+#include "pin_def.h"
 #include "Network/Utils/ethernet_init.h"
 
 #include "esp_log.h"
@@ -56,7 +57,13 @@ esp_err_t MN8App::setup(void) {
     esp_chip_info(&chip_info);
     
     thing_config.load();
-    
+
+    this->led_task_0.setup(0, RMT_LED_STRIP0_GPIO_NUM);
+    this->led_task_1.setup(1, RMT_LED_STRIP1_GPIO_NUM);
+
+    this->led_task_0.start();
+    this->led_task_1.start();
+
     // ESP_LOGI(__func__, "This is ESP32 chip with %d CPU cores, WiFi%s%s, ",
     //     chip_info.cores,
     //     (chip_info.features & CHIP_FEATURE_BT) ? "/BT" : "",
