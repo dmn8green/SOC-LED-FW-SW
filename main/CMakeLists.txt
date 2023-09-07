@@ -1,8 +1,29 @@
 # idf_component_register( SRCS "led_strip_example_main.c" "led_strip_encoder.c"
 #                         INCLUDE_DIRS ".")
 
-set(COMPONENT_REQUIRES )
-set(COMPONENT_PRIV_REQUIRES )
+
+## Because we are including local components, we need to also specifically include
+## ESP components that we are using.
+
+set(COMPONENT_REQUIRES
+    console
+    fatfs
+    esp_wifi
+    esp_http_client
+    esp_eth
+    coreMQTT
+    coreMQTT-Agent
+    corePKCS11
+    coreJSON
+    backoffAlgorithm
+    esp_secure_cert_mgr
+    ota-for-aws-iot-embedded-sdk
+    unity
+    driver
+    ArduinoJson
+)
+
+#set(COMPONENT_PRIV_REQUIRES )
 set(COMPONENT_SRCS
     Utils/KeyStore.cpp
     Utils/FuseMacAddress.cpp
@@ -32,5 +53,6 @@ set(COMPONENT_SRCS
 set(COMPONENT_ADD_INCLUDEDIRS
     "."
 )
+
 
 register_component()
