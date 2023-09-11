@@ -57,12 +57,6 @@ void led_strip_hsv2rgb(uint32_t h, uint32_t s, uint32_t v, uint32_t *r, uint32_t
     }
 }
 
-void LedTask::svTaskCodeLed( void * pvParameters )
-{
-    LedTask* task_info = (LedTask*)pvParameters;
-    task_info->vTaskCodeLed();
-}
-
 void LedTask::vTaskCodeLed()
 {
     uint32_t red = 0;
@@ -77,17 +71,19 @@ void LedTask::vTaskCodeLed()
     bool increasing = true;
 
     LedTask* task_info = this;
+    TickType_t queue_timeout = portMAX_DELAY;
+    led_state_info_t updated_state;
 
     while(1) {
-        if (xQueueReceive(task_info->queue, &incoming_pattern,  10 / portTICK_PERIOD_MS) == pdTRUE)
+        if (xQueueReceive(task_info->state_update_queue, &updated_state,  queue_timeout / portTICK_PERIOD_MS) == pdTRUE)
 		{
-            ESP_LOGI(TAG, "Apply pattern %d", incoming_pattern);
-            if (incoming_pattern != pattern) {
-                pattern = incoming_pattern;
+            ESP_LOGI(TAG, "Switching to state %d", updated_state.state);
+            if (state_info.state != updated_state.state || state_info.charge_percent != updated_state.charge_percent) {
+                state_info = updated_state;
                 pattern_updated = true;
             }
 		}
-        
+
         if (pattern == 0 && pattern_updated) {
             ESP_LOGI(TAG, "Turning off strip %d", task_info->led_number);
             memset(task_info->led_pixels, 0, EXAMPLE_LED_NUMBERS*3);
@@ -130,6 +126,7 @@ void LedTask::vTaskCodeLed()
                 vTaskDelay(pdMS_TO_TICKS(EXAMPLE_CHASE_SPEED_MS));
             }
             start_rgb += 60;
+            queue_timeout = 10;
         }
 
         if (pattern == 3) {
@@ -169,6 +166,7 @@ void LedTask::vTaskCodeLed()
             ESP_ERROR_CHECK(rmt_transmit(task_info->led_chan, task_info->led_encoder, task_info->led_pixels, EXAMPLE_LED_NUMBERS*3, &task_info->tx_config));
             ESP_ERROR_CHECK(rmt_tx_wait_all_done(task_info->led_chan, portMAX_DELAY));
             pattern_updated = false;
+            queue_timeout = 10;
 
             continue;
         }
@@ -193,6 +191,7 @@ void LedTask::vTaskCodeLed()
             ESP_ERROR_CHECK(rmt_transmit(task_info->led_chan, task_info->led_encoder, task_info->led_pixels, EXAMPLE_LED_NUMBERS*3, &task_info->tx_config));
             ESP_ERROR_CHECK(rmt_tx_wait_all_done(task_info->led_chan, portMAX_DELAY));
             pattern_updated = false;
+            queue_timeout = 10;
 
             continue;
         }
@@ -236,6 +235,7 @@ esp_err_t LedTask::setup(int led_number, int gpio_pin) {
     ESP_ERROR_CHECK(rmt_enable(this->led_chan));
 
     this->queue = xQueueCreate( 10, sizeof( int ) );
+    this->state_update_queue = xQueueCreate( 10, sizeof( led_state_info_t ) );
 
     return ESP_OK;
 }
@@ -276,5 +276,27 @@ esp_err_t LedTask::teardown(void) {
 
 esp_err_t LedTask::set_pattern(int pattern) {
     xQueueSend(this->queue, &pattern, portMAX_DELAY);
+    return ESP_OK;
+}
+
+esp_err_t LedTask::set_state(const char* new_state, int charge_percent) {
+    led_state_info_t state_info;
+    if (strcmp(new_state, "available") == 0) {
+        state_info.state = e_station_available;
+    } else if (strcmp(new_state, "unreachable") == 0) {
+        state_info.state = e_station_unreachable;
+    } else if (strcmp(new_state, "unknown") == 0) {
+        state_info.state = e_station_status_unknown;
+    } else if (strcmp(new_state, "in-use") == 0) {
+        state_info.state = e_station_in_use;
+    } else if (strcmp(new_state, "reserved") == 0) {
+        state_info.state = e_station_reserved;
+    } else {
+        ESP_LOGE(TAG, "Unknown state %s", new_state);
+        return ESP_FAIL;
+    }
+
+    state_info.charge_percent = charge_percent;
+    xQueueSend(this->state_update_queue, &state_info, portMAX_DELAY);
     return ESP_OK;
 }

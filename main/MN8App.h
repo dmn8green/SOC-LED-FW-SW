@@ -6,6 +6,8 @@
 #include "Network/Connection/EthConnection.h"
 #include "Network/Configuration/EthConfiguration.h"
 
+#include "Network/MQTT/MqttAgent.h"
+
 #include "Utils/Singleton.h"
 #include "IOT/ThingConfig.h"
 #include "LED/LedTask.h"
@@ -56,6 +58,8 @@ private:
     NetworkInterface* ethernet_interface = nullptr;
     NetworkConfiguration* ethernet_config = nullptr;
     EthernetConnection* ethernet_connection = nullptr;
+
+    MqttAgent mqtt_agent;
 
     esp_eth_handle_t *eth_handle;
 

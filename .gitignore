@@ -3,3 +3,5 @@ sdkconfig.old
 
 build
 .direnv/aliases
+
+managed_components
