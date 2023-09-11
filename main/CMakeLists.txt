@@ -46,6 +46,12 @@ set(COMPONENT_SRCS
     Network/Configuration/NetworkConfiguration.cpp
     Network/Configuration/WifiConfiguration.cpp
     Network/Configuration/EthConfiguration.cpp
+    Network/MQTT/MqttAgent.cpp
+#    Network/MQTT/MQTTContext.cpp
+#    Network/MQTT/subscription_manager.c
+#    Network/MQTT/core_mqtt_agent_manager.c
+#    Network/MQTT/core_mqtt_agent_manager_events.c
+    Network/MQTT/mqtt_demo_mutual_auth.c
     MN8App.cpp
     main.cpp
 )

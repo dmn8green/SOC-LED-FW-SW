@@ -3,6 +3,8 @@
 #include "pin_def.h"
 #include "Network/Utils/ethernet_init.h"
 
+#include "ArduinoJson.h"
+
 #include "esp_log.h"
 #include "esp_chip_info.h"
 #include "esp_mac.h"
@@ -24,6 +26,8 @@
 
 const char* TAG = "MN8App";
 
+extern "C" int aws_iot_demo_main();
+
 //*****************************************************************************
 static void initialize_nvs(void)
 {
@@ -33,6 +37,67 @@ static void initialize_nvs(void)
         err = nvs_flash_init();
     }
     ESP_ERROR_CHECK(err);
+}
+
+typedef void (* handleIncomingPublishCallback_t)( const char* pTopicName,
+                                                    uint16_t topicNameLength,
+                                                    const char* pPayload,
+                                                    size_t payloadLength,
+                                                  uint16_t packetIdentifier );
+extern "C" handleIncomingPublishCallback_t handleIncomingPublishCallback;
+
+void handleIncomingPublish( const char* pTopicName,
+                            uint16_t topicNameLength,
+                            const char* pPayload,
+                            size_t payloadLength,
+                            uint16_t packetIdentifier )
+{
+    StaticJsonDocument<200> doc;
+    DeserializationError error = deserializeJson(doc, pPayload, payloadLength);
+    if (error) {
+        ESP_LOGE(TAG, "deserializeJson() failed: %s", error.c_str());
+        return;
+    }
+
+    JsonObject root = doc.as<JsonObject>();
+    if (root.isNull()) {
+        ESP_LOGE(TAG, "deserializeJson() failed: %s", error.c_str());
+        return;
+    }
+
+
+    // {
+    //     "port1": {
+    //     "state": "available"
+    //     },
+    //     "port2": {
+    //     "state": "unreachable"
+    //     }
+    // }
+
+    auto& app = MN8App::instance();
+    if (root.containsKey("port1")) {
+        JsonObject port1 = root["port1"];
+        if (port1.containsKey("state")) {
+            const char* state = port1["state"];
+            int charge_percent = port1["charge_percent"];
+            ESP_LOGI(TAG, "port 1 new state : %s", state);
+            app.get_led_task_0().set_state(state, charge_percent);
+        }
+    }
+
+    if (root.containsKey("port2")) {
+        JsonObject port2 = root["port2"];
+        if (port2.containsKey("state")) {
+            const char* state = port2["state"];
+            int charge_percent = port2["charge_percent"];
+            ESP_LOGI(TAG, "port 2 new state : %s", state);
+            app.get_led_task_1().set_state(state, charge_percent);
+        }
+    }
+
+    ESP_LOGI(TAG, "Incoming publish received : %.*s", payloadLength, pPayload);
+    // ESP_LOGI(TAG, "Incoming publish received : %s", (char*) root["state"]);
 }
 
 //*****************************************************************************
@@ -57,7 +122,19 @@ esp_err_t MN8App::setup(void) {
     esp_chip_info(&chip_info);
     
     thing_config.load();
+    this->mqtt_agent.setup(&thing_config);
+    handleIncomingPublishCallback = handleIncomingPublish;
 
+
+    // ESP_LOGI(__func__, "Thing config loaded %s", thing_config.get_thing_name());
+    // ESP_LOGI(__func__, "Thing config loaded %s", thing_config.get_certificate_arn());
+    // ESP_LOGI(__func__, "Thing config loaded %s", thing_config.get_certificate_id());
+    // ESP_LOGI(__func__, "Thing config loaded %s", thing_config.get_certificate_pem());
+    // ESP_LOGI(__func__, "Thing config loaded %s", thing_config.get_private_key());
+    // ESP_LOGI(__func__, "Thing config loaded %s", thing_config.get_public_key());
+    // ESP_LOGI(__func__, "Thing config loaded %s", thing_config.get_endpoint_address());
+    
+    
     this->led_task_0.setup(0, RMT_LED_STRIP0_GPIO_NUM);
     this->led_task_1.setup(1, RMT_LED_STRIP1_GPIO_NUM);
 
@@ -75,13 +152,22 @@ esp_err_t MN8App::setup(void) {
     // ESP_LOGI(__func__, "ESP32 Chip ID = %04X",(uint16_t)(_chipmacid>>16));
     // ESP_LOGI(__func__, "ESP32 Chip ID = %04X",(uint16_t)(_chipmacid));
 
+        // /* Initialize and start the coreMQTT-Agent network manager. This handles
+        //  * establishing a TLS connection and MQTT connection to the MQTT broker.
+        //  * This needs to be started before starting WiFi so it can handle WiFi
+        //  * connection events. */
+        // xResult = xCoreMqttAgentManagerStart( &xNetworkContext );
+
     ESP_GOTO_ON_ERROR(setup_wifi_connection(), err, TAG, "Failed to setup wifi");
     ESP_GOTO_ON_ERROR(setup_ethernet_connection(), err, TAG, "Failed to setup ethernet");
 
     // start the state machine to monitor the network connections, incoming
     // mqtt messages.
-    
+
+    this->mqtt_agent.start();
     // start the ledstrip worker task.
+    // vTaskDelay(10000 / portTICK_PERIOD_MS);
+    // aws_iot_demo_main();
 
 err:
     return ret;
