@@ -13,7 +13,8 @@ typedef enum {
     e_station_unreachable,
     e_station_status_unknown,
     e_station_in_use,
-    e_station_reserved
+    e_station_reserved,
+    e_station_test_charging
 } led_state_t;
 
 typedef struct {
@@ -45,6 +46,12 @@ protected:
 
 
 private:
+    esp_err_t show_static_color(uint32_t color);
+    // esp_err_t show_pulsing_color(uint32_t color, bool& animated);
+    esp_err_t show_charging_color(uint32_t color_start, uint32_t color_end, uint32_t charge_percent);
+
+    esp_err_t write_led_value_to_strip(void);
+
     int led_number;
     int gpio_pin;
     rmt_channel_handle_t led_chan;
