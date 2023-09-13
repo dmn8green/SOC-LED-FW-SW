@@ -52,7 +52,7 @@ esp_err_t MqttAgent::start(void) {
         this,                   // Task input parameter
         2,                      // Priority
         &this->task_handle,     // Task handle.
-        1);                     // Core 1
+        0);                     // Core 1
     // xTaskCreate(&MqttAgent::svTaskMqttHandler, "mqtt_handler", 4096, this, 5, &this->task_handle);
     return ESP_OK;
 }
