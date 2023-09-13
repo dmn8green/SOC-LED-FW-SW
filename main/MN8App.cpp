@@ -112,6 +112,21 @@ void handleIncomingPublish( const char* pTopicName,
 esp_err_t MN8App::setup(void) {
     esp_err_t ret = ESP_OK;
 
+#define GPIO_BIT_MASK  ((1ULL<<GPIO_NUM_17)) 
+
+	// gpio_config_t io_conf;
+	// io_conf.intr_type = GPIO_INTR_DISABLE;
+	// io_conf.mode = GPIO_MODE_OUTPUT;
+	// io_conf.pin_bit_mask = GPIO_BIT_MASK;
+	// io_conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
+	// io_conf.pull_up_en = GPIO_PULLUP_DISABLE;
+	// gpio_config(&io_conf);
+
+    // // gpio_reset_pin(GPIO_NUM_17);
+    // // gpio_set_direction(GPIO_NUM_17, GPIO_MODE_OUTPUT);
+    // gpio_set_level(GPIO_NUM_17, 0);
+    // vTaskDelay(1000 / portTICK_PERIOD_MS);
+
     ESP_ERROR_CHECK(eth_init(&this->eth_handle));
 
     initialize_nvs();
@@ -135,12 +150,6 @@ esp_err_t MN8App::setup(void) {
     // ESP_LOGI(__func__, "Thing config loaded %s", thing_config.get_endpoint_address());
     
     
-    this->led_task_0.setup(0, RMT_LED_STRIP0_GPIO_NUM);
-    this->led_task_1.setup(1, RMT_LED_STRIP1_GPIO_NUM);
-
-    this->led_task_0.start();
-    this->led_task_1.start();
-
     // ESP_LOGI(__func__, "This is ESP32 chip with %d CPU cores, WiFi%s%s, ",
     //     chip_info.cores,
     //     (chip_info.features & CHIP_FEATURE_BT) ? "/BT" : "",
@@ -164,10 +173,13 @@ esp_err_t MN8App::setup(void) {
     // start the state machine to monitor the network connections, incoming
     // mqtt messages.
 
+    this->led_task_0.setup(0, RMT_LED_STRIP0_GPIO_NUM);
+    this->led_task_1.setup(1, RMT_LED_STRIP1_GPIO_NUM);
+
+    this->led_task_0.start();
+    this->led_task_1.start();
+
     this->mqtt_agent.start();
-    // start the ledstrip worker task.
-    // vTaskDelay(10000 / portTICK_PERIOD_MS);
-    // aws_iot_demo_main();
 
 err:
     return ret;

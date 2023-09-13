@@ -1,5 +1,16 @@
-join --timeout=10000 Tabarnak hide39!bangs
+wifi join Tabarnak hide39!bangs
 provision_iot https://ir5q3elml3.execute-api.us-east-1.amazonaws.com/dev/provision admin secret
+
+502B838D3A08/example/topic
+{
+	"port1": {
+		"state": "charging_pulse"
+	},
+	"port2": {
+		"state": "test_charging",
+"charge_percent": 5
+	}
+}
 
 network_interface wifi
 network_interface eth
