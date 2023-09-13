@@ -45,7 +45,15 @@ esp_err_t MqttAgent::setup(ThingConfig* thing_config) {
 //******************************************************************************
 esp_err_t MqttAgent::start(void) {
     // Start the task
-    xTaskCreate(&MqttAgent::svTaskMqttHandler, "mqtt_handler", 4096, this, 5, &this->task_handle);
+    xTaskCreatePinnedToCore(
+        MqttAgent::svTaskMqttHandler, // Function to implement the task
+        "mqtt_handler",               // Name of the task
+        5000,                   // Stack size in words
+        this,                   // Task input parameter
+        2,                      // Priority
+        &this->task_handle,     // Task handle.
+        1);                     // Core 1
+    // xTaskCreate(&MqttAgent::svTaskMqttHandler, "mqtt_handler", 4096, this, 5, &this->task_handle);
     return ESP_OK;
 }
 
