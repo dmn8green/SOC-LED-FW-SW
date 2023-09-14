@@ -188,8 +188,8 @@ void PulsingColorMode::reset(uint32_t h, uint32_t s, uint32_t v, uint32_t min_va
     this->hsv_color[0] = h;
     this->hsv_color[1] = s;
     this->hsv_color[2] = v;
-    this->max_value = v;
-    this->min_value = min_value;
+    this->max_value = 100;//v;
+    this->min_value = 0;//min_value;
 
     ESP_LOGI(TAG, "HSV: %ld, %ld, %ld", this->hsv_color[0], this->hsv_color[1], this->hsv_color[2]);
 
@@ -640,6 +640,14 @@ esp_err_t LedTask::resume(void)
 esp_err_t LedTask::suspend(void)
 {
     vTaskSuspend(this->task_handle);
+    return ESP_OK;
+}
+
+esp_err_t LedTask::set_pattern(int state, int charge_percent) {
+    led_state_info_t state_info;
+    state_info.state = (led_state_t)state;
+    state_info.charge_percent = charge_percent;
+    xQueueSend(this->state_update_queue, &state_info, portMAX_DELAY);
     return ESP_OK;
 }
 

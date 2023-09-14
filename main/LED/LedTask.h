@@ -131,6 +131,7 @@ public:
     esp_err_t start(void);
     esp_err_t resume(void);
     esp_err_t suspend(void);
+    esp_err_t set_pattern(int state, int charge_percent);
     esp_err_t set_state(const char* new_state, int charge_percent);
 
 protected:
