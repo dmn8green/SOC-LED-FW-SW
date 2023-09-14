@@ -34,3 +34,4 @@ network
   activate_wifi_interface
   
 on boot, activate both network
+

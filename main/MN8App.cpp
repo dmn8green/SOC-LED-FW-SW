@@ -65,16 +65,6 @@ void handleIncomingPublish( const char* pTopicName,
         return;
     }
 
-
-    // {
-    //     "port1": {
-    //     "state": "available"
-    //     },
-    //     "port2": {
-    //     "state": "unreachable"
-    //     }
-    // }
-
     auto& app = MN8App::instance();
     if (root.containsKey("port1")) {
         JsonObject port1 = root["port1"];

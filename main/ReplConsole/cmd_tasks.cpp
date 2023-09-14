@@ -13,8 +13,10 @@
 #include "driver/rtc_io.h"
 #include "driver/uart.h"
 #include "argtable3/argtable3.h"
-
+#include "esp_intr_alloc.h"
 #include "freertos/FreeRTOS.h"
+
+#define CONFIG_FREERTOS_VTASKLIST_INCLUDE_COREID
 #include "freertos/task.h"
 
 #include "sdkconfig.h"
@@ -35,6 +37,7 @@ static int tasks_info(int argc, char **argv)
     vTaskList(task_list_buffer);
     fputs(task_list_buffer, stdout);
     free(task_list_buffer);
+    //esp_intr_dump(NULL);
     return 0;
 }
 
