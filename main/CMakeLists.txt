@@ -21,6 +21,7 @@ set(COMPONENT_REQUIRES
     unity
     driver
     ArduinoJson
+    soc
 )
 
 #set(COMPONENT_PRIV_REQUIRES )
@@ -29,7 +30,7 @@ set(COMPONENT_SRCS
     Utils/FuseMacAddress.cpp
     IOT/ThingConfig.cpp
     LED/led_strip_encoder.c
-    LED/LedTask.cpp
+    LED/LedTaskSpi.cpp
     ReplConsole/repl_console.cpp
     ReplConsole/cmd_tasks.cpp
     ReplConsole/cmd_wifi.cpp

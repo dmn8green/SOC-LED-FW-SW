@@ -75,10 +75,10 @@ static int on_on_op(int stripIndex)
 
     MN8App& app = MN8App::instance();
     if (stripIndex == 0) {
-        app.get_led_task_0().resume();
+        //app.get_led_task_0().resume();
         app.get_led_task_1().resume();
     } else if (stripIndex == 1) {
-        app.get_led_task_0().resume();
+        //app.get_led_task_0().resume();
     } else if (stripIndex == 2) {
         app.get_led_task_1().resume();
     } else {
@@ -94,10 +94,10 @@ static int on_off(int stripIndex)
 
     MN8App& app = MN8App::instance();
     if (stripIndex == 0) {
-        app.get_led_task_0().suspend();
+        //app.get_led_task_0().suspend();
         app.get_led_task_1().suspend();
     } else if (stripIndex == 1) {
-        app.get_led_task_0().suspend();
+        //app.get_led_task_0().suspend();
     } else if (stripIndex == 2) {
         app.get_led_task_1().suspend();
     } else {
@@ -114,12 +114,12 @@ static int on_pattern(int stripIndex, int pattern)
 
     MN8App& app = MN8App::instance();
     if (stripIndex == 0) {
-        app.get_led_task_0().set_pattern(pattern, 0);
-        app.get_led_task_1().set_pattern(pattern, 0);
+        // app.get_led_task_0().set_pattern(pattern, 0);
+        // app.get_led_task_1().set_pattern(pattern, 0);
     } else if (stripIndex == 1) {
-        app.get_led_task_0().set_pattern(pattern, 1);
+        // app.get_led_task_0().set_pattern(pattern, 1);
     } else if (stripIndex == 2) {
-        app.get_led_task_1().set_pattern(pattern, 0);
+        // app.get_led_task_1().set_pattern(pattern, 0);
     } else {
         ESP_LOGE(TAG, "Invalid strip index %d", stripIndex);
         return 1;
