@@ -1444,12 +1444,15 @@ static int publishToTopic( MQTTContext_t * pMqttContext )
     }
     else
     {
+        char topic[] = "502B838D3A08/latest";
+        char payload[] = "{}";
+        
         /* This example publishes to only one topic and uses QOS1. */
         outgoingPublishPackets[ publishIndex ].pubInfo.qos = MQTTQoS1;
-        outgoingPublishPackets[ publishIndex ].pubInfo.pTopicName = MQTT_EXAMPLE_TOPIC;
-        outgoingPublishPackets[ publishIndex ].pubInfo.topicNameLength = MQTT_EXAMPLE_TOPIC_LENGTH;
-        outgoingPublishPackets[ publishIndex ].pubInfo.pPayload = MQTT_EXAMPLE_MESSAGE;
-        outgoingPublishPackets[ publishIndex ].pubInfo.payloadLength = MQTT_EXAMPLE_MESSAGE_LENGTH;
+        outgoingPublishPackets[ publishIndex ].pubInfo.pTopicName = topic;
+        outgoingPublishPackets[ publishIndex ].pubInfo.topicNameLength = strlen(topic);
+        outgoingPublishPackets[ publishIndex ].pubInfo.pPayload = payload;
+        outgoingPublishPackets[ publishIndex ].pubInfo.payloadLength = strlen(payload);
 
         /* Get a new packet id. */
         outgoingPublishPackets[ publishIndex ].packetId = MQTT_GetPacketId( pMqttContext );
@@ -1602,6 +1605,11 @@ static int subscribePublishLoop( MQTTContext_t * pMqttContext )
 
     if( returnStatus == EXIT_SUCCESS )
     {
+        LogInfo( ( "Sending Publish to the MQTT topic %.*s.",
+                   MQTT_EXAMPLE_TOPIC_LENGTH,
+                   MQTT_EXAMPLE_TOPIC ) );
+        returnStatus = publishToTopic( pMqttContext );
+
         /* Publish messages with QOS1, receive incoming messages and
          * send keep alive messages. */
         //for( publishCount = 0; publishCount < maxPublishCount; publishCount++ )

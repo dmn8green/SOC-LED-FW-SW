@@ -102,20 +102,20 @@ void handleIncomingPublish( const char* pTopicName,
 esp_err_t MN8App::setup(void) {
     esp_err_t ret = ESP_OK;
 
-#define GPIO_BIT_MASK  ((1ULL<<GPIO_NUM_17)) 
+#define GPIO_BIT_MASK  ((1ULL<<GPIO_NUM_15)) 
 
-	// gpio_config_t io_conf;
-	// io_conf.intr_type = GPIO_INTR_DISABLE;
-	// io_conf.mode = GPIO_MODE_OUTPUT;
-	// io_conf.pin_bit_mask = GPIO_BIT_MASK;
-	// io_conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
-	// io_conf.pull_up_en = GPIO_PULLUP_DISABLE;
-	// gpio_config(&io_conf);
+	gpio_config_t io_conf;
+	io_conf.intr_type = GPIO_INTR_DISABLE;
+	io_conf.mode = GPIO_MODE_OUTPUT;
+	io_conf.pin_bit_mask = GPIO_BIT_MASK;
+	io_conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
+	io_conf.pull_up_en = GPIO_PULLUP_DISABLE;
+	gpio_config(&io_conf);
 
-    // // gpio_reset_pin(GPIO_NUM_17);
-    // // gpio_set_direction(GPIO_NUM_17, GPIO_MODE_OUTPUT);
-    // gpio_set_level(GPIO_NUM_17, 0);
-    // vTaskDelay(1000 / portTICK_PERIOD_MS);
+    // gpio_reset_pin(GPIO_NUM_17);
+    // gpio_set_direction(GPIO_NUM_17, GPIO_MODE_OUTPUT);
+    gpio_set_level(GPIO_NUM_15, 1);
+    vTaskDelay(1000 / portTICK_PERIOD_MS);
 
     ESP_ERROR_CHECK(eth_init(&this->eth_handle));
 
@@ -163,8 +163,8 @@ esp_err_t MN8App::setup(void) {
     // start the state machine to monitor the network connections, incoming
     // mqtt messages.
 
-    this->led_task_0.setup(0, RMT_LED_STRIP0_GPIO_NUM);
-    this->led_task_1.setup(1, RMT_LED_STRIP1_GPIO_NUM);
+    this->led_task_0.setup(0, RMT_LED_STRIP0_GPIO_NUM, HSPI_HOST);
+    this->led_task_1.setup(1, RMT_LED_STRIP1_GPIO_NUM, VSPI_HOST);
 
     this->led_task_0.start();
     this->led_task_1.start();

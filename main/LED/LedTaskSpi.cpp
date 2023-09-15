@@ -1,8 +1,10 @@
-#include "LedTask.h"
+#include "LedTaskSpi.h"
 
 #include "esp_log.h"
 #include "esp_check.h"
 #include "led_strip_encoder.h"
+#include "esp_rom_gpio.h"
+#include "soc/spi_periph.h"
 
 #include <memory.h>
 #include <math.h>
@@ -32,6 +34,12 @@ float max(float a, float b, float c) {
 float min(float a, float b, float c) {
    return ((a < b)? (a < c ? a : c) : (b < c ? b : c));
 }
+
+//static const uint8_t mZero = 0b11000000; // 300:900 ns
+//static const uint8_t mOne  = 0b11111100; // 900:300 ns
+static const uint8_t mZero = 0b11000000; // 300:900 ns
+static const uint8_t mOne  = 0b11111100; // 900:300 ns
+static const uint8_t mIdle = 0b11111111; // >=80000ns (send 67x)
 
 void RGBtoHSV(float fR, float fG, float fB, float& fH, float& fS, float& fV) {
   float fCMax = max(fR, fG, fB);
@@ -173,7 +181,7 @@ void ChargingColorPulseMode::refresh(uint8_t* led_pixels, int led_count, int sta
     this->static_color_mode.refresh(led_pixels, charged_led_count, 0);
     this->pulsing_color_mode.refresh(led_pixels, led_count, charged_led_count);
 
-    static int cheat = 0;
+    
     if ((++cheat) % 100 == 0) {
         charge_percent = charge_percent == 100 ? 0 : charge_percent + 1;    
     }
@@ -229,31 +237,78 @@ void PulsingColorMode::refresh(uint8_t* led_pixels, int led_count, int start_pix
     }
 }
 
+
 static portMUX_TYPE my_spinlock = portMUX_INITIALIZER_UNLOCKED;
-esp_err_t LedTask::write_led_value_to_strip(void)
+#define NUMBITS (EXAMPLE_LED_NUMBERS * 24 + 67)
+
+
+void LedTaskSpi::setPixel(size_t index, uint8_t g, uint8_t r, uint8_t b) {
+    index *= 24;
+    uint8_t value;
+
+    if (bits == nullptr) {
+        bits = (uint8_t *)malloc(NUMBITS);
+        memset(bits, mIdle, NUMBITS);
+    }
+
+    value = g;
+    bits[index++] = value & 0x80 ? mOne : mZero;
+    bits[index++] = value & 0x40 ? mOne : mZero;
+    bits[index++] = value & 0x20 ? mOne : mZero;
+    bits[index++] = value & 0x10 ? mOne : mZero;
+    bits[index++] = value & 0x08 ? mOne : mZero;
+    bits[index++] = value & 0x04 ? mOne : mZero;
+    bits[index++] = value & 0x02 ? mOne : mZero;
+    bits[index++] = value & 0x01 ? mOne : mZero;
+    value = r;
+    bits[index++] = value & 0x80 ? mOne : mZero;
+    bits[index++] = value & 0x40 ? mOne : mZero;
+    bits[index++] = value & 0x20 ? mOne : mZero;
+    bits[index++] = value & 0x10 ? mOne : mZero;
+    bits[index++] = value & 0x08 ? mOne : mZero;
+    bits[index++] = value & 0x04 ? mOne : mZero;
+    bits[index++] = value & 0x02 ? mOne : mZero;
+    bits[index++] = value & 0x01 ? mOne : mZero;
+    value = b;
+    bits[index++] = value & 0x80 ? mOne : mZero;
+    bits[index++] = value & 0x40 ? mOne : mZero;
+    bits[index++] = value & 0x20 ? mOne : mZero;
+    bits[index++] = value & 0x10 ? mOne : mZero;
+    bits[index++] = value & 0x08 ? mOne : mZero;
+    bits[index++] = value & 0x04 ? mOne : mZero;
+    bits[index++] = value & 0x02 ? mOne : mZero;
+    bits[index++] = value & 0x01 ? mOne : mZero;
+}
+
+esp_err_t LedTaskSpi::write_led_value_to_strip(void)
 {
     esp_err_t ret = ESP_OK;
 
-    taskENTER_CRITICAL(&my_spinlock);
-    ESP_GOTO_ON_ERROR(
-        rmt_transmit(led_chan, led_encoder, led_pixels, EXAMPLE_LED_NUMBERS * 3, &tx_config),
-        err,
-        TAG,
-        "%d: Failed to transmit LED data", this->led_number);
-    taskEXIT_CRITICAL(&my_spinlock);
+    for (int i=0; i<EXAMPLE_LED_NUMBERS * 3; i+=3) {
+        setPixel(i/3, led_pixels[i+0], led_pixels[i+1], led_pixels[i+2]);
+    }
+    //setPixel(EXAMPLE_LED_NUMBERS, led_pixels[0], led_pixels[1], led_pixels[2]);
 
-    ESP_GOTO_ON_ERROR(
-        rmt_tx_wait_all_done(this->led_chan, portMAX_DELAY),
-        err,
-        TAG,
-        "%d: Failed to wait for LED data to be transmitted", this->led_number);
-err:
+    spi_transaction_t trans;
+    memset(&trans, 0, sizeof(spi_transaction_t));
+    trans.flags     = 0;
+    trans.tx_buffer = bits;
+    trans.length    = NUMBITS * 8; // Number of bits, ot bytes!
+
+    esp_err_t err = spi_device_queue_trans(spiHandle, &trans, 0);
+    if (err != ESP_OK) {
+        ESP_LOGW(TAG, "Error sending SPI: %d", err);
+    }// else {
+    //     ESP_LOGI(TAG, "Sent SPI");
+    // }
+    vTaskDelay(10 / portTICK_PERIOD_MS);
+
     return ret;
 }
 
-void LedTask::vTaskCodeLed()
+void LedTaskSpi::vTaskCodeLed()
 {
-    LedTask *task_info = this;
+    LedTaskSpi *task_info = this;
     TickType_t queue_timeout = portMAX_DELAY;
 
     // Start with a state changed. On boot, the state is set to e_station_booting_up
@@ -477,7 +532,7 @@ void LedTask::vTaskCodeLed()
     } while(true);
 }
 
-esp_err_t LedTask::setup(int led_number, int gpio_pin)
+esp_err_t LedTaskSpi::setup(int led_number, int gpio_pin, spi_host_device_t spinum)
 {
     esp_err_t ret = ESP_OK;
     
@@ -585,42 +640,57 @@ refresh_rates[100]=20;
 
     this->led_number = led_number;
     this->gpio_pin = gpio_pin;
-    this->tx_config.loop_count = 0;
     this->led_pixels = (uint8_t *)malloc(EXAMPLE_LED_NUMBERS * 3);
 
-    rmt_tx_channel_config_t tx_chan_config;
-    tx_chan_config.clk_src = RMT_CLK_SRC_DEFAULT;
-    tx_chan_config.gpio_num = (gpio_num_t)gpio_pin;
-    tx_chan_config.mem_block_symbols = 64;
-    tx_chan_config.resolution_hz = RMT_LED_STRIP_RESOLUTION_HZ;
-    tx_chan_config.trans_queue_depth = 4;
-    tx_chan_config.flags.invert_out = true;
+    spi_bus_config_t buscfg = {
+            .mosi_io_num     = gpio_pin,
+            .miso_io_num     = GPIO_NUM_NC,
+            .sclk_io_num     = GPIO_NUM_NC,
+            .quadwp_io_num   = GPIO_NUM_NC,
+            .quadhd_io_num   = GPIO_NUM_NC,
+            .data4_io_num    = GPIO_NUM_NC,
+            .data5_io_num    = GPIO_NUM_NC,
+            .data6_io_num    = GPIO_NUM_NC,
+            .data7_io_num    = GPIO_NUM_NC,
+            .max_transfer_sz = NUMBITS, // 0 = Default
+            .flags           = 0, // SPICOMMON_BUSFLAG_*
+            .intr_flags      = 0 };
 
-    led_strip_encoder_config_t encoder_config = {
-        .resolution = RMT_LED_STRIP_RESOLUTION_HZ,
-    };
+    ESP_ERROR_CHECK(spi_bus_initialize(spinum, &buscfg, SPI_DMA_CH_AUTO));
 
-    ESP_GOTO_ON_ERROR(rmt_new_tx_channel(&tx_chan_config, &this->led_chan), err, TAG, "%d: Failed to create RMT TX channel", this->led_number);
+    const spi_device_interface_config_t devcfg = {
+            .command_bits     = 0,
+            .address_bits     = 0,
+            .dummy_bits       = 0,
+            .mode             = 1,
+            .duty_cycle_pos   = 0,
+            .cs_ena_pretrans  = 0,
+            .cs_ena_posttrans = 16,
+            .clock_speed_hz   = 4000000, 
+            .input_delay_ns   = 0,
+            .spics_io_num     = GPIO_NUM_NC,
+            .flags            = SPI_DEVICE_NO_DUMMY,
+            .queue_size       = 1,
+            .pre_cb           = nullptr,
+            .post_cb          = nullptr };
 
-    ESP_LOGI(TAG, "%d: Install led strip encoder", this->led_number);
-    ESP_GOTO_ON_ERROR(rmt_new_led_strip_encoder(&encoder_config, &this->led_encoder), err, TAG, "%d: Failed to install led strip encoder", this->led_number);
+    ESP_ERROR_CHECK(spi_bus_add_device(spinum, &devcfg, &spiHandle));
 
-    ESP_LOGI(TAG, "%d: Enable RMT TX channel", this->led_number);
-    ESP_GOTO_ON_ERROR(rmt_enable(this->led_chan), err, TAG, "%d: Failed to enable RMT TX channel", this->led_number);
-
+        esp_rom_gpio_connect_out_signal(gpio_pin, spi_periph_signal[spinum].spid_out, true, false);
+        esp_rom_gpio_connect_in_signal(gpio_pin, spi_periph_signal[spinum].spid_in, true);
+        
     this->state_update_queue = xQueueCreate(10, sizeof(led_state_info_t));
     this->state_info.state = e_station_booting_up;
 
-err:
     return ret;
 }
 
-esp_err_t LedTask::start(void)
+esp_err_t LedTaskSpi::start(void)
 {
     char name[16] = {0};
     snprintf(name, 16, "LED%d", this->led_number);
     xTaskCreatePinnedToCore(
-        LedTask::svTaskCodeLed, // Function to implement the task
+        LedTaskSpi::svTaskCodeLed, // Function to implement the task
         name,                   // Name of the task
         5000,                   // Stack size in words
         this,                   // Task input parameter
@@ -631,27 +701,19 @@ esp_err_t LedTask::start(void)
     return ESP_OK;
 }
 
-esp_err_t LedTask::resume(void)
+esp_err_t LedTaskSpi::resume(void)
 {
     vTaskResume(this->task_handle);
     return ESP_OK;
 }
 
-esp_err_t LedTask::suspend(void)
+esp_err_t LedTaskSpi::suspend(void)
 {
     vTaskSuspend(this->task_handle);
     return ESP_OK;
 }
 
-esp_err_t LedTask::set_pattern(int state, int charge_percent) {
-    led_state_info_t state_info;
-    state_info.state = (led_state_t)state;
-    state_info.charge_percent = charge_percent;
-    xQueueSend(this->state_update_queue, &state_info, portMAX_DELAY);
-    return ESP_OK;
-}
-
-esp_err_t LedTask::set_state(const char *new_state, int charge_percent)
+esp_err_t LedTaskSpi::set_state(const char *new_state, int charge_percent)
 {
     #define MAP_TO_ENUM(x) if (strcmp(new_state, #x) == 0) \
         {\

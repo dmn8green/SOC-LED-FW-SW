@@ -8,6 +8,8 @@
 #include "freertos/task.h"
 #include "freertos/queue.h"
 
+#include "driver/spi_master.h"
+
 typedef enum {
     e_station_available,           // green   (s)  - Available and ready to charge
     e_station_waiting_for_power,   // cyan    (s)  - Waiting for power to be available
@@ -108,6 +110,7 @@ protected:
     StaticColorMode static_color_mode;
     PulsingColorMode pulsing_color_mode;
     uint32_t charge_percent;
+    int cheat = 0;
 };
 
 //******************************************************************************
@@ -118,27 +121,27 @@ public:
 
 
 //******************************************************************************
-class LedTask {
+class LedTaskSpi {
 public:
-    LedTask(void) = default;
-    ~LedTask(void) = default;
+    LedTaskSpi(void) = default;
+    ~LedTaskSpi(void) = default;
 
     // Disable copy
-    LedTask& operator= (const LedTask&) = delete;
-    LedTask(const LedTask&) = delete;
+    LedTaskSpi& operator= (const LedTaskSpi&) = delete;
+    LedTaskSpi(const LedTaskSpi&) = delete;
     
-    esp_err_t setup(int led_number, int gpio_pin);
+    esp_err_t setup(int led_number, int gpio_pin, spi_host_device_t spi);
     esp_err_t start(void);
     esp_err_t resume(void);
     esp_err_t suspend(void);
-    esp_err_t set_pattern(int state, int charge_percent);
     esp_err_t set_state(const char* new_state, int charge_percent);
 
 protected:
     void vTaskCodeLed(void);
-    static void svTaskCodeLed( void * pvParameters ) { ((LedTask*)pvParameters)->vTaskCodeLed(); }
+    static void svTaskCodeLed( void * pvParameters ) { ((LedTaskSpi*)pvParameters)->vTaskCodeLed(); }
 
     esp_err_t write_led_value_to_strip(void);
+    void setPixel(size_t index, uint8_t g, uint8_t r, uint8_t b);
 
 private:
 
@@ -147,6 +150,7 @@ private:
     uint8_t* led_pixels;
     led_state_info_t state_info;
 
+    spi_device_handle_t spiHandle;
     rmt_channel_handle_t led_chan;
     rmt_encoder_handle_t led_encoder;
     rmt_transmit_config_t tx_config;
@@ -160,4 +164,6 @@ private:
     ChargingColorPulseMode charging_color_pulse_mode;
     PulsingColorMode pulsing_color_mode;
     TestChargingColorMode test_charging_color_mode;
+    
+    uint8_t *bits = nullptr;
 };

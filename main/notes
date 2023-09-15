@@ -12,6 +12,12 @@ provision_iot https://ir5q3elml3.execute-api.us-east-1.amazonaws.com/dev/provisi
 	}
 }
 
+502B838D3A08/register_station
+{
+"stationId": "AAB",
+"groupId": "AL_Lab"
+}
+
 network_interface wifi
 network_interface eth
 
