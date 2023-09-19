@@ -1,6 +1,7 @@
 #pragma once
 
 #include "IOT/ThingConfig.h"
+#include "Utils/NoCopy.h"
 
 #include "esp_err.h"
 #include "esp_event.h"
@@ -11,14 +12,10 @@
 #include <freertos/queue.h>
 #include <freertos/event_groups.h>
 
-class MqttAgent {
+class MqttAgent : public NoCopy {
 public:
     MqttAgent(void) = default;
     ~MqttAgent(void) = default;
-
-    // Disable copy.
-    MqttAgent(const MqttAgent&) = delete;
-    MqttAgent& operator=(const MqttAgent&) = delete;
 
     esp_err_t setup(ThingConfig* thing_config);
     esp_err_t start(void);

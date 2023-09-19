@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Utils/NoCopy.h"
+
 #include "esp_err.h"
 
 #include "driver/rmt_tx.h"
@@ -34,16 +36,6 @@ typedef struct {
     int charge_percent;
 } led_state_info_t;
 
-//******************************************************************************
-class NoCopy {
-public:
-    NoCopy() = default;
-    ~NoCopy() = default;
-
-    // No copy constructor
-    NoCopy(const NoCopy&) = delete;
-    NoCopy& operator=(const NoCopy&) = delete;
-};
 
 //******************************************************************************
 class ColorMode : public NoCopy {
@@ -121,14 +113,10 @@ public:
 
 
 //******************************************************************************
-class LedTaskSpi {
+class LedTaskSpi : public NoCopy {
 public:
     LedTaskSpi(void) = default;
     ~LedTaskSpi(void) = default;
-
-    // Disable copy
-    LedTaskSpi& operator= (const LedTaskSpi&) = delete;
-    LedTaskSpi(const LedTaskSpi&) = delete;
     
     esp_err_t setup(int led_number, int gpio_pin, spi_host_device_t spi);
     esp_err_t start(void);

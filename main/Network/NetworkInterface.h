@@ -5,13 +5,12 @@
 #include "esp_eth.h"
 #include "esp_event.h"
 
-class NetworkInterface {
+#include "Utils/NoCopy.h"
+
+class NetworkInterface : public NoCopy {
 public:
     NetworkInterface(esp_netif_t* netif);
     virtual ~NetworkInterface(void) {}
-
-    NetworkInterface& operator= (const NetworkInterface*) = delete;
-    NetworkInterface(const NetworkInterface*) = delete;
 
     esp_err_t use_dhcp(bool use);
     esp_err_t set_network_info(esp_ip4_addr_t ip, esp_ip4_addr_t netmask, esp_ip4_addr_t gateway, esp_ip4_addr_t dns);

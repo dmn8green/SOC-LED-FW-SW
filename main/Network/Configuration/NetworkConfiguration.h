@@ -2,15 +2,14 @@
 
 #include "esp_netif.h"
 
+#include "Utils/NoCopy.h"
+
 class KeyStore;
 
-class NetworkConfiguration {
+class NetworkConfiguration : public NoCopy{
 public:
     NetworkConfiguration() {};
     ~NetworkConfiguration(void) = default;
-
-    NetworkConfiguration& operator= (const NetworkConfiguration&) = delete;
-    NetworkConfiguration(const NetworkConfiguration&) = delete;
 
 public:
     inline bool is_enabled(void) { return this->isEnabled; }

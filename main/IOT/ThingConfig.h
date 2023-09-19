@@ -5,15 +5,12 @@
 
 #include "esp_err.h"
 
-class ThingConfig
-{
+#include "Utils/NoCopy.h"
+
+class ThingConfig : public NoCopy {
 public:
     ThingConfig();
     ~ThingConfig();
-
-    // Disable copy constructor
-    ThingConfig(const ThingConfig&) = delete;
-    ThingConfig& operator=(const ThingConfig&) = delete;
 
     // Load/Save from NVS
     esp_err_t load(void);
