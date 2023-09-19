@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Utils/NoCopy.h"
+
 /**
  * @brief Singleton template class.
  * 
@@ -7,12 +9,9 @@
  * It is enough for our current need.
  */
 template<typename T>
-class Singleton {
+class Singleton : public NoCopy {
 public:
     static T& instance();
-
-    Singleton(const Singleton&) = delete;
-    Singleton& operator= (const Singleton) = delete;
 
 protected:
     struct token {};

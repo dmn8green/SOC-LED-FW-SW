@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Utils/NoCopy.h"
+
 #include "esp_wifi_types.h"
 #include "nvs_flash.h"
 #include "esp_wifi.h"
@@ -23,14 +25,10 @@ typedef enum {
  * 
  * This class is not thread safe.  Be careful when using it.
  */
-class KeyStore
-{
+class KeyStore : public NoCopy {
 public:
     KeyStore();
     ~KeyStore(void);
-
-    KeyStore &operator=(const KeyStore &) = delete;
-    KeyStore(const KeyStore &) = delete;
 
 public:
     esp_err_t openKeyStore(const char *sectionName, e_keyStoreMode ksMode = e_ro);

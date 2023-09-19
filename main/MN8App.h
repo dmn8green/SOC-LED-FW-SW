@@ -9,6 +9,7 @@
 #include "Network/MQTT/MqttAgent.h"
 
 #include "Utils/Singleton.h"
+#include "Utils/NoCopy.h"
 #include "IOT/ThingConfig.h"
 //#include "LED/LedTask.h"
 #include "LED/LedTaskSpi.h"
@@ -27,9 +28,6 @@ class MN8App : public Singleton<MN8App> {
 public:
     MN8App(token) {};
     ~MN8App(void) = default;
-
-    MN8App& operator= (const MN8App&) = delete;
-    MN8App(const MN8App&) = delete;
 
 public:
     esp_err_t setup(void);
