@@ -28,9 +28,15 @@ set(COMPONENT_REQUIRES
 set(COMPONENT_SRCS
     Utils/KeyStore.cpp
     Utils/FuseMacAddress.cpp
+    Utils/HSV2RGB.cpp
     IOT/ThingConfig.cpp
-    LED/led_strip_encoder.c
     LED/LedTaskSpi.cpp
+    LED/RmtOverSpi.cpp
+    LED/Animations/ChasingAnimation.cpp
+    LED/Animations/PulsingAnimation.cpp
+    LED/Animations/StaticAnimation.cpp
+    LED/Animations/SmoothRatePulseCurve.cpp
+    LED/Animations/ChargingAnimation.cpp
     ReplConsole/repl_console.cpp
     ReplConsole/cmd_tasks.cpp
     ReplConsole/cmd_wifi.cpp

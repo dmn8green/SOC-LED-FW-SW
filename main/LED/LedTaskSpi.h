@@ -1,118 +1,82 @@
+//******************************************************************************
+/**
+ * @file LedTaskSpi.h
+ * @author pat laplante (plaplante@appliedlogix.com)
+ * @brief LedTaskSpi class declaration
+ * @version 0.1
+ * @date 2023-09-19
+ * 
+ * @copyright Copyright MN8 (c) 2023
+ */
+//******************************************************************************
 #pragma once
 
 #include "Utils/NoCopy.h"
+#include "RmtOverSpi.h"
 
 #include "esp_err.h"
-
-#include "driver/rmt_tx.h"
+#include "driver/spi_master.h"
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/queue.h"
 
-#include "driver/spi_master.h"
+#include "Animations/ChasingAnimation.h"
+#include "Animations/ChargingAnimation.h"
+#include "Animations/StaticAnimation.h"
+#include "Animations/SmoothRatePulseCurve.h"
+#include "Animations/PulsingAnimation.h"
 
+//******************************************************************************
+/**
+ * @brief LED state
+ * 
+ * This enum defines the LED state.
+ */
 typedef enum {
-    e_station_available,           // green   (s)  - Available and ready to charge
-    e_station_waiting_for_power,   // cyan    (s)  - Waiting for power to be available
-    e_station_charging,            // blue    (p)  - Charging a vehicle
-    e_station_charging_pulse,      // blue    (p)  - Charging a vehicle
-    e_station_charging_complete,   // blue    (s)  - Charging complete, or preparing for vehicle communication after plugging a vehicle in 
-    e_station_out_of_service,      // red     (s)  - Out of service
-    e_station_disable,             // red     (s)  - Disabled
-    e_station_booting_up,          // yellow  (p)  - Station booting up / Not ready yet
-    e_station_offline,             // white   (s)  - Station offline
-    e_station_reserved,            // orange  (s)  - Station reserved
-
-    // Test patterns
-    e_station_test_charging,
-
-    // Error state
-    e_station_status_unknown
+    e_station_available,           // 00 green   (s)  - Available and ready to charge
+    e_station_waiting_for_power,   // 01 cyan    (s)  - Waiting for power to be available
+    e_station_charging,            // 02 blue    (p)  - Charging a vehicle
+    e_station_charging_complete,   // 03 blue    (s)  - Charging complete, or preparing for vehicle communication after plugging a vehicle in 
+    e_station_out_of_service,      // 04 red     (s)  - Out of service
+    e_station_disable,             // 05 red     (s)  - Disabled
+    e_station_booting_up,          // 06 yellow  (p)  - Station booting up / Not ready yet
+    e_station_offline,             // 07 white   (s)  - Station offline
+    e_station_reserved,            // 08 orange  (s)  - Station reserved
+    e_station_status_unknown       // Error state
 } led_state_t;
 
+//******************************************************************************
+/**
+ * @brief LED state info
+ * 
+ * This struct defines the LED state info.
+ * 
+ * @note This struct is used to pass the LED state info to the LedTaskSpi task.
+ * @note The members could have been part of the LedTask class.
+ */
 typedef struct {
     led_state_t state;
     int charge_percent;
 } led_state_info_t;
 
-
 //******************************************************************************
-class ColorMode : public NoCopy {
-public:
-    virtual void refresh(uint8_t* led_pixels, int led_count, int start_pixel = 0) = 0;
-    inline uint32_t get_rate(void) { return this->rate; }
-    inline void set_rate(uint32_t rate) { this->rate = rate; }
-
-    virtual void reset(void) { this->rate = portMAX_DELAY; }
-private:
-    uint32_t rate = portMAX_DELAY;
-};
-
-//******************************************************************************
-class StaticColorMode : public ColorMode {
-public:
-    inline void set_color(uint32_t color) { this->color = color; }
-    void refresh(uint8_t* led_pixels, int led_count, int start_pixel = 0) override;
-
-private:
-    uint32_t color;
-};
-
-//******************************************************************************
-class ChargingColorMode : public ColorMode {
-public:
-    inline void set_color_start(uint32_t color_start) { this->color_start = color_start; }
-    inline void set_color_end(uint32_t color_end) { this->color_end = color_end; }
-    inline void set_charge_percent(uint32_t charge_percent) { this->charge_percent = charge_percent; }
-
-    void refresh(uint8_t* led_pixels, int led_count, int start_pixel = 0) override;
-
-protected:
-    uint32_t color_start;
-    uint32_t color_end;
-    uint32_t charge_percent;
-};
-
-
-
-//******************************************************************************
-class PulsingColorMode : public ColorMode {
-public:
-    void reset(uint32_t h, uint32_t s, uint32_t v, uint32_t min_value = 10, uint32_t rate = 10);
-    void refresh(uint8_t* led_pixels, int led_count, int start_pixel = 0) override;
-
-private:
-    uint32_t hsv_color[3];
-    uint32_t pulse_count;
-    uint32_t min_value;
-    uint32_t max_value;
-    bool increasing;
-};
-
-//******************************************************************************
-class ChargingColorPulseMode : public ColorMode {
-public:
-    void reset(uint32_t color_start, uint32_t h, uint32_t s, uint32_t v, uint32_t min_value = 10, uint32_t rate = 10);
-    inline void set_charge_percent(uint32_t charge_percent) { this->charge_percent = charge_percent; }
-
-    void refresh(uint8_t* led_pixels, int led_count, int start_pixel = 0) override;
-
-protected:
-    StaticColorMode static_color_mode;
-    PulsingColorMode pulsing_color_mode;
-    uint32_t charge_percent;
-    int cheat = 0;
-};
-
-//******************************************************************************
-class TestChargingColorMode : public ChargingColorMode {
-public:
-    void refresh(uint8_t* led_pixels, int led_count, int start_pixel = 0) override;
-};
-
-
-//******************************************************************************
+/**
+ * @brief LedTaskSpi class
+ * 
+ * This class is responsible for controlling the LED strip.
+ * 
+ * The LED strip is controlled by the SPI peripheral instead of the ESP32 RMT 
+ * driver.
+ * 
+ * The ESP32 RMT driver is known to flicker when wifi is enabled.
+ * 
+ * The LedTaskSpi is a FreeRTOS task that runs on core 1.
+ * 
+ * It is responsible to generate the LED pattern based on the state of the 
+ * station.
+ * 
+ */
 class LedTaskSpi : public NoCopy {
 public:
     LedTaskSpi(void) = default;
@@ -122,14 +86,12 @@ public:
     esp_err_t start(void);
     esp_err_t resume(void);
     esp_err_t suspend(void);
+    esp_err_t set_pattern(led_state_t pattern, int charge_percent);
     esp_err_t set_state(const char* new_state, int charge_percent);
 
 protected:
     void vTaskCodeLed(void);
     static void svTaskCodeLed( void * pvParameters ) { ((LedTaskSpi*)pvParameters)->vTaskCodeLed(); }
-
-    esp_err_t write_led_value_to_strip(void);
-    void setPixel(size_t index, uint8_t g, uint8_t r, uint8_t b);
 
 private:
 
@@ -138,20 +100,16 @@ private:
     uint8_t* led_pixels;
     led_state_info_t state_info;
 
-    spi_device_handle_t spiHandle;
-    rmt_channel_handle_t led_chan;
-    rmt_encoder_handle_t led_encoder;
-    rmt_transmit_config_t tx_config;
-
     TaskHandle_t task_handle;
     QueueHandle_t state_update_queue;
 
-    ColorMode* color_mode;
-    StaticColorMode static_color_mode;
-    ChargingColorMode charging_color_mode;
-    ChargingColorPulseMode charging_color_pulse_mode;
-    PulsingColorMode pulsing_color_mode;
-    TestChargingColorMode test_charging_color_mode;
-    
-    uint8_t *bits = nullptr;
+    BaseAnimation* animation = nullptr;
+    ChasingAnimation chasing_animation;
+    ChargingAnimation charging_animation;
+    StaticAnimation static_animation;
+    SmoothRatePulseCurve smooth_rate_pulse_curve;
+    PulsingAnimation pulsing_animation;
+
+    RmtOverSpi rmt_over_spi;
 };
+
