@@ -44,12 +44,15 @@ void ChasingAnimation::reset(
  * @param start_pixel  Starting pixel
  */
 void ChasingAnimation::refresh(uint8_t* led_pixels, int led_count, int start_pixel) {
-    for (int i = 0; i < led_count; i++) {
-        led_pixels[i] = this->base_color;
+    for (int i = start_pixel; i < led_count; i++) {
+        led_pixels[i * 3 + 0] = (this->base_color >> 16) & 0xFF;
+        led_pixels[i * 3 + 1] = (this->base_color >> 8) & 0xFF;
+        led_pixels[i * 3 + 2] = this->base_color & 0xFF;
     }
-
-    // ESP_LOGI(TAG, "current_pixel: %ld, start_pixel %d, led_count %d", this->current_pixel, start_pixel, led_count);
-    led_pixels[(this->current_pixel + start_pixel)] = this->chasing_color;
+    
+    led_pixels[((this->current_pixel + start_pixel)*3) + 0] = (this->chasing_color >> 16) & 0xFF;
+    led_pixels[((this->current_pixel + start_pixel)*3) + 1] = (this->chasing_color >> 8) & 0xFF;
+    led_pixels[((this->current_pixel + start_pixel)*3) + 2] = this->chasing_color & 0xFF;
 
     if (++this->current_pixel >= led_count) {
         this->current_pixel = 0;

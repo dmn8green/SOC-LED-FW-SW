@@ -53,5 +53,5 @@ private:
     uint32_t chase_color;
 
     bool simulate_charge = true;
-    int simulated_charge_percent = 0;
+    uint32_t simulated_charge_percent = 0;
 };
