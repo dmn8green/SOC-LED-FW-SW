@@ -66,6 +66,7 @@ void LedTaskSpi::vTaskCodeLed()
             STATIC_ANIM_CASE(e_station_disable,             COLOR_RED);
             STATIC_ANIM_CASE(e_station_offline,             COLOR_WHITE);
             STATIC_ANIM_CASE(e_station_reserved,            COLOR_ORANGE);
+            STATIC_ANIM_CASE(e_station_unknown,             COLOR_PURPLE);
             case e_station_charging:
                 ESP_LOGI(TAG, "%d: Charging", this->led_number);
                 this->charging_animation.reset(COLOR_BLUE, COLOR_WHITE, COLOR_BLUE, 250);
@@ -174,7 +175,7 @@ esp_err_t LedTaskSpi::set_pattern(led_state_t pattern, int charge_percent)
 
 esp_err_t LedTaskSpi::set_state(const char *new_state, int charge_percent)
 {
-    led_state_t state = e_station_status_unknown;
+    led_state_t state = e_station_unknown;
     #define MAP_TO_ENUM(x) if (strcmp(new_state, #x) == 0) {\
             state = e_station_##x; \
             goto mapped; \
@@ -189,8 +190,9 @@ esp_err_t LedTaskSpi::set_state(const char *new_state, int charge_percent)
     MAP_TO_ENUM(booting_up);
     MAP_TO_ENUM(offline);
     MAP_TO_ENUM(reserved);
+    MAP_TO_ENUM(unknown);
     
-    if (state == e_station_status_unknown) {
+    if (state == e_station_unknown) {
         ESP_LOGE(TAG, "%d: Unknown state %s", this->led_number, new_state);
         return ESP_FAIL;
     }

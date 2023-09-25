@@ -48,11 +48,11 @@ esp_err_t MqttAgent::start(void) {
     xTaskCreatePinnedToCore(
         MqttAgent::svTaskMqttHandler, // Function to implement the task
         "mqtt_handler",               // Name of the task
-        5000,                   // Stack size in words
-        this,                   // Task input parameter
-        2,                      // Priority
-        &this->task_handle,     // Task handle.
-        0);                     // Core 1
+        5000,                         // Stack size in words
+        this,                         // Task input parameter
+        2,                            // Priority
+        &this->task_handle,           // Task handle.
+        0);                           // Core 1
     // xTaskCreate(&MqttAgent::svTaskMqttHandler, "mqtt_handler", 4096, this, 5, &this->task_handle);
     return ESP_OK;
 }
@@ -81,6 +81,9 @@ extern "C" int aws_iot_demo_main();
 
 //******************************************************************************
 void MqttAgent::vTaskMqttHandler(void) {
+
+    // Init mqtt
+
     while (1) {
         /* Wait for the device to be connected to WiFi and be disconnected from
          * MQTT broker. */
@@ -93,20 +96,15 @@ void MqttAgent::vTaskMqttHandler(void) {
         ESP_LOGI("MQTT", "Connected to network");
         aws_iot_demo_main();
 
-        // // Wait for the wifi to be connected, and for the mqtt to be disconnected.
-
         // // If a connection was previously established, close it to free memory.
+        
+            // Connect to ssl
 
-        // // Init the backoff algorithm.
+            // On success get socket fd to poll. and connect to the broker.
 
-        // do {
-        //     // Connect to ssl
+            // Connect to the mqtt broker.
 
-        //     // On success get socket fd to poll. and connect to the broker.
-
-        //     // Connect to the mqtt broker.
-
-        //     // On error disconnect tls, and backoff for retry.
+            // On error disconnect tls, and backoff for retry.
             
         // } while (no good connection or timed out)
 
@@ -133,7 +131,7 @@ void MqttAgent::onIPEvent(esp_event_base_t event_base, int32_t event_id, void *e
         case IP_EVENT_STA_GOT_IP:
         case IP_EVENT_ETH_GOT_IP:
             ESP_LOGI(TAG, "Connected with IP Address");
-             xEventGroupSetBits( this->event_group, NET_CONNECTED_BIT );
+            xEventGroupSetBits( this->event_group, NET_CONNECTED_BIT );
             break;
         case IP_EVENT_STA_LOST_IP:
         case IP_EVENT_ETH_LOST_IP:

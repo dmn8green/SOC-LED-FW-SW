@@ -1,7 +1,19 @@
+//******************************************************************************
+/**
+ * @file Singleton.h
+ * @author pat laplante (plaplante@appliedlogix.com)
+ * @brief Singleton class definition
+ * @version 0.1
+ * @date 2023-09-19
+ * 
+ * @copyright Copyright MN8 (c) 2023
+ */
+//******************************************************************************
 #pragma once
 
 #include "Utils/NoCopy.h"
 
+//******************************************************************************
 /**
  * @brief Singleton template class.
  * 

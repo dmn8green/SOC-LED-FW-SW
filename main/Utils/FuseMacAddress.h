@@ -1,3 +1,14 @@
+//*****************************************************************************
+/**
+ * @file FuseMacAddress.h
+ * @author pat laplante (plaplante@appliedlogix.com)
+ * @brief Utility functions to get the mac address from the ESP32 fuse module.
+ * @version 0.1
+ * @date 2023-09-04
+ * 
+ * @copyright Copyright MN8 (c) 2023
+ */
+//*****************************************************************************
 #pragma once
 
 #include "esp_err.h"
