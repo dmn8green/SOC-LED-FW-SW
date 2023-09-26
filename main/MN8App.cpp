@@ -158,27 +158,6 @@ err:
     return ret;
 }
 
-
-//*****************************************************************************
-/**
- * @brief Setup and start the LED tasks.
- * 
- * @return esp_err_t 
- */
-esp_err_t MN8App::setup_and_start_led_tasks(void) {
-    esp_err_t ret = ESP_OK;
-
-    ESP_GOTO_ON_ERROR(this->led_task_0.setup(0, RMT_LED_STRIP0_GPIO_NUM, HSPI_HOST), err, TAG, "Failed to setup led task 0");
-    ESP_GOTO_ON_ERROR(this->led_task_0.start(), err, TAG, "Failed to start led task 0");
-
-    ESP_GOTO_ON_ERROR(this->led_task_1.setup(1, RMT_LED_STRIP1_GPIO_NUM, VSPI_HOST), err, TAG, "Failed to setup led task 1");
-    ESP_GOTO_ON_ERROR(this->led_task_1.start(), err, TAG, "Failed to start led task 1");
-
-err:
-    return ret;
-}
-
-
 //*****************************************************************************
 /**
  * @brief Loop function for the MN8App.
