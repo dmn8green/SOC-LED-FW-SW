@@ -91,8 +91,8 @@ void register_provision_charge_point_info(void) {
     provision_charge_point_info_args.end = arg_end(2);
 
     const esp_console_cmd_t provision_charge_point_info_cmd = {
-        .command = "provision_iot",
-        .help = "provision device as an iot thing",
+        .command = "provision_cp",
+        .help = "provision cp info",
         .hint = NULL,
         .func = &do_provision_charge_point_info,
         .argtable = &provision_charge_point_info_args

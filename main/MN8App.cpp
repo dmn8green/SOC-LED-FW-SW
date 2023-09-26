@@ -106,23 +106,6 @@ void handleIncomingPublish( const char* pTopicName,
 esp_err_t MN8App::setup(void) {
     esp_err_t ret = ESP_OK;
 
-#define GPIO_BIT_MASK  ((1ULL<<GPIO_NUM_15)) 
-
-    // >>> Verify this is needed
-	gpio_config_t io_conf;
-	io_conf.intr_type = GPIO_INTR_DISABLE;
-	io_conf.mode = GPIO_MODE_OUTPUT;
-	io_conf.pin_bit_mask = GPIO_BIT_MASK;
-	io_conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
-	io_conf.pull_up_en = GPIO_PULLUP_DISABLE;
-	gpio_config(&io_conf);
-
-    // gpio_reset_pin(GPIO_NUM_17);
-    // gpio_set_direction(GPIO_NUM_17, GPIO_MODE_OUTPUT);
-    gpio_set_level(GPIO_NUM_15, 1);
-    vTaskDelay(1000 / portTICK_PERIOD_MS);
-    // <<< Verify this is needed
-    
     // Do this as early as possible to have feedback.
     ESP_GOTO_ON_ERROR(this->setup_and_start_led_tasks(), err, TAG, "Failed to setup and start led tasks");;
 
@@ -155,6 +138,26 @@ esp_err_t MN8App::setup(void) {
 err:
     return ret;
 }
+
+//*****************************************************************************
+/**
+ * @brief Setup and start the LED tasks.
+ * 
+ * @return esp_err_t 
+ */
+esp_err_t MN8App::setup_and_start_led_tasks(void) {
+    esp_err_t ret = ESP_OK;
+
+    ESP_GOTO_ON_ERROR(this->led_task_0.setup(0, RMT_LED_STRIP0_GPIO_NUM, HSPI_HOST), err, TAG, "Failed to setup led task 0");
+    ESP_GOTO_ON_ERROR(this->led_task_0.start(), err, TAG, "Failed to start led task 0");
+
+    ESP_GOTO_ON_ERROR(this->led_task_1.setup(1, RMT_LED_STRIP1_GPIO_NUM, VSPI_HOST), err, TAG, "Failed to setup led task 1");
+    ESP_GOTO_ON_ERROR(this->led_task_1.start(), err, TAG, "Failed to start led task 1");
+
+err:
+    return ret;
+}
+
 
 //*****************************************************************************
 /**

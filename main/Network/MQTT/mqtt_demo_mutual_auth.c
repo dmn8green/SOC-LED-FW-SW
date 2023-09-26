@@ -1526,8 +1526,8 @@ int publishToTopic( MQTTContext_t * pMqttContext, char* topic, char* payload )
         else
         {
             LogInfo( ( "PUBLISH sent for topic %.*s to broker with packet ID %u.\n\n",
-                       MQTT_EXAMPLE_TOPIC_LENGTH,
-                       MQTT_EXAMPLE_TOPIC,
+                       strlen(topic),
+                       topic,
                        outgoingPublishPackets[ publishIndex ].packetId ) );
         }
     }
