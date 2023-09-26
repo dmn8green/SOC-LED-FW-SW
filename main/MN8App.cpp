@@ -1,3 +1,15 @@
+//*****************************************************************************
+/**
+ * @file MN8App.cpp
+ * @author pat laplante (plaplante@appliedlogix.com)
+ * @brief MN8App class implementation
+ * @version 0.1
+ * @date 2023-08-25
+ * 
+ * @copyright Copyright MN8 (c) 2023
+ */
+//*****************************************************************************
+
 #include "MN8App.h"
 
 #include "pin_def.h"
@@ -16,29 +28,21 @@
 
 #include <string.h>
 
-// Will be called from the main loop.
-// Will handle the state machine
-//   Available, in use (in session), 
-//   not ready (unconfigured), 
-//   watch list (haven't heard from charger in 30 minutes),
-//   needs service (something is broken with the charger), 
-//   configuring (user is configuring the led strip controller)
-
 const char* TAG = "MN8App";
 
-extern "C" int aws_iot_demo_main();
-
 //*****************************************************************************
-static void initialize_nvs(void)
+static esp_err_t initialize_nvs(void)
 {
     esp_err_t err = nvs_flash_init();
     if (err == ESP_ERR_NVS_NO_FREE_PAGES || err == ESP_ERR_NVS_NEW_VERSION_FOUND) {
         ESP_ERROR_CHECK( nvs_flash_erase() );
         err = nvs_flash_init();
     }
-    ESP_ERROR_CHECK(err);
+    return err;
 }
 
+//*****************************************************************************
+// This needs to be moved to a different file.
 typedef void (* handleIncomingPublishCallback_t)( const char* pTopicName,
                                                     uint16_t topicNameLength,
                                                     const char* pPayload,
@@ -104,6 +108,7 @@ esp_err_t MN8App::setup(void) {
 
 #define GPIO_BIT_MASK  ((1ULL<<GPIO_NUM_15)) 
 
+    // >>> Verify this is needed
 	gpio_config_t io_conf;
 	io_conf.intr_type = GPIO_INTR_DISABLE;
 	io_conf.mode = GPIO_MODE_OUTPUT;
@@ -116,64 +121,60 @@ esp_err_t MN8App::setup(void) {
     // gpio_set_direction(GPIO_NUM_17, GPIO_MODE_OUTPUT);
     gpio_set_level(GPIO_NUM_15, 1);
     vTaskDelay(1000 / portTICK_PERIOD_MS);
-
-    ESP_ERROR_CHECK(eth_init(&this->eth_handle));
-
-    initialize_nvs();
-    ESP_ERROR_CHECK(esp_netif_init());
-    ESP_ERROR_CHECK(esp_event_loop_create_default());
-
-    esp_chip_info_t chip_info;
-    esp_chip_info(&chip_info);
+    // <<< Verify this is needed
     
-    thing_config.load();
-    this->mqtt_agent.setup(&thing_config);
-    handleIncomingPublishCallback = handleIncomingPublish;
+    // Do this as early as possible to have feedback.
+    ESP_GOTO_ON_ERROR(this->setup_and_start_led_tasks(), err, TAG, "Failed to setup and start led tasks");;
 
+    // This has to be done early as well.
+    ESP_GOTO_ON_ERROR(initialize_nvs(), err, TAG, "Failed to initialize NVS");
 
-    // ESP_LOGI(__func__, "Thing config loaded %s", thing_config.get_thing_name());
-    // ESP_LOGI(__func__, "Thing config loaded %s", thing_config.get_certificate_arn());
-    // ESP_LOGI(__func__, "Thing config loaded %s", thing_config.get_certificate_id());
-    // ESP_LOGI(__func__, "Thing config loaded %s", thing_config.get_certificate_pem());
-    // ESP_LOGI(__func__, "Thing config loaded %s", thing_config.get_private_key());
-    // ESP_LOGI(__func__, "Thing config loaded %s", thing_config.get_public_key());
-    // ESP_LOGI(__func__, "Thing config loaded %s", thing_config.get_endpoint_address());
-    
-    
-    // ESP_LOGI(__func__, "This is ESP32 chip with %d CPU cores, WiFi%s%s, ",
-    //     chip_info.cores,
-    //     (chip_info.features & CHIP_FEATURE_BT) ? "/BT" : "",
-    //     (chip_info.features & CHIP_FEATURE_BLE) ? "/BLE" : "");
+    // Configure core ethernet stuff.
+    ESP_GOTO_ON_ERROR(eth_init(&this->eth_handle), err, TAG, "Failed to initialize ethernet");
+    ESP_GOTO_ON_ERROR(esp_netif_init(), err, TAG, "Failed to initialize netif");
 
-    // uint64_t _chipmacid = 0LL;
-    // esp_efuse_mac_get_default((uint8_t*) (&_chipmacid));
-    // ESP_LOGI(__func__, "ESP32 Chip ID = %04X",(uint16_t)(_chipmacid>>32));
-    // ESP_LOGI(__func__, "ESP32 Chip ID = %04X",(uint16_t)(_chipmacid>>16));
-    // ESP_LOGI(__func__, "ESP32 Chip ID = %04X",(uint16_t)(_chipmacid));
+    // We need this to have our event loop.  Without this, we can't get the
+    // network events or any other events.
+    ESP_GOTO_ON_ERROR(esp_event_loop_create_default(), err, TAG, "Failed to create event loop");
 
-        // /* Initialize and start the coreMQTT-Agent network manager. This handles
-        //  * establishing a TLS connection and MQTT connection to the MQTT broker.
-        //  * This needs to be started before starting WiFi so it can handle WiFi
-        //  * connection events. */
-        // xResult = xCoreMqttAgentManagerStart( &xNetworkContext );
-
+    // Setup the wifi and ethernet connections.  This will create the interfaces
+    // and the connections.  If the settings stored in nvs are valid, then the
+    // connections will start accordingly.
+    // TODO: This needs to be part of the network agent.  The network agent will
+    // monitor the network connections status and switch between wifi and ethernet
+    // as needed.
     ESP_GOTO_ON_ERROR(setup_wifi_connection(), err, TAG, "Failed to setup wifi");
     ESP_GOTO_ON_ERROR(setup_ethernet_connection(), err, TAG, "Failed to setup ethernet");
 
-    // start the state machine to monitor the network connections, incoming
-    // mqtt messages.
-
-    this->led_task_0.setup(0, RMT_LED_STRIP0_GPIO_NUM, HSPI_HOST);
-    this->led_task_1.setup(1, RMT_LED_STRIP1_GPIO_NUM, VSPI_HOST);
-
-    this->led_task_0.start();
-    this->led_task_1.start();
-
+    // MQTT starter config stuff.
+    thing_config.load();
+    this->mqtt_agent.setup(&thing_config);
+    handleIncomingPublishCallback = handleIncomingPublish;
     this->mqtt_agent.start();
 
 err:
     return ret;
 }
+
+//*****************************************************************************
+/**
+ * @brief Setup and start the LED tasks.
+ * 
+ * @return esp_err_t 
+ */
+esp_err_t MN8App::setup_and_start_led_tasks(void) {
+    esp_err_t ret = ESP_OK;
+
+    ESP_GOTO_ON_ERROR(this->led_task_0.setup(0, RMT_LED_STRIP0_GPIO_NUM, HSPI_HOST), err, TAG, "Failed to setup led task 0");
+    ESP_GOTO_ON_ERROR(this->led_task_0.start(), err, TAG, "Failed to start led task 0");
+
+    ESP_GOTO_ON_ERROR(this->led_task_1.setup(1, RMT_LED_STRIP1_GPIO_NUM, VSPI_HOST), err, TAG, "Failed to setup led task 1");
+    ESP_GOTO_ON_ERROR(this->led_task_1.start(), err, TAG, "Failed to start led task 1");
+
+err:
+    return ret;
+}
+
 
 //*****************************************************************************
 /**

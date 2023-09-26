@@ -46,7 +46,7 @@ static const char *TAG = "provision_charge_point_info";
 
 extern MQTTContext_t *pmqttContext;
 
-extern int publishToTopic( MQTTContext_t * pMqttContext, char* topic, char* payload );
+extern "C" int publishToTopic( MQTTContext_t * pMqttContext, char* topic, char* payload );
 
 static struct {
     struct arg_str *site_name;
@@ -85,14 +85,7 @@ static int do_provision_charge_point_info(int argc, char **argv)
     return 0;
 }
 
-void cmd_provision_charge_point_info(void)
-{
-    static struct {
-    struct arg_str *site_name;
-    struct arg_str *station_id;
-    struct arg_end *end;
-} provision_charge_point_info_args;
-
+void register_provision_charge_point_info(void) {
     provision_charge_point_info_args.site_name = arg_str1(NULL, NULL, "<group or site name>", "Site name where this station is located");
     provision_charge_point_info_args.station_id = arg_str1(NULL, NULL, "<station id>", "Charge point station id");
     provision_charge_point_info_args.end = arg_end(2);
