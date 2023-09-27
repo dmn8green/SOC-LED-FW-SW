@@ -60,6 +60,14 @@ This section describes software components and interfaces, and the lineage of de
 
 
 
+A more detailed breakdown of components within the AWS block above is shown here: 
+
+<img src="./images/MN8-AWS-Details.png"  />
+
+​							**Figure 3:  AWS Detailed Block Diagram**
+
+
+
 ### Station Controller Software
 
 Initial prototype testing started from the ESP SDK "led_strip_example" project, and expanded to include: 
@@ -232,7 +240,7 @@ Our LED strip uses 33 controllers, each driving three LEDs.  Each 24-bit sequenc
 | G7   | G6   | G5   | G4   | G3   | G2   | G1   | G0   | R7   | R6   | R5   | R4   | R3   | R2   | R1   | R0   | B7   | B6   | B5   | B4   | B3   | B2   | B1   | B0   |
 | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- |
 
-​								**Figure 3:  GRB Bit Sequencing**
+​								**Figure 4:  GRB Bit Sequencing**
 
 
 
@@ -248,7 +256,7 @@ The LED controller expects the following duty cycles:
 | **T1L** | **1-code, Low-level time**  | **220ns-420ns**  |
 | *RESET* | *Drive line low*            | *> 280000ns*     |
 
-​						**Figure 4:  LED Controller Timing Requirements** (WS8215)
+​						**Figure 5:  LED Controller Timing Requirements** (WS8215)
 
 
 
@@ -262,7 +270,7 @@ Typical SPI signaling for 8-bit sequence (10100101) looks like this (CLK and MOS
 
 ![](./images/MN8-SPI-Timing.png)
 
-​								**Figure 5:  SPI Timing (CLK/MOSI)**
+​								**Figure 6:  SPI Timing (CLK/MOSI)**
 
 
 
