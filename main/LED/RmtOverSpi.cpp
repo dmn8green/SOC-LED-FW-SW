@@ -55,6 +55,8 @@ esp_err_t RmtOverSpi::setup(spi_host_device_t spi_host, int gpio_num, int led_co
             .flags           = 0, // SPICOMMON_BUSFLAG_*
             .intr_flags      = 0 };
 
+    // The clock speed is 6.664 MHz.  This is 150 ns per bit.
+    // This is in range with the LED spec.
     const spi_device_interface_config_t devcfg = {
             .command_bits     = 0,
             .address_bits     = 0,
@@ -63,7 +65,7 @@ esp_err_t RmtOverSpi::setup(spi_host_device_t spi_host, int gpio_num, int led_co
             .duty_cycle_pos   = 0,
             .cs_ena_pretrans  = 0,
             .cs_ena_posttrans = 16,
-            .clock_speed_hz   = 4000000,
+            .clock_speed_hz   = 6'664'000,
             .input_delay_ns   = 0,
             .spics_io_num     = GPIO_NUM_NC,
             .flags            = SPI_DEVICE_NO_DUMMY,
