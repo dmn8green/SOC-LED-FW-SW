@@ -43,7 +43,7 @@ typedef enum {
     e_station_booting_up,          // 06 yellow  (p)  - Station booting up / Not ready yet
     e_station_offline,             // 07 white   (s)  - Station offline
     e_station_reserved,            // 08 orange  (s)  - Station reserved
-    e_station_status_unknown       // Error state
+    e_station_unknown              // Error state
 } led_state_t;
 
 //******************************************************************************

@@ -1,3 +1,15 @@
+//*****************************************************************************
+/**
+ * @file MN8App.h
+ * @author pat laplante (plaplante@appliedlogix.com)
+ * @brief MN8App class declaration
+ * @version 0.1
+ * @date 2023-08-25
+ * 
+ * @copyright Copyright MN8 (c) 2023
+ */
+//*****************************************************************************
+
 #pragma once
 
 #include "Network/NetworkInterface.h"
@@ -33,6 +45,7 @@ public:
     esp_err_t setup(void);
     void loop(void);
 
+    // Accessors
     inline NetworkInterface* get_wifi_interface(void) { return this->wifi_interface; }
     inline WifiConnection* get_wifi_connection(void) { return this->wifi_connection; }
 
@@ -42,12 +55,14 @@ public:
     Connection* get_connection(const char* interface);
     
     inline bool is_iot_thing_provisioned(void) { return thing_config.is_configured(); } 
+
     inline LedTaskSpi& get_led_task_0(void) { return this->led_task_0; }
     inline LedTaskSpi& get_led_task_1(void) { return this->led_task_1; }
 
 private:
     esp_err_t setup_wifi_connection(void);
     esp_err_t setup_ethernet_connection(void);
+    esp_err_t setup_and_start_led_tasks(void);
 
 private:
     NetworkInterface* wifi_interface = nullptr;

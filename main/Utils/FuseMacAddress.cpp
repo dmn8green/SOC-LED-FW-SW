@@ -6,7 +6,7 @@
  * @version 0.1
  * @date 2023-09-04
  * 
- * @copyright Copyright (c) 2023
+ * @copyright Copyright MN8 (c) 2023
  * 
  * This code returns the eFuse mac address, the same mac address that is
  * returned when using `esptools.py` to read the chip id.
@@ -15,6 +15,7 @@
  * is returned by the `esp_wifi_get_mac` function for each interfaces.
  * 
  */
+//*****************************************************************************
 #include "FuseMacAddress.h"
 
 #include "esp_err.h"

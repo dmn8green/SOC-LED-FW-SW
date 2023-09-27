@@ -33,14 +33,20 @@
 #include "esp_system.h"
 #include "esp_log.h"
 
-#include "esp_http_client.h"
 #include "esp_console.h"
 #include "argtable3/argtable3.h"
 
 #include "ArduinoJson.h"
+/* MQTT API headers. */
+#include "core_mqtt.h"
+#include "core_mqtt_state.h"
 
 #define MAX_HTTP_OUTPUT_BUFFER 8192
 static const char *TAG = "provision_charge_point_info";
+
+extern MQTTContext_t *pmqttContext;
+
+extern "C" int publishToTopic( MQTTContext_t * pMqttContext, char* topic, char* payload );
 
 static struct {
     struct arg_str *site_name;
@@ -48,83 +54,45 @@ static struct {
     struct arg_end *end;
 } provision_charge_point_info_args;
 
+char payload[256] = {0};
 
 static int do_provision_charge_point_info(int argc, char **argv)
 {
-    int nerrors = arg_parse(argc, argv, (void **)&provision_iot_args);
+    int nerrors = arg_parse(argc, argv, (void **)&provision_charge_point_info_args);
     if (nerrors != 0) {
-        arg_print_errors(stderr, provision_iot_args.end, argv[0]);
+        arg_print_errors(stderr, provision_charge_point_info_args.end, argv[0]);
         return 1;
     }
 
-    char *local_response_buffer = (char*) malloc(MAX_HTTP_OUTPUT_BUFFER + 1);
-    memset(local_response_buffer, 0, MAX_HTTP_OUTPUT_BUFFER + 1);
-
-    #pragma GCC diagnostic pop "-Wmissing-field-initializers" 
-    #pragma GCC diagnostic ignored "-Wmissing-field-initializers" 
-    esp_http_client_config_t config = {
-        .url = provision_iot_args.url->sval[0],
-        .method = HTTP_METHOD_POST,
-        .disable_auto_redirect = true,
-        .event_handler = _http_event_handler,
-        .user_data = local_response_buffer,
-        .crt_bundle_attach = esp_crt_bundle_attach,
-    };
-    #pragma GCC diagnostic push "-Wmissing-field-initializers" 
-
-    esp_http_client_handle_t client = esp_http_client_init(&config);
-
-    char auth_raw[64] = {0};
-    snprintf(auth_raw, 64, "%s:%s", provision_iot_args.username->sval[0], provision_iot_args.password->sval[0]);
-
-    size_t outlen;
-    char auth_base64[64] = {0};
-    strcpy(auth_base64, "Basic ");
-    char* base64_ptr = auth_base64+strlen("Basic ");
-    mbedtls_base64_encode((unsigned char*) base64_ptr, 64, &outlen, (unsigned char*) auth_raw, strlen(auth_raw));
-    ESP_LOGI(TAG, "auth_base64 %s", auth_base64);
-
     char mac_address[13] = {0};
     get_fuse_mac_address_string(mac_address);
-    char post_data[32] = {0};
-    snprintf((char*) post_data, 32, "{\"thingId\":\"%s\"}", mac_address);
-    ESP_LOGI(TAG, "post_data %s len %d", post_data, strlen(post_data));
+    char topic[64] = {0};
+    snprintf((char*) topic, 64, "%s/register_station", mac_address);
 
-    esp_http_client_set_header(client, "Authorization", auth_base64);
-    esp_http_client_set_header(client, "Content-Type", "application/json; charset=utf-8");
-    esp_http_client_set_post_field(client, post_data, strlen(post_data));
+    snprintf(payload, 256, "{\"stationId\":\"%s\",\"groupId\":\"%s\",\"description\":\"%s\"}", 
+        provision_charge_point_info_args.station_id->sval[0],
+        provision_charge_point_info_args.site_name->sval[0],
+        ""
+    );
+    ESP_LOGI(TAG, "topic %s len %d", topic, strlen(topic));
+    ESP_LOGI(TAG, "payload %s len %d", payload, strlen(payload));
 
-    esp_err_t err = esp_http_client_perform(client);
-
-    if (err == ESP_OK && esp_http_client_get_status_code(client) == 200) {
-        // ESP_LOGI(TAG, "HTTPS Status = %d, content_length = %" PRIu64,
-        //         esp_http_client_get_status_code(client),
-        //         esp_http_client_get_content_length(client));
-        
-        ESP_LOGI(TAG, "HTTPS Status = %s", local_response_buffer);
-        return process_api_response(local_response_buffer);
+    if (publishToTopic(pmqttContext, topic,  payload) != 0) {
+        ESP_LOGE(TAG, "Failed to publish to topic");
     } else {
-        ESP_LOGE(TAG, "Error perform http request %s", esp_err_to_name(err));
+        ESP_LOGI(TAG, "Published to topic");
     }
-    esp_http_client_cleanup(client);
     return 0;
 }
 
-void cmd_provision_charge_point_info(void)
-{
-    static struct {
-    struct arg_str *site_name;
-    struct arg_str *station_id;
-    struct arg_end *end;
-} provision_charge_point_info_args;
-
+void register_provision_charge_point_info(void) {
     provision_charge_point_info_args.site_name = arg_str1(NULL, NULL, "<group or site name>", "Site name where this station is located");
     provision_charge_point_info_args.station_id = arg_str1(NULL, NULL, "<station id>", "Charge point station id");
-    provision_iot_args.end = arg_end(2);
+    provision_charge_point_info_args.end = arg_end(2);
 
     const esp_console_cmd_t provision_charge_point_info_cmd = {
-        .command = "provision_iot",
-        .help = "provision device as an iot thing",
+        .command = "provision_cp",
+        .help = "provision cp info",
         .hint = NULL,
         .func = &do_provision_charge_point_info,
         .argtable = &provision_charge_point_info_args

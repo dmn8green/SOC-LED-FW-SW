@@ -66,6 +66,7 @@ void LedTaskSpi::vTaskCodeLed()
             STATIC_ANIM_CASE(e_station_disable,             COLOR_RED);
             STATIC_ANIM_CASE(e_station_offline,             COLOR_WHITE);
             STATIC_ANIM_CASE(e_station_reserved,            COLOR_ORANGE);
+            STATIC_ANIM_CASE(e_station_unknown,             COLOR_PURPLE);
             case e_station_charging:
                 ESP_LOGI(TAG, "%d: Charging", this->led_number);
                 this->charging_animation.reset(COLOR_BLUE, COLOR_WHITE, COLOR_BLUE, 250);
@@ -97,11 +98,11 @@ void LedTaskSpi::vTaskCodeLed()
             // ESP_LOGI(TAG, "%d: Queue timeout: %ld", this->led_number, queue_timeout);
         }
 
-        if (xQueueReceive(this->state_update_queue, &updated_state, queue_timeout) == pdTRUE)
-        {
+        // We use the queue to get the new state of the station.  We also use the queue to
+        // to control the refresh rate of the LED strip.
+        if (xQueueReceive(this->state_update_queue, &updated_state, queue_timeout) == pdTRUE) {
             ESP_LOGI(TAG, "%d: Switching to state %d", this->led_number, updated_state.state);
-            if (state_info.state != updated_state.state || state_info.charge_percent != updated_state.charge_percent)
-            {
+            if (state_info.state != updated_state.state || state_info.charge_percent != updated_state.charge_percent) {
                 state_info = updated_state;
                 state_changed = true;
             } else {
@@ -111,29 +112,50 @@ void LedTaskSpi::vTaskCodeLed()
     } while(true);
 }
 
+//******************************************************************************
+/**
+ * @brief Setup the LED task
+ * 
+ * This function sets up the LED task.
+ * 
+ * @param led_number 
+ * @param gpio_pin 
+ * @param spinum 
+ * @return esp_err_t 
+ */
 esp_err_t LedTaskSpi::setup(int led_number, int gpio_pin, spi_host_device_t spinum)
 {
     esp_err_t ret = ESP_OK;
 
     this->led_number = led_number;
     this->gpio_pin = gpio_pin;
-
     this->led_pixels = (uint8_t *)malloc(LED_STRIP_PIXEL_COUNT * 3);
-    if (this->led_pixels == NULL) {
-        ESP_LOGE(TAG, "Failed to allocate memory for LED pixels");
-        ret = ESP_ERR_NO_MEM;
-        goto err_exit;
-    }
 
-    ESP_GOTO_ON_ERROR(this->rmt_over_spi.setup(spinum, gpio_pin, LED_STRIP_PIXEL_COUNT), err_exit, TAG, "Failed to setup RMT over SPI");
+    ESP_GOTO_ON_FALSE(
+        this->led_pixels, ESP_ERR_NO_MEM, 
+        err_exit, TAG, "Failed to allocate memory for LED pixels"
+    );
+
+    ESP_GOTO_ON_ERROR(
+        this->rmt_over_spi.setup(spinum, gpio_pin, LED_STRIP_PIXEL_COUNT), 
+        err_exit, TAG, "Failed to setup RMT over SPI"
+    );
 
     this->state_update_queue = xQueueCreate(10, sizeof(led_state_info_t));
-    this->state_info.state = e_station_available;//e_station_booting_up;
+    this->state_info.state = e_station_booting_up;
 
 err_exit:
     return ret;
 }
 
+//******************************************************************************
+/**
+ * @brief Start the LED task
+ * 
+ * This function starts the LED task freeRTOS task on core 1.
+ * 
+ * @return esp_err_t 
+ */
 esp_err_t LedTaskSpi::start(void)
 {
     char name[16] = {0};
@@ -150,18 +172,41 @@ esp_err_t LedTaskSpi::start(void)
     return ESP_OK;
 }
 
+//******************************************************************************
+/**
+ * @brief Resume the LED task
+ * 
+ * @return esp_err_t 
+ */
 esp_err_t LedTaskSpi::resume(void)
 {
     vTaskResume(this->task_handle);
     return ESP_OK;
 }
 
+//******************************************************************************
+/**
+ * @brief Suspend the LED task
+ * 
+ * @return esp_err_t 
+ */
 esp_err_t LedTaskSpi::suspend(void)
 {
     vTaskSuspend(this->task_handle);
     return ESP_OK;
 }
 
+//******************************************************************************
+/**
+ * @brief Set the LED pattern
+ * 
+ * This function sets the LED pattern.  It sends a message to the LED task via
+ * the state_update_queue.
+ * 
+ * @param pattern 
+ * @param charge_percent 
+ * @return esp_err_t 
+ */
 esp_err_t LedTaskSpi::set_pattern(led_state_t pattern, int charge_percent)
 {
     led_state_info_t state_info;
@@ -172,9 +217,23 @@ esp_err_t LedTaskSpi::set_pattern(led_state_t pattern, int charge_percent)
 
 }
 
+//******************************************************************************
+/**
+ * @brief Set the LED state
+ * 
+ * This function sets the LED state from a string.  It maps the string to the
+ * led_state_t enum and call set_pattern.
+ * 
+ * This function is usefull when the LED state is set from a JSON string via
+ * MQTT.
+ * 
+ * @param new_state 
+ * @param charge_percent 
+ * @return esp_err_t 
+ */
 esp_err_t LedTaskSpi::set_state(const char *new_state, int charge_percent)
 {
-    led_state_t state = e_station_status_unknown;
+    led_state_t state = e_station_unknown;
     #define MAP_TO_ENUM(x) if (strcmp(new_state, #x) == 0) {\
             state = e_station_##x; \
             goto mapped; \
@@ -189,8 +248,9 @@ esp_err_t LedTaskSpi::set_state(const char *new_state, int charge_percent)
     MAP_TO_ENUM(booting_up);
     MAP_TO_ENUM(offline);
     MAP_TO_ENUM(reserved);
+    MAP_TO_ENUM(unknown);
     
-    if (state == e_station_status_unknown) {
+    if (state == e_station_unknown) {
         ESP_LOGE(TAG, "%d: Unknown state %s", this->led_number, new_state);
         return ESP_FAIL;
     }
