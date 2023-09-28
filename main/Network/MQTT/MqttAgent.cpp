@@ -8,6 +8,11 @@
 
 static const char *TAG = "mqtt_agent";
 
+extern char* client_cert;
+extern char* client_key;
+extern char* root_ca;
+extern char* thing_id;
+
 /* Network event group bit definitions */
 #define NET_CONNECTED_BIT              ( 1 << 0 )
 #define NET_DISCONNECTED_BIT           ( 1 << 1 )
@@ -38,6 +43,13 @@ esp_err_t MqttAgent::setup(ThingConfig* thing_config) {
         ESP_LOGE(TAG, "Failed to register IP_EVENT handler");
         return ret;
     }
+
+    client_cert = (char*)thing_config->get_certificate_pem();
+    client_key = (char*)thing_config->get_private_key();
+    root_ca = (char*)thing_config->get_root_ca();
+    thing_id = (char*)thing_config->get_thing_name();
+    
+    ESP_LOGI(TAG, "%s\n%s\n%s\n", client_cert, client_key, root_ca);
 
     return ESP_OK;
 }

@@ -26,6 +26,7 @@ public:
     void set_endpoint_address(const char* endpointAddress);
 
     // inline getter
+    const char* get_root_ca(void);
     inline const char* get_thing_name(void) { return this->thingName; }
     inline const char* get_certificate_arn(void) { return this->certificateArn; }
     inline const char* get_certificate_id(void) { return this->certificateId; }
