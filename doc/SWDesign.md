@@ -5,18 +5,45 @@
 
 This document describes and provides supporting details for the software design of the SOC (State of Charge) LED indicator system. 
 
+## Table of Contents
+
+[TOC]
+
 ## Scope
 
-This document describes the solution for MN8 Energy's request for a State of Charge (SOC) LED indicator for an EV Charging Station.  
+This document describes the software components for MN8 Energy's State of Charge (SOC) LED indicator for an EV Charging Station.  
 
-This document applies to the entire product. This includes an embedded controller as well as cloud-based software packages. 
+This document applies to the entire product. This includes an embedded controller and several cloud-based software packages. 
+
+### Background
+
+#### Project Origination
+
+MN8 identified a need for visual reporting of an EV charging station port. Charing port status can be read by an EV, device app, or from the port display, but a fixed "always-on" indicator visible from a distance will improve user experience. 
 
 A conceptual rendering of the LED Indicators at a charging station was provided by MN8 at project start. This photo is for reference only, and does not define any project requirements. For example, the smaller secondary indicator to the left of the larger LED strip is not part of this project.
 
 ![](./images/MN8 Station.png)
 
-​					**Figure 1: Conceptual Rendering of LEDs at four Stations**
+​									**Figure 1: Conceptual Rendering of LEDs at four Stations**
 
+
+
+#### Design History/Notes
+
+This section identifies design changes that drove software solutions.
+
+* A single embedded Station Controller housed in each Charging Station "pillar"  controlling up to 2 LED Strips
+* Requirement are that LEDs use only the ChargePoint API:
+  * ChargePoint API uses SOAP, requiring complex request assembly and response parsing
+  * Requirements for LED status change required frequent polling of the ChargePoint API
+    * Potential for higher costs at remote sites
+    * Potential to overwhelm ChargePoint API
+
+* Design evolved to include a Proxy Broker:
+  * Single point of contact with ChargePoint API
+  * Knows about entire fleet of installed devices
+  * Uses MQTT to report status to Station Controllers
 
 
 ## Reference Documents
@@ -34,13 +61,15 @@ This section will describe the software running on each component of the system.
 
 ### Station Controller
 
-The Station Controller is an on-site ESP32 micro controller delivered on an AppliedLogix designed PCB in a custom enclosure.  Each charging station will support one or two charging ports (typically to the left and right of a central pillar). 
+The Station Controller is an on-site ESP32 micro controller on an AppliedLogix designed PCB in a custom enclosure.  Each Station Controller supports one or two LED bars, one for each charging port. The charging ports are typically on the left and right side of a central pillar.
 
-The Station Controller is connected to the Internet via Ethernet and WiFi. The Station Controller is powered by PoE, and the WiFi connection is used as a backup for Ethernet. The Station Controller provides a method for registering the station with the AWS database. During normal operation, the Station Controller will  interpret MQTT messages from the Proxy Broker and conrol the LED status bar(s). 
+The Station Controller is connected to the Internet via Ethernet and WiFi. The Station Controller is powered by PoE;  a WiFi connection is used as a backup for Ethernet. 
+
+The Station Controller allows installers to register the station. During normal operation, the Station Controller will  interpret MQTT messages from the Proxy Broker and control the LED status bar(s). 
 
 ### Proxy Broker
 
-The initial design called for the Station Controller to query the ChargePoint API directly. Initial testing showed this would likely be inefficient and expensive. A new design included the Proxy Broker, which makes requests of the ChargePoint API and delivers status updates to Station Controllers via MQTT. 
+The Proxy Broker centralizes requests to the ChargePoint API and delivers status updates to Station Controllers via MQTT. This is Javascript code running under Ubuntu on an AWS EC2 instance.
 
 #### AWS Lambda
 
@@ -48,7 +77,7 @@ AWS Lambda provides a server-less mechanism for executing code on demand. It is 
 
 #### AWS DynamoDB
 
-Provides key-value storage for all known Station Controller IDs within AWS. Written by Lambda, read by Proxy Broker. 
+Provides key-value storage for all known Station Controller IDs within AWS. 
 
 ## Structural Design
 
@@ -56,7 +85,7 @@ This section describes software components and interfaces, and the lineage of de
 
 ![](./images/MN8 Architecture.png)
 
-​							**Figure 2:  System Block Diagram**
+​										**Figure 2:  System Block Diagram**
 
 
 
@@ -64,7 +93,7 @@ A more detailed breakdown of components within the AWS block above is shown here
 
 <img src="./images/MN8-AWS-Details.png"  />
 
-​							**Figure 3:  AWS Detailed Block Diagram**
+​									**Figure 3:  AWS Detailed Block Diagram**
 
 
 
@@ -129,9 +158,9 @@ AWS Lambda functions allow for single-shot event handling without need for a ded
 
 ### Station Controller Software
 
-* This is an embedded C application developed using the ESP32 IDF development kit. FreeRTOS is commonly incorporated into ESP32 designs, and is used here as a low level operating system. 
+* This is an embedded C++ application using the ESP32 IDF development tools
 
-* FreeRTOS Threads 
+* FreeRTOS is commonly incorporated into ESP32 designs, and is used here as an operating system. FreeRTOS Threads: 
 
   * LED Threads (2)
     * Thread affinity used to keep these two threads on a single controller
@@ -141,7 +170,7 @@ AWS Lambda functions allow for single-shot event handling without need for a ded
   * Day/Night Sensor Monitor 
   * Network Status Monitor
 
-* Networking
+* Network Connectivity
 
   The default operational mode will be using wired Ethernet. The WiFi interface is used as a backup in the event of connection or other failure detected on the Ethernet interface. 
 
@@ -227,44 +256,42 @@ AWS Lambda functions allow for single-shot event handling without need for a ded
 
 * LED Driver 
 
-The LED strips use the WS8215 protocol. Each LED strip has multiple controllers wired in series along the length of the strip. The LED controllers are not aware of their physical position in the strip (this allows for  easy cutting, resizing, and joining strips). 
+The LED strips use the WS8215 protocol. Each LED strip has multiple controllers wired in series along the length of the strip. Dependingon vendor, each LED controller may control multiple LEDs (in our case, three LEDs per controller). The LED controllers are not aware of their physical position in the strip; this allows for easy cutting, resizing, and joining of strips.
 
-Each LED controller has a DIN for input signaling and a DO for cascading the signal to the next downstream LED controller. Each LED controller will interpret the first 24 bits of data it sees at DIN as a command and set its color accordingly; all bits following the first 24 are then forwarded via DO the next LED's DIN, which will repeat the process. 
+Each LED controller has a DIN pin for input signaling and a DO for cascading the signal to the next downstream LED controller. Each LED controller will interpret the first 24 bits of data it sees at DIN as a command and set its color accordingly; all bits following the first 24 are then forwarded via DO the next LED's DIN, which will repeat the process. 
 
 The reduced bit sequence will be propagated along the LED strip until signal is exhausted or no more LEDs are present. Each LED controller maintains current color and forwards signals until a RESET is seen. 
 
-Our LED strip uses 33 controllers, each driving three LEDs.  Each 24-bit sequence is interpreted by an LED controller in GRB (Green, Red, Blue) as follows: 
-
-
+Our LED strip uses 33 controllers to drive 99 LEDs.  Each 24-bit sequence is interpreted as GRB (Green, Red, Blue) as follows: 
 
 | G7   | G6   | G5   | G4   | G3   | G2   | G1   | G0   | R7   | R6   | R5   | R4   | R3   | R2   | R1   | R0   | B7   | B6   | B5   | B4   | B3   | B2   | B1   | B0   |
 | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- |
 
-​								**Figure 4:  GRB Bit Sequencing**
+​												**Figure 4:  GRB Bit Sequencing**
 
 
 
-Because there is only a single data line to the LEDs (no clock signal), the line must be driven high/low for reach bit transmitted. The duration of the high signal during each cycle indicates whether the bit should be interpreted as 0 or 1. 
+Because there is only a single data line to the LED strip (no clock signal), the line must be driven high/low for reach GRB bit transmitted. The duration of the high signal during each cycle indicates whether the bit should be interpreted as 0 or 1. 
 
-The LED controller expects the following duty cycles: 
+The LED controller expects the following duty cycles, per the WS8215 specification: 
 
-|         | Code                        | Duration         |
-| ------- | --------------------------- | ---------------- |
-| T0H     | 0-code, High-level time     | 220ns-380ns      |
-| **T1H** | **1-code, High-level time** | **580ns-1600ns** |
-| T0L     | 0-code, Low-level time      | 580ns-1600ns     |
-| **T1L** | **1-code, Low-level time**  | **220ns-420ns**  |
-| *RESET* | *Drive line low*            | *> 280000ns*     |
+|       | Code                    | Duration     |
+| ----- | ----------------------- | ------------ |
+| T0H   | 0-code, High-level time | 220ns-380ns  |
+| T1H   | 1-code, High-level time | 580ns-1600ns |
+| T0L   | 0-code, Low-level time  | 580ns-1600ns |
+| T1L   | 1-code, Low-level time  | 220ns-420ns  |
+| RESET | Drive line low          | > 280000ns   |
 
-​						**Figure 5:  LED Controller Timing Requirements** (WS8215)
+​									**Figure 5:  LED Controller Timing Requirements (WS8215)**
 
 
 
-Cycles must be between 900ns (220ns+580ns) and ~2000ns (380/420ns + 1600ns). We found example code that used a pulse width of 1200ns, which falls on the faster side of the range but comfortably above the minimum. 
+Cycles must be between 900ns (220ns+580ns) and ~2000ns (380/420ns + 1600ns). We found example ESP32 projects that used a pulse width of 1200ns, which falls on the faster side of the range but comfortably above the minimum. 
 
-Our design makes use of ESP SDK's SPI library to drive the LED signal line. SPI is usually used for peripheral communications; in normal use the SPI uses several signals including clock and data out (MOSI). For our LED implementation, we will use only the MOSI line. 
+Our design makes use of ESP SDK's SPI library to drive the LED signal line. SPI is often used for peripheral communications; in normal use the SPI uses several signals including clock and data out (MOSI). For our LED implementation, we will use only the MOSI line. 
 
-Typical SPI signaling for 8-bit sequence (10100101) looks like this (CLK and MOSI lines only):
+Typical SPI signaling for an 8-bit sequence (10100101) looks like this (CLK and MOSI lines only):
 
 
 
@@ -274,45 +301,55 @@ Typical SPI signaling for 8-bit sequence (10100101) looks like this (CLK and MOS
 
 
 
-With an SPI clock speed of 6.66MHz , each SPI CLK cycle is 150ns.  We can hold the MOSI line high or low for multiples of 150ns by "sending" one of two bit sequences to the SPI driver:
+With an SPI clock speed of 6.66MHz , each SPI CLK cycle is 150ns.  We can hold the MOSI line high or low for multiples of 150ns by "sending" one of two bit sequences to the SPI driver (from file RmtOverSpi.cpp): 
 
 ```
 static const uint8_t mZero = 0b11000000; // 300:900 ns 
 static const uint8_t mOne  = 0b11111100; // 900:300 ns 
 ```
 
-Note that transmission of a single bit to the LED strip requires eight SPI CLK cycles. With the sequences above, the MOSI line will be high for 300ns or 900ns, then low for 900ns or 300ns. 
-
-This provides the desired LED pulse width of 1200ns and high/low durations well within the specification. 
+Note that transmission of a single bit to the LED strip requires eight SPI CLK cycles. With the sequences above, the MOSI line will be high for 300ns or 900ns, then low for 900ns or 300ns. This provides the desired LED pulse width of 1200ns and high/low durations well within the specification. 
 
 The time required to address all LEDs is minimal and not visible. With 33 LED controllers using 24 bits each, and 1.2us required for each LED bit, we can update an LED strip in less than 0.1 milliseconds. 
 
-* Day/Night sensor 
+* LED Colors, Animations, and Patterns
 
-The Day/Night sensor will be wired to a GPIO pin on the ESP32 board. The sensor will drive one of two LED thresholds for brightness across all supported patterns and animations. 
+Requirements here are evolving as testing and customer evaluation progresses.
+
+Most Charging Port states are represented using solid colors defined in header file "Colors.h".
+
+The design currently supports two types of LED "animation" which are subject to change.
+
+1) A "pulsing" theme, driving a single color from low to high intensity and back.
+2) A "chase" theme, where an indicator moves up the LED bar towards a target. This is currently used for Charging status; a blue indicator climbs from the base of the LED strip to the current charge level against a white background.
+3) Dedicated LED control threads and an abstraction of the colors mean changes to animations are straightforward 
+
+* Day/Night sensor
+
+The Day/Night sensor will be wired to a GPIO pin on the ESP32 board. The sensor will drive one of two LED thresholds for brightness across all supported patterns and animations.
 
 ### Proxy Broker Software
 
-The Proxy Broker acts as an intermediary between the ChargePoint API and the set of Station Controllers being used. This application is written in Javascript and run via "npm" on an AWS EC2 instance. 
+The Proxy Broker acts as an intermediary between the ChargePoint API and the set of Station Controllers being used. This application is written in Javascript and run via *npm* on an AWS EC2 instance.
 
 #### Proxy Broker: Connecting to Instance
 
-Connecting to this instance will require: 
+Connecting to this instance will require:
 
 * AppliedLogix Account ID and IAM user name
 * SSH client application
-* SSH private Key 
-* If accessing outside of Winton Place, an inbound rule on AWS allowing your public IP to connect to port 22 of the Proxy Broker instance. 
+* SSH private Key
+* If accessing outside of Winton Place, an inbound rule on AWS allowing your public IP to connect to port 22 of the Proxy Broker instance (this is for SSH access only; normal operation does not require changes to AWS rules for MQTT or API traffic).
 
 #### Proxy Broker: Code Organization
 
-The EC2 instance has a dedicated directory for the Proxy Broker: 
+The EC2 instance has a dedicated directory for the Proxy Broker:
 
 ```
 	/home/ubuntu/proxy-broker/chargepoint-poll-proxy
 ```
 
-During development, this directory is pointed at the AppliedLogix gitlab Proxy Broker repo (see link earlier in this document). This allows developers to pull and deploy changes quickly. 
+During development, this directory is pointed at the AppliedLogix gitlab Proxy Broker repo (see link earlier in this document). This allows developers to pull and deploy changes quickly.
 
 #### Proxy Broker: Run/Debug Modes
 
@@ -340,7 +377,7 @@ The following commands are supported:
 
 ​	**state** <LED ID> <state string> 
 
-​			Sets the internal state of an LED ID to a state string. Valid states (and numeric values). LED 			bars are numbered 1 and 2 within the Proxy Broker.  See table below: 
+​		Sets the internal state of an LED ID to a state string. Valid states (and numeric values). LED bars are numbered 1 and 2 within the Proxy Broker.  		See table below: 
 
 ​	**m** <LED ID> <Numeric State Value> 
 
@@ -394,6 +431,7 @@ Examples:
 | MOSI   | SPI line driving output                                      |
 | MQTT   | Lightweight publish/subscribe network protocol; used to manage IOT devices |
 | PoE    | Power over Ethernet                                          |
+| SOAP   | Simple Object Access Protocol                                |
 | SOC    | State of Charge                                              |
 | SPI    | Serial Peripheral Interface                                  |
 | SSH    | Secure Shell                                                 |
