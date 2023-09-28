@@ -105,7 +105,6 @@ void handleIncomingPublish( const char* pTopicName,
  */
 esp_err_t MN8App::setup(void) {
     esp_err_t ret = ESP_OK;
-    bool has_ethernet_phy = false;
 
     // Do this as early as possible to have feedback.
     ESP_GOTO_ON_ERROR(this->setup_and_start_led_tasks(), err, TAG, "Failed to setup and start led tasks");;
@@ -113,13 +112,9 @@ esp_err_t MN8App::setup(void) {
     // This has to be done early as well.
     ESP_GOTO_ON_ERROR(initialize_nvs(), err, TAG, "Failed to initialize NVS");
 
-    // Configure core ethernet stuff.
-    has_ethernet_phy = eth_init(&this->eth_handle) == ESP_OK;
-    if (has_ethernet_phy) {
-        ESP_LOGI(__func__, "Ethernet initialized");
-    } else {
-        ESP_LOGE(__func__, "Failed to initialize ethernet");
-    }
+    // Configure core ethernet stuff.  It's ok if it fails, we will just
+    // disable the interface.
+    this->setup_ethernet_stack();
 
     ESP_GOTO_ON_ERROR(esp_netif_init(), err, TAG, "Failed to initialize netif");
 
@@ -134,19 +129,37 @@ esp_err_t MN8App::setup(void) {
     // monitor the network connections status and switch between wifi and ethernet
     // as needed.
     ESP_GOTO_ON_ERROR(setup_wifi_connection(), err, TAG, "Failed to setup wifi");
-    if (has_ethernet_phy) {
+    if (this->has_ethernet_phy) {
         ESP_GOTO_ON_ERROR(setup_ethernet_connection(), err, TAG, "Failed to setup ethernet");
     }
 
-    // MQTT starter config stuff.
+    // MQTT starter config stuff. Only start mqtt stack if thing is configured.
     thing_config.load();
-    this->mqtt_agent.setup(&thing_config);
-    handleIncomingPublishCallback = handleIncomingPublish;
-    this->mqtt_agent.start();
+    if (thing_config.is_configured()) {
+        this->mqtt_agent.setup(&thing_config);
+        handleIncomingPublishCallback = handleIncomingPublish;
+        this->mqtt_agent.start();
+    }
 
 err:
     return ret;
 }
+
+//*****************************************************************************
+/**
+ * @brief Setup the ethernet stack.
+ * 
+ * This function will setup the ethernet stack, internal drivers etc...
+ */
+void MN8App::setup_ethernet_stack(void) {
+    this->has_ethernet_phy = eth_init(&this->eth_handle) == ESP_OK;
+    if (this->has_ethernet_phy) {
+        ESP_LOGI(__func__, "Ethernet initialized");
+    } else {
+        ESP_LOGE(__func__, "Failed to initialize ethernet");
+    }
+}
+
 
 //*****************************************************************************
 /**
