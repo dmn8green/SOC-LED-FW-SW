@@ -105,6 +105,7 @@ void handleIncomingPublish( const char* pTopicName,
  */
 esp_err_t MN8App::setup(void) {
     esp_err_t ret = ESP_OK;
+    bool has_ethernet_phy = false;
 
     // Do this as early as possible to have feedback.
     ESP_GOTO_ON_ERROR(this->setup_and_start_led_tasks(), err, TAG, "Failed to setup and start led tasks");;
@@ -113,7 +114,13 @@ esp_err_t MN8App::setup(void) {
     ESP_GOTO_ON_ERROR(initialize_nvs(), err, TAG, "Failed to initialize NVS");
 
     // Configure core ethernet stuff.
-    ESP_GOTO_ON_ERROR(eth_init(&this->eth_handle), err, TAG, "Failed to initialize ethernet");
+    has_ethernet_phy = eth_init(&this->eth_handle) == ESP_OK;
+    if (has_ethernet_phy) {
+        ESP_LOGI(__func__, "Ethernet initialized");
+    } else {
+        ESP_LOGE(__func__, "Failed to initialize ethernet");
+    }
+
     ESP_GOTO_ON_ERROR(esp_netif_init(), err, TAG, "Failed to initialize netif");
 
     // We need this to have our event loop.  Without this, we can't get the
@@ -127,7 +134,9 @@ esp_err_t MN8App::setup(void) {
     // monitor the network connections status and switch between wifi and ethernet
     // as needed.
     ESP_GOTO_ON_ERROR(setup_wifi_connection(), err, TAG, "Failed to setup wifi");
-    ESP_GOTO_ON_ERROR(setup_ethernet_connection(), err, TAG, "Failed to setup ethernet");
+    if (has_ethernet_phy) {
+        ESP_GOTO_ON_ERROR(setup_ethernet_connection(), err, TAG, "Failed to setup ethernet");
+    }
 
     // MQTT starter config stuff.
     thing_config.load();
