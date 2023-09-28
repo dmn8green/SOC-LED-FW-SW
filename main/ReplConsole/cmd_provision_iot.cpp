@@ -285,7 +285,7 @@ static int do_provision_iot_cmd(int argc, char **argv)
         //         esp_http_client_get_content_length(client));
         
         ESP_LOGI(TAG, "HTTPS Status = %s", local_response_buffer);
-        return process_api_response(local_response_buffer);
+        return process_api_response(local_response_buffer) == true;
     } else {
         ESP_LOGE(TAG, "Error perform http request %s", esp_err_to_name(err));
     }

@@ -80,113 +80,11 @@
     #error "Please define a unique client identifier, CLIENT_IDENTIFIER, in menuconfig"
 #endif
 
-/* The AWS IoT message broker requires either a set of client certificate/private key
- * or username/password to authenticate the client. */
-#ifdef CLIENT_USERNAME
-/* If a username is defined, a client password also would need to be defined for
- * client authentication. */
-    #ifndef CLIENT_PASSWORD
-        #error "Please define client password(CLIENT_PASSWORD) in demo_config.h for client authentication based on username/password."
-    #endif
-/* AWS IoT MQTT broker port needs to be 443 for client authentication based on
- * username/password. */
-    #if AWS_MQTT_PORT != 443
-        #error "Broker port, AWS_MQTT_PORT, should be defined as 443 in demo_config.h for client authentication based on username/password."
-    #endif
-#else /* !CLIENT_USERNAME */
-/*
- *!!! Please note democonfigCLIENT_PRIVATE_KEY_PEM in used for
- *!!! convenience of demonstration only.  Production devices should
- *!!! store keys securely, such as within a secure element.
- */
-    #ifndef CONFIG_EXAMPLE_USE_ESP_SECURE_CERT_MGR
-        const char client_cert_start[] = 
-"-----BEGIN CERTIFICATE-----\n"
-"MIIDWTCCAkGgAwIBAgIUGCFAIjEQ7MiVDzfzvt1Zw7ccxtwwDQYJKoZIhvcNAQEL\n"
-"BQAwTTFLMEkGA1UECwxCQW1hem9uIFdlYiBTZXJ2aWNlcyBPPUFtYXpvbi5jb20g\n"
-"SW5jLiBMPVNlYXR0bGUgU1Q9V2FzaGluZ3RvbiBDPVVTMB4XDTIzMDkwNjE1MzM0\n"
-"M1oXDTQ5MTIzMTIzNTk1OVowHjEcMBoGA1UEAwwTQVdTIElvVCBDZXJ0aWZpY2F0\n"
-"ZTCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBALNZiShRe31vLzt2mDnr\n"
-"sLJqlmjaX2hugEdKGFpGJEE4VS+g4xaTTPsLZuPjJsGcv/8Rdc8QTxLPY+N1eFrp\n"
-"W5D/Xex746IDs93XKDEvGg+axbVzIay7HrZ9KT/jv9I76C88LA3Wlsa8mKb6P7G/\n"
-"ntTS61JNhkaXWEXjk8ghCrNEmtHm0yDfUWEUY/7tuAdZBBxKoJlqjEmY+7LnIuzq\n"
-"KthnWB1yWnmMZphgWDLckAtsmJgnQtB4jE8njTbxyO+BTR2mbASjF1Q4nFyQMIxt\n"
-"MDKqdCXW+Xrmq4KTmYJFsxRKj6Mkvt4Ai1wCGZe0/S6BQSjV8j6sGPWFsb2YTEFS\n"
-"iVkCAwEAAaNgMF4wHwYDVR0jBBgwFoAUZAxGzSFWP/j6pE+usvbtETxnfz8wHQYD\n"
-"VR0OBBYEFIqCFBBgQ5s47pVF3B87b4y28e+eMAwGA1UdEwEB/wQCMAAwDgYDVR0P\n"
-"AQH/BAQDAgeAMA0GCSqGSIb3DQEBCwUAA4IBAQBxCfKrhlSJ67RzMhsDiDX1Vfmt\n"
-"CXWD/awDwg9QCTzpJz7oF1JRyq5mzsIaEROGFPIfOyKfVTgMYZZRBsqL+2nu+zKU\n"
-"l0WCd0rKR8d2tGrLdhpTMeOerE8qxqAOHsAAS32nnCGnDuvFSFD034z7kXUVDP1N\n"
-"snDv6xI8roe4hq2WdvnHr0Bg96tqbfMhRfdzKL09+dMJWh5QGogiv2KJVtDqHmmU\n"
-"n51NN5ytodwP5mJEphYQyf0Jv6uJunwcDzRwDpNw/5feV3a4Ka5PIpNFVwhIJ0rM\n"
-"rspceTaOjhsQ3PMkTEII7dTFN0HRJ1Kij+sXmCCONGFFkMikbgpRvHcGtKxX\n"
-"-----END CERTIFICATE-----\n";
-        
-        const char * client_cert_end = client_cert_start + sizeof( client_cert_start );
-
-        const char client_key_start[] =
-"-----BEGIN RSA PRIVATE KEY-----\n"
-"MIIEowIBAAKCAQEAs1mJKFF7fW8vO3aYOeuwsmqWaNpfaG6AR0oYWkYkQThVL6Dj\n"
-"FpNM+wtm4+MmwZy//xF1zxBPEs9j43V4WulbkP9d7HvjogOz3dcoMS8aD5rFtXMh\n"
-"rLsetn0pP+O/0jvoLzwsDdaWxryYpvo/sb+e1NLrUk2GRpdYReOTyCEKs0Sa0ebT\n"
-"IN9RYRRj/u24B1kEHEqgmWqMSZj7suci7Ooq2GdYHXJaeYxmmGBYMtyQC2yYmCdC\n"
-"0HiMTyeNNvHI74FNHaZsBKMXVDicXJAwjG0wMqp0Jdb5euargpOZgkWzFEqPoyS+\n"
-"3gCLXAIZl7T9LoFBKNXyPqwY9YWxvZhMQVKJWQIDAQABAoIBAD8Z12n6ESq2vbV8\n"
-"Kl7mj8qWOck2W68Qgc2TQjIwz3yq5z3Uq1E8Di+deVvghbhFAEAr0nlB0bBai1hx\n"
-"8iB6Th8b2d3kUNil2NjKZHe5jL/Ewp7unQB67XljW+oApXLAZRaJYy6TO4U8wbCu\n"
-"B07wjl9uviC86etYQFSGl24oQe2ENPMTymnjaHycnRFRrr5b2WnMLNc2PUp4vSH2\n"
-"mXH4Bki8P5VFLtobJutCo+OkHMAsn1uaQZRRqs0JO8qjExxpxC456H5gRtk8TD1z\n"
-"vAsTA/bCewGbHUTY6IvLnX5qiDvCTT5C4BNmSNHEsWX+B+mIJWrsgZWROZG4f67M\n"
-"BAWeZYkCgYEA2GPv20Clim4l4PwW+YpAWWyHr9Qk/LPbvObp9qyqGmF9wrHp8S6K\n"
-"JMNrRtiiNKujv7XlIlfplwyGdQRcDV1idv/gIEBHJXKoNdlBFboDwTjGEY7lkmK0\n"
-"8PCvjuVy9+Xb0hE7muUpbp6C8XQLb/Lq3HZxDu/cyUQc3mbmB37clHsCgYEA1C3f\n"
-"jDrvQOAttdxqhE+5p5TxTBV2t4YKQZY74tAqenZOlxGM2dXPusyoVlFS45Nfme41\n"
-"dPnusWqkXyTDi02WIverh/YW6yLgybRy3Dengb3jvmfjtvzyaD+kY1IafXiGON4M\n"
-"xo2WNHoFgWrhMrsFRiGNc1mdVnR6gdrGOMA2ozsCgYAePpmfw4Ffv9V7hMCRUEl+\n"
-"NjUg1j31NA5acMvytl9wIIA7XjKciyyzxryPwmephPP2L64/BpqXiiCg6mMTWyIQ\n"
-"D+N7noBTM5tfK2Z1avJrZ0wH2DkuJK21n25qQpe3HmGDEvWJyM3psC4NIXMXypQZ\n"
-"DFTxCYWKfAKs8yTjl0+tUQKBgBq5BFSm/4cONPOYpRmw6NMAYTuR4HfQu+3yu+wf\n"
-"B5qQ1+kS3sh4s0b1i6YDbAsZformg3kOGU/i/Hy3JqGeze/tfX8MMWq/48vDnEu7\n"
-"/q7Keap7bySWyvjyOwP/TTLMQStcXAONxYMqcxMPoPlAsLNaenQyryw6U0uTgC+Z\n"
-"lcgNAoGBAMX0ZtSNdc7jkR9lGF1tBBWrrcuvK3DnsaEpr2Uai6tASPHVnjo+b9Wc\n"
-"OGaDddhksVIX+jFyjaPgS8Hx3adfllELSq/1QavjmBv8Jr5M6OnS3TWV4/LWgg7y\n"
-"8bzCREHQfsOGR1kp6IPP7K5+/0Ogwccnw0/ijA1Jl5wnBKjJ4Mwh\n"
-"-----END RSA PRIVATE KEY-----\n";
-        const char * client_key_end = client_key_start + sizeof( client_key_start );
-        
-        // extern const char client_cert_start[] asm("_binary_client_crt_start");
-        // extern const char client_cert_end[] asm("_binary_client_crt_end");
-        // extern const char client_key_start[] asm("_binary_client_key_start");
-        // extern const char client_key_end[] asm("_binary_client_key_end");
-    #endif /* CONFIG_EXAMPLE_USE_ESP_SECURE_CERT_MGR */
-#endif /* CLIENT_USERNAME */
-
-const char root_cert_auth_start[] = 
-"-----BEGIN CERTIFICATE-----\n"
-"MIIDQTCCAimgAwIBAgITBmyfz5m/jAo54vB4ikPmljZbyjANBgkqhkiG9w0BAQsF\n"
-"ADA5MQswCQYDVQQGEwJVUzEPMA0GA1UEChMGQW1hem9uMRkwFwYDVQQDExBBbWF6\n"
-"b24gUm9vdCBDQSAxMB4XDTE1MDUyNjAwMDAwMFoXDTM4MDExNzAwMDAwMFowOTEL\n"
-"MAkGA1UEBhMCVVMxDzANBgNVBAoTBkFtYXpvbjEZMBcGA1UEAxMQQW1hem9uIFJv\n"
-"b3QgQ0EgMTCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBALJ4gHHKeNXj\n"
-"ca9HgFB0fW7Y14h29Jlo91ghYPl0hAEvrAIthtOgQ3pOsqTQNroBvo3bSMgHFzZM\n"
-"9O6II8c+6zf1tRn4SWiw3te5djgdYZ6k/oI2peVKVuRF4fn9tBb6dNqcmzU5L/qw\n"
-"IFAGbHrQgLKm+a/sRxmPUDgH3KKHOVj4utWp+UhnMJbulHheb4mjUcAwhmahRWa6\n"
-"VOujw5H5SNz/0egwLX0tdHA114gk957EWW67c4cX8jJGKLhD+rcdqsq08p8kDi1L\n"
-"93FcXmn/6pUCyziKrlA4b9v7LWIbxcceVOF34GfID5yHI9Y/QCB/IIDEgEw+OyQm\n"
-"jgSubJrIqg0CAwEAAaNCMEAwDwYDVR0TAQH/BAUwAwEB/zAOBgNVHQ8BAf8EBAMC\n"
-"AYYwHQYDVR0OBBYEFIQYzIU07LwMlJQuCFmcx7IQTgoIMA0GCSqGSIb3DQEBCwUA\n"
-"A4IBAQCY8jdaQZChGsV2USggNiMOruYou6r4lK5IpDB/G/wkjUu0yKGX9rbxenDI\n"
-"U5PMCCjjmCXPI6T53iHTfIUJrU6adTrCC2qJeHZERxhlbI1Bjjt/msv0tadQ1wUs\n"
-"N+gDS63pYaACbvXy8MWy7Vu33PqUXHeeE6V/Uq2V8viTO96LXFvKWlJbYK8U90vv\n"
-"o/ufQJVtMVT8QtPHRh8jrdkPSHCa2XV4cdFyQzR1bldZwgJcJmApzyMZFo6IQ6XU\n"
-"5MsI+yMRQ+hDKXJioaldXgjUkK642M4UwtBV8ob2xJNDd2ZhwLnoQdeXeGADbkpy\n"
-"rqXRfboQnoZsG4q5WTP468SQvvG5\n"
-"-----END CERTIFICATE-----\n";
-const char * root_cert_auth_end = root_cert_auth_start + sizeof( root_cert_auth_start );
-
-
-// extern const char root_cert_auth_start[]   asm("_binary_root_cert_auth_crt_start");
-// extern const char root_cert_auth_end[]   asm("_binary_root_cert_auth_crt_end");
+char* client_cert = NULL;
+char* client_key = NULL;
+char* root_ca = NULL;
+char* thing_id = NULL;
+char topicMask[32];
 
 /**
  * These configuration settings are required to run the mutual auth demo.
@@ -256,12 +154,12 @@ const char * root_cert_auth_end = root_cert_auth_start + sizeof( root_cert_auth_
  * The topic name starts with the client identifier to ensure that each demo
  * interacts with a unique topic name.
  */
-#define MQTT_EXAMPLE_TOPIC                  CLIENT_IDENTIFIER "/example/topic"
+// #define MQTT_EXAMPLE_TOPIC                  CLIENT_IDENTIFIER "/example/topic"
 
-/**
- * @brief Length of client MQTT topic.
- */
-#define MQTT_EXAMPLE_TOPIC_LENGTH           ( ( uint16_t ) ( sizeof( MQTT_EXAMPLE_TOPIC ) - 1 ) )
+// /**
+//  * @brief Length of client MQTT topic.
+//  */
+// #define MQTT_EXAMPLE_TOPIC_LENGTH           ( ( uint16_t ) ( sizeof( MQTT_EXAMPLE_TOPIC ) - 1 ) )
 
 /**
  * @brief The MQTT message published in this example.
@@ -558,7 +456,7 @@ static int disconnectMqttSession( MQTTContext_t * pMqttContext );
  * @return EXIT_SUCCESS if SUBSCRIBE was successfully sent;
  * EXIT_FAILURE otherwise.
  */
-static int subscribeToTopic( MQTTContext_t * pMqttContext );
+int subscribeToTopic( MQTTContext_t * pMqttContext, const char* topic );
 
 /**
  * @brief Sends an MQTT UNSUBSCRIBE to unsubscribe from
@@ -703,6 +601,9 @@ void Clock_SleepMs( uint32_t sleepTimeMs )
 }
 /*-----------------------------------------------------------*/
 
+static const char *TAG = "demo";
+
+
 static int connectToServerWithBackoffRetries( NetworkContext_t * pNetworkContext,
                                               MQTTContext_t * pMqttContext,
                                               bool * pClientSessionPresent,
@@ -723,8 +624,8 @@ static int connectToServerWithBackoffRetries( NetworkContext_t * pNetworkContext
     uint16_t nextRetryBackOff;
 
     /* Initialize credentials for establishing TLS session. */
-    pNetworkContext->pcServerRootCA = root_cert_auth_start;
-    pNetworkContext->pcServerRootCASize = root_cert_auth_end - root_cert_auth_start;
+    pNetworkContext->pcServerRootCA = root_ca;
+    pNetworkContext->pcServerRootCASize = strlen(root_ca) + 1;
 
     /* If #CLIENT_USERNAME is defined, username/password is used for authenticating
      * the client. */
@@ -751,10 +652,10 @@ static int connectToServerWithBackoffRetries( NetworkContext_t * pNetworkContext
 
 #else /* !CONFIG_EXAMPLE_USE_SECURE_ELEMENT && !CONFIG_EXAMPLE_USE_ESP_SECURE_CERT_MGR  */
     #ifndef CLIENT_USERNAME
-        pNetworkContext->pcClientCert = client_cert_start;
-        pNetworkContext->pcClientCertSize = client_cert_end - client_cert_start;
-        pNetworkContext->pcClientKey = client_key_start;
-        pNetworkContext->pcClientKeySize = client_key_end - client_key_start;
+        pNetworkContext->pcClientCert = client_cert;
+        pNetworkContext->pcClientCertSize = strlen(client_cert)+1;
+        pNetworkContext->pcClientKey = client_key;
+        pNetworkContext->pcClientKeySize = strlen(client_key)+1;
     #endif
 #endif
     /* AWS IoT requires devices to send the Server Name Indication (SNI)
@@ -1015,10 +916,10 @@ static void handleIncomingPublish( MQTTPublishInfo_t * pPublishInfo,
     LogInfo( ( "Incoming QOS : %d.", pPublishInfo->qos ) );
 
     /* Verify the received publish is for the topic we have subscribed to. */
-    if( ( pPublishInfo->topicNameLength == MQTT_EXAMPLE_TOPIC_LENGTH ) &&
-        ( 0 == strncmp( MQTT_EXAMPLE_TOPIC,
-                        pPublishInfo->pTopicName,
-                        pPublishInfo->topicNameLength ) ) )
+    // if( 
+    //     ( 0 == strncmp( topicMask,
+    //                     pPublishInfo->pTopicName,
+    //                     pPublishInfo->topicNameLength ) ) )
     {
         LogInfo( ( "Incoming Publish Topic Name: %.*s matches subscribed topic.\n"
                    "Incoming Publish message Packet Id is %u.\n"
@@ -1034,12 +935,12 @@ static void handleIncomingPublish( MQTTPublishInfo_t * pPublishInfo,
                                        pPublishInfo->payloadLength,
                                        packetIdentifier );
     }
-    else
-    {
-        LogInfo( ( "Incoming Publish Topic Name: %.*s does not match subscribed topic.",
-                   pPublishInfo->topicNameLength,
-                   pPublishInfo->pTopicName ) );
-    }
+    // else
+    // {
+    //     LogInfo( ( "Incoming Publish Topic Name: %.*s does not match subscribed topic.",
+    //                pPublishInfo->topicNameLength,
+    //                pPublishInfo->pTopicName ) );
+    // }
 }
 
 /*-----------------------------------------------------------*/
@@ -1100,8 +1001,8 @@ static int handleResubscribe( MQTTContext_t * pMqttContext )
         }
 
         LogInfo( ( "SUBSCRIBE sent for topic %.*s to broker.\n\n",
-                   MQTT_EXAMPLE_TOPIC_LENGTH,
-                   MQTT_EXAMPLE_TOPIC ) );
+                   strlen(topicMask),
+                   topicMask ) );
 
         /* Process incoming packet. */
         returnStatus = waitForPacketAck( pMqttContext,
@@ -1184,10 +1085,10 @@ static void eventCallback( MQTTContext_t * pMqttContext,
                  * by the server, indicating a successful subscription attempt. */
                 if( globalSubAckStatus != MQTTSubAckFailure )
                 {
-                    LogInfo( ( "Subscribed to the topic %.*s. with maximum QoS %u.\n\n",
-                               MQTT_EXAMPLE_TOPIC_LENGTH,
-                               MQTT_EXAMPLE_TOPIC,
-                               globalSubAckStatus ) );
+                    LogInfo( ( "Subscribed to the topic %.*s. with maximum QoS.\n\n",
+                   strlen(topicMask),
+                   topicMask ) );
+                               //globalSubAckStatus ) );
                 }
 
                 /* Make sure ACK packet identifier matches with Request packet identifier. */
@@ -1199,8 +1100,8 @@ static void eventCallback( MQTTContext_t * pMqttContext,
 
             case MQTT_PACKET_TYPE_UNSUBACK:
                 LogInfo( ( "Unsubscribed from the topic %.*s.\n\n",
-                           MQTT_EXAMPLE_TOPIC_LENGTH,
-                           MQTT_EXAMPLE_TOPIC ) );
+                   strlen(topicMask),
+                   topicMask ) );
                 /* Make sure ACK packet identifier matches with Request packet identifier. */
                 assert( globalUnsubscribePacketIdentifier == packetIdentifier );
 
@@ -1258,8 +1159,8 @@ static int establishMqttSession( MQTTContext_t * pMqttContext,
     /* The client identifier is used to uniquely identify this MQTT client to
      * the MQTT broker. In a production device the identifier can be something
      * unique, such as a device serial number. */
-    connectInfo.pClientIdentifier = CLIENT_IDENTIFIER;
-    connectInfo.clientIdentifierLength = CLIENT_IDENTIFIER_LENGTH;
+    connectInfo.pClientIdentifier = thing_id;
+    connectInfo.clientIdentifierLength = strlen(thing_id);
 
     /* The maximum time interval in seconds which is allowed to elapse
      * between two Control Packets.
@@ -1339,7 +1240,7 @@ static int disconnectMqttSession( MQTTContext_t * pMqttContext )
 
 /*-----------------------------------------------------------*/
 
-static int subscribeToTopic( MQTTContext_t * pMqttContext )
+int subscribeToTopic( MQTTContext_t * pMqttContext, const char* topic )
 {
     int returnStatus = EXIT_SUCCESS;
     MQTTStatus_t mqttStatus;
@@ -1351,8 +1252,8 @@ static int subscribeToTopic( MQTTContext_t * pMqttContext )
 
     /* This example subscribes to only one topic and uses QOS1. */
     pGlobalSubscriptionList[ 0 ].qos = MQTTQoS1;
-    pGlobalSubscriptionList[ 0 ].pTopicFilter = MQTT_EXAMPLE_TOPIC;
-    pGlobalSubscriptionList[ 0 ].topicFilterLength = MQTT_EXAMPLE_TOPIC_LENGTH;
+    pGlobalSubscriptionList[ 0 ].pTopicFilter = topic;
+    pGlobalSubscriptionList[ 0 ].topicFilterLength = strlen(topic);
 
     /* Generate packet identifier for the SUBSCRIBE packet. */
     globalSubscribePacketIdentifier = MQTT_GetPacketId( pMqttContext );
@@ -1371,9 +1272,9 @@ static int subscribeToTopic( MQTTContext_t * pMqttContext )
     }
     else
     {
-        LogInfo( ( "SUBSCRIBE sent for topic %.*s to broker.\n\n",
-                   MQTT_EXAMPLE_TOPIC_LENGTH,
-                   MQTT_EXAMPLE_TOPIC ) );
+        // LogInfo( ( "SUBSCRIBE sent for topic %.*s to broker.\n\n",
+        //            MQTT_EXAMPLE_TOPIC_LENGTH,
+        //            MQTT_EXAMPLE_TOPIC ) );
     }
 
     return returnStatus;
@@ -1394,8 +1295,8 @@ static int unsubscribeFromTopic( MQTTContext_t * pMqttContext )
     /* This example subscribes to and unsubscribes from only one topic
      * and uses QOS1. */
     pGlobalSubscriptionList[ 0 ].qos = MQTTQoS1;
-    pGlobalSubscriptionList[ 0 ].pTopicFilter = MQTT_EXAMPLE_TOPIC;
-    pGlobalSubscriptionList[ 0 ].topicFilterLength = MQTT_EXAMPLE_TOPIC_LENGTH;
+    pGlobalSubscriptionList[ 0 ].pTopicFilter = topicMask;
+    pGlobalSubscriptionList[ 0 ].topicFilterLength = strlen(topicMask);
 
     /* Generate packet identifier for the UNSUBSCRIBE packet. */
     globalUnsubscribePacketIdentifier = MQTT_GetPacketId( pMqttContext );
@@ -1414,9 +1315,9 @@ static int unsubscribeFromTopic( MQTTContext_t * pMqttContext )
     }
     else
     {
-        LogInfo( ( "UNSUBSCRIBE sent for topic %.*s to broker.\n\n",
-                   MQTT_EXAMPLE_TOPIC_LENGTH,
-                   MQTT_EXAMPLE_TOPIC ) );
+        // LogInfo( ( "UNSUBSCRIBE sent for topic %.*s to broker.\n\n",
+        //            MQTT_EXAMPLE_TOPIC_LENGTH,
+        //            MQTT_EXAMPLE_TOPIC ) );
     }
 
     return returnStatus;
@@ -1614,6 +1515,7 @@ static int subscribePublishLoop( MQTTContext_t * pMqttContext )
     MQTTStatus_t mqttStatus = MQTTSuccess;
     uint32_t publishCount = 0;
     const uint32_t maxPublishCount = MQTT_PUBLISH_COUNT_PER_LOOP;
+    snprintf(topicMask, 32, "%s/example/topic", thing_id);
 
     assert( pMqttContext != NULL );
 
@@ -1626,9 +1528,9 @@ static int subscribePublishLoop( MQTTContext_t * pMqttContext )
          * to be sent back to it from the broker. This demo uses QOS1 in Subscribe,
          * therefore, the Publish messages received from the broker will have QOS1. */
         LogInfo( ( "Subscribing to the MQTT topic %.*s.",
-                   MQTT_EXAMPLE_TOPIC_LENGTH,
-                   MQTT_EXAMPLE_TOPIC ) );
-        returnStatus = subscribeToTopic( pMqttContext );
+                   strlen(topicMask),
+                   topicMask ) );
+        returnStatus = subscribeToTopic( pMqttContext, topicMask);
     }
 
     if( returnStatus == EXIT_SUCCESS )
@@ -1653,30 +1555,24 @@ static int subscribePublishLoop( MQTTContext_t * pMqttContext )
          * Attempts are made according to the exponential backoff retry strategy
          * implemented in retryUtils. */
         LogInfo( ( "Server rejected initial subscription request. Attempting to re-subscribe to topic %.*s.",
-                   MQTT_EXAMPLE_TOPIC_LENGTH,
-                   MQTT_EXAMPLE_TOPIC ) );
+                   strlen(topicMask),
+                   topicMask ) );
         returnStatus = handleResubscribe( pMqttContext );
     }
 
     if( returnStatus == EXIT_SUCCESS )
     {
-        LogInfo( ( "Sending Publish to the MQTT topic %.*s.",
-                   MQTT_EXAMPLE_TOPIC_LENGTH,
-                   MQTT_EXAMPLE_TOPIC ) );
-        char topic[] = "502B838D3A08/latest";
-        char payload[] = "{}";
+        // this needs to move out of here and be part of the state machine
+        // payload should contain the cp id and thing id, topic should be group id
+        char topic[32];
+        snprintf(topic, 32, "%s/%s", thing_id, "latest");
+        char payload[] = "{\"a\": 1, \"b\": 2}";
         returnStatus = publishToTopic( pMqttContext, topic, payload );
 
         /* Publish messages with QOS1, receive incoming messages and
          * send keep alive messages. */
-        //for( publishCount = 0; publishCount < maxPublishCount; publishCount++ )
         for (;;)
         {
-            // LogInfo( ( "Sending Publish to the MQTT topic %.*s.",
-            //            MQTT_EXAMPLE_TOPIC_LENGTH,
-            //            MQTT_EXAMPLE_TOPIC ) );
-            // returnStatus = publishToTopic( pMqttContext );
-
             /* Calling MQTT_ProcessLoop to process incoming publish echo, since
              * application subscribed to the same topic the broker will send
              * publish message back to the application. This function also
@@ -1706,8 +1602,8 @@ static int subscribePublishLoop( MQTTContext_t * pMqttContext )
     {
         /* Unsubscribe from the topic. */
         LogInfo( ( "Unsubscribing from the MQTT topic %.*s.",
-                   MQTT_EXAMPLE_TOPIC_LENGTH,
-                   MQTT_EXAMPLE_TOPIC ) );
+                   strlen(topicMask),
+                   topicMask ) );
         returnStatus = unsubscribeFromTopic( pMqttContext );
     }
 
@@ -1806,7 +1702,7 @@ static MQTTStatus_t processLoopWithTimeout( MQTTContext_t * pMqttContext,
 
     /* Call MQTT_ProcessLoop multiple times a timeout happens, or
      * MQTT_ProcessLoop fails. */
-    while( ( ulCurrentTime < ulMqttProcessLoopTimeoutTime ) &&
+    while( //( ulCurrentTime < ulMqttProcessLoopTimeoutTime ) &&
            ( eMqttStatus == MQTTSuccess || eMqttStatus == MQTTNeedMoreBytes ) )
     {
         eMqttStatus = MQTT_ProcessLoop( pMqttContext );

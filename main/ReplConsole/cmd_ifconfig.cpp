@@ -41,30 +41,15 @@ static struct {
 #define STR_NOT_EMPTY(str) (strlen(str) > 0)
 #define STR_IS_EMPTY(str) (strlen(str) == 0)
 
-static void print_interface_information(Connection *connection)
+static void print_interface_information(const char* name, Connection *connection)
 {
     printf("\nInterface information:\n");
+    if (!connection) {
+        printf("  %s: No connection\n", name);
+        return;
+    }
+
     connection->dump_connection_info();
-    // printf("  %-20s: %s\n", "Interface", connection->get_name());
-    // printf("  %-20s: %s\n", "Is Up", connection->is_enabled() ? "Yes" : "No");
-
-    // if (connection->is_enabled()) {
-    //     printf("\nCurrent connection state:\n");
-    //     printf("  %-20s: %s\n", "Connected", connection->is_connected() ? "Yes" : "No");
-    //     printf("  %-20s: %s\n", "DHCP", connection->is_dhcp() ? "Yes" : "No");
-    // }
-
-    // if (connection->is_connected()) {
-    //     esp_ip4_addr_t ip = connection->get_ip_address();
-    //     esp_ip4_addr_t netmask = connection->get_netmask();
-    //     esp_ip4_addr_t gateway = connection->get_gateway();
-    //     esp_ip4_addr_t dns = connection->get_dns();
-        
-    //     printf("  %-20s: " IPSTR "\n", "IP Address", IP2STR(&ip));
-    //     printf("  %-20s: " IPSTR "\n", "Netmask", IP2STR(&netmask));
-    //     printf("  %-20s: " IPSTR "\n", "Gateway", IP2STR(&gateway));
-    //     printf("  %-20s: " IPSTR "\n", "DNS", IP2STR(&dns));
-    // }
 
     printf("\nCurrent connection saved settings:\n");
     connection->dump_config();
@@ -239,10 +224,10 @@ static int op_interface_manual(Connection *connection)
 static int print_interface_information_op(Connection *connection)
 {
     if (!connection) {
-        print_interface_information(MN8App::instance().get_wifi_connection());
-        print_interface_information(MN8App::instance().get_ethernet_connection());
+        print_interface_information("wifi", MN8App::instance().get_wifi_connection());
+        print_interface_information("eth", MN8App::instance().get_ethernet_connection());
     } else {
-        print_interface_information(connection);
+        print_interface_information(connection->get_name(), connection);
     }
     return 0;
 }
