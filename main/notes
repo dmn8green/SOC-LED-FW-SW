@@ -1,5 +1,6 @@
 wifi join Tabarnak hide39!bangs
 provision_iot https://ir5q3elml3.execute-api.us-east-1.amazonaws.com/dev/provision admin secret
+//provision_iot https://ir5q3elml3.execute-api.us-east-1.amazonaws.com/dev/provision admin secret
 
 wifi join AppliedLogix-Guest alwelcome
 

@@ -60,11 +60,14 @@ public:
     inline LedTaskSpi& get_led_task_1(void) { return this->led_task_1; }
 
 private:
+    void setup_ethernet_stack(void);
     esp_err_t setup_wifi_connection(void);
     esp_err_t setup_ethernet_connection(void);
     esp_err_t setup_and_start_led_tasks(void);
 
 private:
+    bool has_ethernet_phy = false;
+
     NetworkInterface* wifi_interface = nullptr;
     WifiConnection* wifi_connection = nullptr;
     WifiConfiguration* wifi_config = nullptr;
