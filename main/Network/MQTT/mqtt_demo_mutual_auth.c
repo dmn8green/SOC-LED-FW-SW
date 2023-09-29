@@ -1515,7 +1515,7 @@ static int subscribePublishLoop( MQTTContext_t * pMqttContext )
     MQTTStatus_t mqttStatus = MQTTSuccess;
     uint32_t publishCount = 0;
     const uint32_t maxPublishCount = MQTT_PUBLISH_COUNT_PER_LOOP;
-    snprintf(topicMask, 32, "%s/example/topic", thing_id);
+    snprintf(topicMask, 32, "%s/ledstate", thing_id);
 
     assert( pMqttContext != NULL );
 

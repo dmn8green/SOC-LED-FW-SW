@@ -9,7 +9,7 @@
 #include "cmd_led.h"
 #include "cmd_provision_charge_point_info.h"
 
-#include "MN8App.h"
+#include "App/MN8App.h"
 
 // Path: main/configuration_interface/configuration_interface.cpp
 

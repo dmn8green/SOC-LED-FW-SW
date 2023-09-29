@@ -9,11 +9,12 @@
  * @copyright Copyright (c) 2023
  * 
  */
+//*****************************************************************************
 
 #include "cmd_provision_iot.h"
 
 #include "Utils/FuseMacAddress.h"
-#include "IOT/ThingConfig.h"
+#include "App/Configuration/ChargePointConfig.h"
 
 #include <string.h>
 #include <sys/param.h>
@@ -37,7 +38,9 @@
 #include "argtable3/argtable3.h"
 
 #include "ArduinoJson.h"
+
 /* MQTT API headers. */
+// THis needs to change to use the mqtt queue directly
 #include "core_mqtt.h"
 #include "core_mqtt_state.h"
 
@@ -56,6 +59,45 @@ static struct {
 
 char payload[256] = {0};
 
+//*****************************************************************************
+/**
+ * @brief Pair this iot device with the chargepoint station
+ */
+static int provision_charge_point_info(const char* station_id, const char* site_name) {
+    ChargePointConfig cpConfig;
+
+    cpConfig.set_group_id(site_name);
+    cpConfig.set_station_id(station_id);
+    if (cpConfig.save() != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to save charge point config");
+        return 1;
+    }
+
+    // TODO This should ask the app to register the station.
+    char mac_address[13] = {0};
+    get_fuse_mac_address_string(mac_address);
+    char topic[64] = {0};
+    snprintf((char*) topic, 64, "%s/register_station", mac_address);
+
+    snprintf(payload, 256, "{\"stationId\":\"%s\",\"groupId\":\"%s\",\"description\":\"%s\"}", 
+        station_id, site_name, ""
+    );
+
+    if (publishToTopic(pmqttContext, topic,  payload) != 0) {
+        ESP_LOGE(TAG, "Failed to publish to topic");
+        return -1;
+    }
+    ESP_LOGI(TAG, "Published to topic");
+    return 0;
+}
+
+//*****************************************************************************
+/**
+ * @brief Pair this iot device with the chargepoint station
+ * 
+ * This will publish a mqtt message to register the station.  The info is then
+ * stored in a database and paired with this esp32 board.
+ */
 static int do_provision_charge_point_info(int argc, char **argv)
 {
     int nerrors = arg_parse(argc, argv, (void **)&provision_charge_point_info_args);
@@ -64,31 +106,29 @@ static int do_provision_charge_point_info(int argc, char **argv)
         return 1;
     }
 
-    char mac_address[13] = {0};
-    get_fuse_mac_address_string(mac_address);
-    char topic[64] = {0};
-    snprintf((char*) topic, 64, "%s/register_station", mac_address);
+    const char* station_id = provision_charge_point_info_args.station_id->sval[0];
+    const char* site_name = provision_charge_point_info_args.site_name->sval[0];
 
-    snprintf(payload, 256, "{\"stationId\":\"%s\",\"groupId\":\"%s\",\"description\":\"%s\"}", 
-        provision_charge_point_info_args.station_id->sval[0],
-        provision_charge_point_info_args.site_name->sval[0],
-        ""
-    );
-    ESP_LOGI(TAG, "topic %s len %d", topic, strlen(topic));
-    ESP_LOGI(TAG, "payload %s len %d", payload, strlen(payload));
+    if (station_id == NULL || strlen(station_id) == 0 || site_name == NULL || strlen(site_name) == 0) {
+        ESP_LOGI(TAG, "station_id or site_name not specified");
+        ESP_LOGI(TAG, "printing current info");
 
-    if (publishToTopic(pmqttContext, topic,  payload) != 0) {
-        ESP_LOGE(TAG, "Failed to publish to topic");
-    } else {
-        ESP_LOGI(TAG, "Published to topic");
+        ChargePointConfig cpConfig;
+        cpConfig.load();
+        printf("    station_id: %s\n", cpConfig.get_station_id() ? cpConfig.get_station_id() : "<none>");
+        printf("    site_name: %s\n", cpConfig.get_group_id() ? cpConfig.get_group_id() : "<none>");
+        return 0;
+    } else  {
+        ESP_LOGI(TAG, "    new station_id: %s", station_id);
+        ESP_LOGI(TAG, "    new site_name: %s", site_name);
+        return provision_charge_point_info(station_id, site_name);
     }
-    return 0;
 }
 
 void register_provision_charge_point_info(void) {
     provision_charge_point_info_args.site_name = arg_str1(NULL, NULL, "<group or site name>", "Site name where this station is located");
     provision_charge_point_info_args.station_id = arg_str1(NULL, NULL, "<station id>", "Charge point station id");
-    provision_charge_point_info_args.end = arg_end(2);
+    provision_charge_point_info_args.end = arg_end(0);
 
     const esp_console_cmd_t provision_charge_point_info_cmd = {
         .command = "provision_cp",

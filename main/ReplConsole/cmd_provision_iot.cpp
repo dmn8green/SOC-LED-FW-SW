@@ -20,11 +20,12 @@
  *   CONDITIONS OF ANY KIND, either express or implied.
  *   END LICENSE BLOCK
  */
+//*****************************************************************************
 
 #include "cmd_provision_iot.h"
 
 #include "Utils/FuseMacAddress.h"
-#include "IOT/ThingConfig.h"
+#include "App/Configuration/ThingConfig.h"
 
 #include <string.h>
 #include <sys/param.h>

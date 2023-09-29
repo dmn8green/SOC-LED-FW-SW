@@ -1,6 +1,6 @@
 #pragma once
 
-#include "IOT/ThingConfig.h"
+#include "App/Configuration/ThingConfig.h"
 #include "Utils/NoCopy.h"
 
 #include "esp_err.h"

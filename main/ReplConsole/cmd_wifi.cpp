@@ -9,7 +9,7 @@
 #include "esp_netif.h"
 #include "esp_event.h"
 
-#include "MN8App.h"
+#include "App/MN8App.h"
 
 #pragma GCC diagnostic ignored "-Wmissing-field-initializers" 
 #define JOIN_TIMEOUT_MS (10000)
