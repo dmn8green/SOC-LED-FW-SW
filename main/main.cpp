@@ -1,5 +1,5 @@
 #include "ReplConsole/repl_console.h"
-#include "MN8App.h"
+#include "App/MN8App.h"
 #include "pin_def.h"
 
 #include <string.h>

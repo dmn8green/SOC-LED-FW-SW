@@ -22,8 +22,7 @@
 
 #include "Utils/Singleton.h"
 #include "Utils/NoCopy.h"
-#include "IOT/ThingConfig.h"
-//#include "LED/LedTask.h"
+#include "App/Configuration/ThingConfig.h"
 #include "LED/LedTaskSpi.h"
 
 /**

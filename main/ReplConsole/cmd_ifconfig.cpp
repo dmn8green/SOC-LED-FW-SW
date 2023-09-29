@@ -22,7 +22,7 @@
 #include "sdkconfig.h"
 
 #include "Network/Connection/Connection.h"
-#include "MN8App.h"
+#include "App/MN8App.h"
 
 // ifconfig interface up/down
 // ifconfig interface ip, netmask, gateway

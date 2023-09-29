@@ -42,57 +42,23 @@ static const char root_ca[] =
         return res; \
     }
 
-ThingConfig::ThingConfig()
-{
-    ESP_LOGD(TAG, "ThingConfig::ThingConfig()");
-
-    this->thingName = nullptr;
-    this->certificateArn = nullptr;
-    this->certificateId = nullptr;
-    this->certificatePem = nullptr;
-    this->privateKey = nullptr;
-    this->publicKey = nullptr;
-    this->endpointAddress = nullptr;
-}
+#define FREE_MEMBER(m) \
+    if (m != nullptr) { \
+        free(m); \
+        m = nullptr; \
+    }
 
 ThingConfig::~ThingConfig()
 {
     ESP_LOGD(TAG, "ThingConfig::~ThingConfig()");
 
-    if (this->thingName != nullptr) {
-        free(this->thingName);
-        this->thingName = nullptr;
-    }
-
-    if (this->certificateArn != nullptr) {
-        free(this->certificateArn);
-        this->certificateArn = nullptr;
-    }
-
-    if (this->certificateId != nullptr) {
-        free(this->certificateId);
-        this->certificateId = nullptr;
-    }
-
-    if (this->certificatePem != nullptr) {
-        free(this->certificatePem);
-        this->certificatePem = nullptr;
-    }
-
-    if (this->privateKey != nullptr) {
-        free(this->privateKey);
-        this->privateKey = nullptr;
-    }
-
-    if (this->publicKey != nullptr) {
-        free(this->publicKey);
-        this->publicKey = nullptr;
-    }
-
-    if (this->endpointAddress != nullptr) {
-        free(this->endpointAddress);
-        this->endpointAddress = nullptr;
-    }
+    FREE_MEMBER(this->thingName);
+    FREE_MEMBER(this->certificateArn);
+    FREE_MEMBER(this->certificateId);
+    FREE_MEMBER(this->certificatePem);
+    FREE_MEMBER(this->privateKey);
+    FREE_MEMBER(this->publicKey);
+    FREE_MEMBER(this->endpointAddress);
 }
 
 // Setters
@@ -255,7 +221,7 @@ esp_err_t ThingConfig::save(void) {
     ESP_SET_VALUE("publicKey", this->publicKey, false);
     ESP_SET_VALUE("endpointAddress", this->endpointAddress, false);
 
-    return ESP_OK;
+    return store.commit();
 }
 
 const char* ThingConfig::get_root_ca(void) {

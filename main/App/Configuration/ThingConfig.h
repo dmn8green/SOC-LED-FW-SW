@@ -9,7 +9,7 @@
 
 class ThingConfig : public NoCopy {
 public:
-    ThingConfig();
+    ThingConfig() = default;
     ~ThingConfig();
 
     // Load/Save from NVS

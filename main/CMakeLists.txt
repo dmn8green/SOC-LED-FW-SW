@@ -29,7 +29,6 @@ set(COMPONENT_SRCS
     Utils/KeyStore.cpp
     Utils/FuseMacAddress.cpp
     Utils/HSV2RGB.cpp
-    IOT/ThingConfig.cpp
     LED/LedTaskSpi.cpp
     LED/RmtOverSpi.cpp
     LED/Animations/ChasingAnimation.cpp
@@ -55,12 +54,10 @@ set(COMPONENT_SRCS
     Network/Configuration/WifiConfiguration.cpp
     Network/Configuration/EthConfiguration.cpp
     Network/MQTT/MqttAgent.cpp
-#    Network/MQTT/MQTTContext.cpp
-#    Network/MQTT/subscription_manager.c
-#    Network/MQTT/core_mqtt_agent_manager.c
-#    Network/MQTT/core_mqtt_agent_manager_events.c
     Network/MQTT/mqtt_demo_mutual_auth.c
-    MN8App.cpp
+    App/Configuration/ThingConfig.cpp
+    App/Configuration/ChargePointConfig.cpp
+    App/MN8App.cpp
     main.cpp
 )
 

@@ -18,7 +18,7 @@
 #include "freertos/task.h"
 
 #include "sdkconfig.h"
-#include "MN8App.h"
+#include "App/MN8App.h"
 
 #define STR_IS_EQUAL(str1, str2) (strncasecmp(str1, str2, strlen(str2)) == 0)
 #define STR_NOT_EMPTY(str) (strlen(str) > 0)
