@@ -44,14 +44,18 @@ public:
     inline void set_charge_percent(uint32_t charge_percent) { this->charge_percent = charge_percent; }
 
 private:
+    StaticAnimation static_charging_solid_animation;
+    StaticAnimation static_charging_empty_animation;
     StaticAnimation static_charge_animation;
     StaticAnimation static_remaining_animation;
-    ChasingAnimation chasing_animation;
     uint32_t charge_percent;
     uint32_t static_color_1;
     uint32_t static_color_2;
     uint32_t chase_color;
 
-    bool simulate_charge = false;
+    bool simulate_charge = true;
     uint32_t simulated_charge_percent = 0;
+
+    uint32_t charge_anim_pixel_count = 1;
+    uint32_t charged_led_count = 1;
 };

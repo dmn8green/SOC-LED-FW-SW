@@ -37,10 +37,10 @@ void ChargingAnimation::reset(
     this->charge_percent = charge_percent;
     this->BaseAnimation::set_rate(chase_rate);
 
+    this->static_charging_solid_animation.reset(chase_color);
+    this->static_charging_empty_animation.reset(static_color_2);
     this->static_charge_animation.reset(static_color_1);
     this->static_remaining_animation.reset(static_color_2);
-    this->chasing_animation.reset(chase_color, 0XFFFFFFFF);
-    this->chasing_animation.reset(0XFFFFFFFF, chase_color);
 }
 
 //******************************************************************************
@@ -52,13 +52,41 @@ void ChargingAnimation::reset(
  * @param start_pixel  Starting pixel
  */
 void ChargingAnimation::refresh(uint8_t* led_pixels, int led_count, int start_pixel) {
-    int charged_led_count = (led_count * this->charge_percent) / 100;
-    int charging_pix_count = 1;
-    int uncharged_led_count = led_count - (charged_led_count + charging_pix_count); // substract the charging pixel
+    bool increased = false;
+    int new_charged_led_count = (led_count * this->charge_percent) / 100;
+    if (new_charged_led_count > this->charged_led_count && this->charged_led_count == this->charge_anim_pixel_count) {
+        this->charged_led_count = new_charged_led_count;
+        increased = true;
+    }
+    
+    // anim_px = (charge-p)-1
+    // const s1 = 0;
+    // const l1 = (charge-anim_px);
+    // const s2 = p+1;
+    // const l2 = anim_px;
+    // const s3 = charge;
+    // const l3 = 2;
+    // const s4 = s3+2;
+    // const l4 = s4 >= 33 ? 0 : 33-charge-2;
 
-    this->chasing_animation.refresh         (led_pixels, charged_led_count, 0);
-    this->static_charge_animation.refresh   (led_pixels, charged_led_count+charging_pix_count, charged_led_count);
-    this->static_remaining_animation.refresh(led_pixels, led_count, charged_led_count + charging_pix_count);
+    int animated_pixel  = (this->charged_led_count-this->charge_anim_pixel_count) - 1;
+    int s1 = 0;
+    int l1 = this->charged_led_count - animated_pixel;
+    int s2 = this->charge_anim_pixel_count + 1;
+    int l2 = animated_pixel;
+    int s3 = this->charged_led_count;
+    int l3 = 2;
+    int s4 = s3 + 2;
+    int l4 = s4 >= led_count ? 0 : led_count - s3 - 2;
+
+    this->static_charging_solid_animation.refresh(led_pixels, l1, s1);
+    this->static_charging_empty_animation.refresh(led_pixels, l2, s2);
+    this->static_charge_animation.refresh        (led_pixels, l3, s3);
+    this->static_remaining_animation.refresh     (led_pixels, l4, s4);
+
+    if (++charge_anim_pixel_count > charged_led_count) {
+        charge_anim_pixel_count = 0;
+    }
 
     if (simulate_charge) {
         //ESP_LOGI(TAG, "Simulating charge percent %ld %ld", simulated_charge_percent, charge_percent);
