@@ -47,51 +47,80 @@ void ChargingAnimation::reset(
 /**
  * @brief Refresh the LED pixels
  * 
+ * The charging animation split the LEDS in 4 static segments:
+ *   The first 2 segments are used for the charging animation
+ *   The third segments is 2 blue pixel indicating where the charge is at
+ *   The last segment is the amount of charge left
+ * 
+ * The first pixel is always blue, followed by the animation
+ *
+ * When charge is between 0 and 12% (3 pixels), there are no animation since
+ * only 3 pixels are visible.
+ *   - first pixel always blue
+ *   - 2 pixel to represent the charge.
+ * 
+ * @note There is a glitch visible when wrapping around from 100 to 0.  This
+ *       will never be visible in the field since the charge will never wrap
+ *       around.
+ * 
  * @param led_pixels   Pointer to the LED pixels
  * @param led_count    Number of LED pixels to be updated
  * @param start_pixel  Starting pixel
  */
 void ChargingAnimation::refresh(uint8_t* led_pixels, int led_count, int start_pixel) {
-    bool increased = false;
-    int new_charged_led_count = (led_count * this->charge_percent) / 100;
+    int new_charged_led_count = ((led_count * this->charge_percent) / 100 + 1);
+    if (new_charged_led_count>led_count) {
+        new_charged_led_count = led_count;
+    }
+
+    ESP_LOGD(TAG, "Charging animation: %d %ld %ld", 
+        new_charged_led_count,
+        this->charged_led_count,
+        this->charge_anim_pixel_count);
+
     if (new_charged_led_count > this->charged_led_count && this->charged_led_count == this->charge_anim_pixel_count) {
         this->charged_led_count = new_charged_led_count;
-        increased = true;
+        ESP_LOGD(TAG, "INCREASING LED COUNT %d", new_charged_led_count);
     }
-    
-    // anim_px = (charge-p)-1
-    // const s1 = 0;
-    // const l1 = (charge-anim_px);
-    // const s2 = p+1;
-    // const l2 = anim_px;
-    // const s3 = charge;
-    // const l3 = 2;
-    // const s4 = s3+2;
-    // const l4 = s4 >= 33 ? 0 : 33-charge-2;
 
-    int animated_pixel  = (this->charged_led_count-this->charge_anim_pixel_count) - 1;
+    // To keep var name short, we'll use anim_px to represent the number of pixels
+    // and s1, l1, s2, l2, s3, l3, s4, l4 to represent the start and length of each segment
+    int anim_px = (this->charged_led_count - this->charge_anim_pixel_count) - 1;
     int s1 = 0;
-    int l1 = this->charged_led_count - animated_pixel;
+    int l1 = this->charged_led_count-anim_px;
     int s2 = this->charge_anim_pixel_count + 1;
-    int l2 = animated_pixel;
+    int l2 = anim_px;
     int s3 = this->charged_led_count;
     int l3 = 2;
     int s4 = s3 + 2;
-    int l4 = s4 >= led_count ? 0 : led_count - s3 - 2;
+    int l4 = s4 >= led_count ? 0 : led_count - this->charged_led_count - 2;
 
-    this->static_charging_solid_animation.refresh(led_pixels, l1, s1);
-    this->static_charging_empty_animation.refresh(led_pixels, l2, s2);
-    this->static_charge_animation.refresh        (led_pixels, l3, s3);
-    this->static_remaining_animation.refresh     (led_pixels, l4, s4);
+    ESP_LOGD(TAG, "Charging animation: %ld %ld %ld %d: %d-%d, %d-%d, %d-%d, %d-%d", 
+        this->charge_percent,
+        this->charged_led_count,
+        this->charge_anim_pixel_count,
+        anim_px,
+        s1, l1, s2, l2, s3, l3, s4, l4);
 
-    if (++charge_anim_pixel_count > charged_led_count) {
-        charge_anim_pixel_count = 0;
+    // The refresh takes in the start pixel and last pixel to refresh
+    // TODO Refactor refresh to take start before last. This will make the code more readable.
+    this->static_charging_solid_animation.refresh(led_pixels, 0+l1, s1);
+    this->static_charging_empty_animation.refresh(led_pixels, l1+l2, s2);
+    this->static_charge_animation.refresh        (led_pixels, l1+l2+l3, s3);
+    this->static_remaining_animation.refresh     (led_pixels, l1+l2+l3+l4, s4);
+
+    if (++this->charge_anim_pixel_count > this->charged_led_count) {
+        this->charge_anim_pixel_count = 0;
+        ESP_LOGD(TAG, "Reseting charge anim pixel count");
     }
 
     if (simulate_charge) {
         //ESP_LOGI(TAG, "Simulating charge percent %ld %ld", simulated_charge_percent, charge_percent);
         if ((++simulated_charge_percent) % 10 == 0) {
-            charge_percent = charge_percent == 100 ? 0 : charge_percent + 1;    
+            charge_percent = charge_percent >= 100 ? 0 : charge_percent + 1;
+        }
+        if (this->charged_led_count>=led_count) {
+            this->charged_led_count = 0;
         }
     }
 }

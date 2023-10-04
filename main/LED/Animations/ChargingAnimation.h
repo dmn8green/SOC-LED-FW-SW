@@ -56,6 +56,6 @@ private:
     bool simulate_charge = true;
     uint32_t simulated_charge_percent = 0;
 
-    uint32_t charge_anim_pixel_count = 1;
+    uint32_t charge_anim_pixel_count = 0;
     uint32_t charged_led_count = 1;
 };
