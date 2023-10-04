@@ -1,8 +1,8 @@
 //******************************************************************************
 /**
- * @file ChasingAnimation.cpp
+ * @file ChargingAnimation.cpp
  * @author pat laplante (plaplante@appliedlogix.com)
- * @brief ChasingAnimation class implementation
+ * @brief ChargingAnimation class implementation
  * @version 0.1
  * @date 2023-09-19
  * 
@@ -68,7 +68,9 @@ void ChargingAnimation::reset(
  * @param start_pixel  Starting pixel
  */
 void ChargingAnimation::refresh(uint8_t* led_pixels, int led_count, int start_pixel) {
-    int new_charged_led_count = ((led_count * this->charge_percent) / 100 + 1);
+
+    // +1 to make sure we always have at least 1 pixel on
+    int new_charged_led_count = (((led_count * this->charge_percent) / 100) + 1);
     if (new_charged_led_count>led_count) {
         new_charged_led_count = led_count;
     }
@@ -78,7 +80,7 @@ void ChargingAnimation::refresh(uint8_t* led_pixels, int led_count, int start_pi
         this->charged_led_count,
         this->charge_anim_pixel_count);
 
-    if (new_charged_led_count > this->charged_led_count && this->charged_led_count == this->charge_anim_pixel_count) {
+    if (new_charged_led_count != this->charged_led_count && this->charged_led_count == this->charge_anim_pixel_count) {
         this->charged_led_count = new_charged_led_count;
         ESP_LOGD(TAG, "INCREASING LED COUNT %d", new_charged_led_count);
     }
