@@ -5,6 +5,17 @@
 
 This document describes and provides supporting details for the software design of the SOC (State of Charge) LED indicator system. 
 
+
+
+## Version History
+
+| Version | Date        | Author     | Notes   |
+| ------- | ----------- | ---------- | ------- |
+| v0.1    | Oct-04-2023 | McGuinness | Initial |
+|         |             |            |         |
+
+
+
 ## Table of Contents
 
 [TOC]
@@ -13,7 +24,7 @@ This document describes and provides supporting details for the software design 
 
 This document describes the software components for MN8 Energy's State of Charge (SOC) LED indicator for an EV Charging Station.  
 
-This document applies to the entire product. This includes an embedded controller and several cloud-based software packages. 
+This document applies to the entire product, including an embedded controller and several cloud-based software packages. 
 
 ### Background
 
@@ -25,7 +36,7 @@ A conceptual rendering of the LED Indicators at a charging station was provided 
 
 ![](./images/MN8 Station.png)
 
-​									**Figure 1: Conceptual Rendering of LEDs at four Stations**
+**Figure 1: Conceptual Rendering of LEDs at four charging stations**
 
 
 
@@ -85,7 +96,7 @@ This section describes software components and interfaces, and the lineage of de
 
 ![](./images/MN8 Architecture.png)
 
-​										**Figure 2:  System Block Diagram**
+**Figure 2:  System Block Diagram**
 
 
 
@@ -93,7 +104,7 @@ A more detailed breakdown of components within the AWS block above is shown here
 
 <img src="./images/MN8-AWS-Details.png"  />
 
-​									**Figure 3:  AWS Detailed Block Diagram**
+**Figure 3:  AWS Detailed Block Diagram**
 
 
 
@@ -166,7 +177,7 @@ AWS Lambda functions allow for single-shot event handling without need for a ded
     * Thread affinity used to keep these two threads on a single controller
   * CLI Thread 
   * MQTT Monitor Thread
-    * Listen for station state updates via MqTT 
+    * Listen for station state updates via MQTT 
   * Day/Night Sensor Monitor 
   * Network Status Monitor
 
@@ -176,7 +187,7 @@ AWS Lambda functions allow for single-shot event handling without need for a ded
 
 * CLI 
 
-​	A command-line interface is available via Serial port.  Debug messages will be logged to this port, and 	input from a user can be done as well.  
+​	A command-line interface is available via Serial port.  Debug messages will be logged to this port, and it will accept user commands.  
 
 ​	Input is done at this command prompt: 
 
@@ -184,90 +195,98 @@ AWS Lambda functions allow for single-shot event handling without need for a ded
 		mn8-tools>
 ```
 
-​	<u>The following commands allow technicians to configure the Station Controller:</u>
-
-​		**provision_cp**  <group or site name> <station id>   
-
-​			<group or site name>  Site name where this station is located   
-
-​			<station id>  Charge point station id  
-
-​		**provision_iot**  <url> <username> <password>   provision device as an IOT thing          
-
-​			<url>  Url to provisioning server    
-
-​			<username>  API username     
-
-​			<password>  API password
+<u>The following commands allow technicians to configure the Station Controller:</u>
 
 
 
-​	<u>The following commands provide troubleshooting and debugging for the Station Controller:</u> 
+**provision_cp**   *\<group or site name\> \<station id\>*   Provision Station Controller
 
-​		**help**    Print the list of available commands  
+​	*\<group or site name\>*  Site or group name where this station is located   
 
-​		**tasks**    Get information about running tasks/threads  
+​	<station id\>*  Charge point station id  
 
-​		**wifi**  [--timeout=<t>] <join/leave> [<ssid>] [<pass>]     
+**provision_iot**    *\<url> \<username> <password\>*   Provision Station Controller as an IOT device          
 
-​			--timeout=<t>  Connection timeout, ms   		<join/leave>  Command to execute         
+​	*\<url>*  Url to provisioning server    
 
-​			<ssid>  SSID of AP         
+​	*\<username>*  API username     
 
-​			<pass>  PSK of AP  
+​	*\<password>*  API password
 
-​		**ifconfig  **[<eth/wifi>] [<up/down/dhcp/manual/reset>] [<ip>] [<netmask>] [<gateway>] [<dns>]   		Operate on network interfaces (wifi/ethernet)     
 
-​			<eth/wifi>  Which interface to configure   			
 
-​			<up/down/dhcp/**manual/reset>  Command to execute           
+<u>The following commands provide troubleshooting and debugging for the Station Controller:</u> 
 
-​			<ip>  IP address
+**help**    Print the list of available commands  
 
-​			<netmask>  Netmask     
+**tasks**    Get information about running tasks/threads  
 
-​			<gateway>  Gateway
+**wifi**  [--timeout=*\<t>*] *<join/leave>* [*\<ssid>*] [*\<pass>*]     
 
-​			<dns>  DNS  
+​	*\<t>*  Connection timeout, ms   		
 
-​		**reboot**    Reboot board  
+​	*<join/leave>*  Command to execute         
 
-​		**ping**  [-W <t>] [-i <t>] [-s <n>] [-c <n>] [-Q <n>] <host>   send ICMP ECHO_REQUEST to network 			hosts   		
+​	*\<ssid>*  SSID of AP         
 
-​			-W, --timeout=<t>  Time to wait for a response, in seconds   
+​	*\<pass>*  PSK of AP  
 
-​			-i, --interval=<t>  Wait interval seconds between sending each packet   
+**ifconfig  **[*<eth/wifi>*] [*<up/down/dhcp/manual/reset>*] *[\<ip>*] [*\<netmask>*] [*\<gateway>*] [*\<dns>*]   Configure/view network interfaces (wifi/ethernet)     
 
-​			-s, --size=<n>  Specify the number of data bytes to be sent   
+​	*<eth/wifi>*  Which interface to configure   			
 
-​			-c, --count=<n>  Stop after sending count packets   
+​	*<up/down/dhcp/manual/reset>*  Command to execute           
 
-​			-Q, --tos=<n>  Set Type of Service related bits in IP datagrams         
+​	*\<ip>*  IP address
 
-​			<host>  Host address  
+​	*\<netmask>*  Netmask     
 
-​		**led**  <on/off/pattern> [-p <p>] [-s <1/2>]   Control LED strips   
+​	*\<gateway>*  Gateway
 
-​			<on/off/pattern>  Command to execute   
+​	*\<dns>*  DNS  
 
-​			-p, --pattern=<p>  Index to the desired pattern, 0 by default   
+**reboot**    Reboot board  
 
-​			-s, --strip=<1/2>  Which strip to control. If no value is given, both strips will be controlled  
+**ping**  [-W  *\<t>*]  [-i  *\<t>*]  [-s *\<n>*]  [-c *\<n>*]  [-Q *\<n>*]  \<host>   send ICMP ECHO_REQUEST to network host   		
+
+​	*-W, --timeout=\<t>*  Time to wait for a response, in seconds   
+
+​	*-i, --interval=\<t>*  Wait interval seconds between sending each packet   
+
+​	*-s, --size=\<n>*  Specify the number of data bytes to be sent   
+
+​	*-c, --count=\<n>*  Stop after sending count packets   
+
+​	*-Q, --tos=\<n>*  Set Type of Service related bits in IP datagrams         
+
+​	*\<host>*  Host address  
+
+**led**  *<on/off/pattern>*  [-p *\<p>*]  [-s *< 1 | 2 >*]   Control LED strips   
+
+​	*<on/off/pattern>*  Command to execute   
+
+​	*-p, --pattern=\<p>*  Index to the desired pattern, 0 by default   
+
+​	*-s, --strip=<1/2>*  Which strip to control. If no value is given, both strips will be controlled 
+
+ 
 
 * LED Driver 
 
-The LED strips use the WS8215 protocol. Each LED strip has multiple controllers wired in series along the length of the strip. Dependingon vendor, each LED controller may control multiple LEDs (in our case, three LEDs per controller). The LED controllers are not aware of their physical position in the strip; this allows for easy cutting, resizing, and joining of strips.
+The LED strips use the WS8215 protocol. Each LED strip has multiple controllers wired in series along the length of the strip. Depending on the LED strip model, each LED controller may control multiple LEDs (in our case, three LEDs per controller). The LED controllers are not aware of their physical position in the strip; this allows for easy cutting, resizing, and joining of strips.
 
-Each LED controller has a DIN pin for input signaling and a DO for cascading the signal to the next downstream LED controller. Each LED controller will interpret the first 24 bits of data it sees at DIN as a command and set its color accordingly; all bits following the first 24 are then forwarded via DO the next LED's DIN, which will repeat the process. 
+Each LED controller has a DIN pin for input signaling and a DO for cascading the signal to the next downstream LED controller. Each LED controller interprets the first 24 bits of data it sees at DIN as a command and set its color accordingly. The LED controller forwards subsequent signals to the DO pin, which is wired to the next LED controller's DIN. The next LED controller will repeat the process. 
 
-The reduced bit sequence will be propagated along the LED strip until signal is exhausted or no more LEDs are present. Each LED controller maintains current color and forwards signals until a RESET is seen. 
+The bit sequence will be truncated and propagated along the LED strip until signal is exhausted or no more LEDs are present. Each LED controller maintains current color and forwards signals until a RESET is seen. 
 
 Our LED strip uses 33 controllers to drive 99 LEDs.  Each 24-bit sequence is interpreted as GRB (Green, Red, Blue) as follows: 
+
+
 
 | G7   | G6   | G5   | G4   | G3   | G2   | G1   | G0   | R7   | R6   | R5   | R4   | R3   | R2   | R1   | R0   | B7   | B6   | B5   | B4   | B3   | B2   | B1   | B0   |
 | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- |
 
-​												**Figure 4:  GRB Bit Sequencing**
+**Figure 4:  GRB Bit Sequencing**
 
 
 
@@ -283,21 +302,23 @@ The LED controller expects the following duty cycles, per the WS8215 specificati
 | T1L   | 1-code, Low-level time  | 220ns-420ns  |
 | RESET | Drive line low          | > 280000ns   |
 
-​									**Figure 5:  LED Controller Timing Requirements (WS8215)**
+**Figure 5:  LED Controller Timing Requirements (WS8215)**
 
 
 
-Cycles must be between 900ns (220ns+580ns) and ~2000ns (380/420ns + 1600ns). We found example ESP32 projects that used a pulse width of 1200ns, which falls on the faster side of the range but comfortably above the minimum. 
+Cycles must be between 900ns (220ns+580ns) and ~2000ns (380/420ns + 1600ns). We found example ESP32 projects that used a pulse width of 1200ns, which falls on the faster side of the range but comfortably above the minimums. 
 
 Our design makes use of ESP SDK's SPI library to drive the LED signal line. SPI is often used for peripheral communications; in normal use the SPI uses several signals including clock and data out (MOSI). For our LED implementation, we will use only the MOSI line. 
 
-Typical SPI signaling for an 8-bit sequence (10100101) looks like this (CLK and MOSI lines only):
+Typical SPI signaling to send an 8-bit sequence (10100101) looks like this (CLK and MOSI lines only):
 
 
 
 ![](./images/MN8-SPI-Timing.png)
 
-​								**Figure 6:  SPI Timing (CLK/MOSI)**
+​							
+
+**Figure 6:  SPI Timing (CLK/MOSI)**
 
 
 
@@ -310,7 +331,7 @@ static const uint8_t mOne  = 0b11111100; // 900:300 ns
 
 Note that transmission of a single bit to the LED strip requires eight SPI CLK cycles. With the sequences above, the MOSI line will be high for 300ns or 900ns, then low for 900ns or 300ns. This provides the desired LED pulse width of 1200ns and high/low durations well within the specification. 
 
-The time required to address all LEDs is minimal and not visible. With 33 LED controllers using 24 bits each, and 1.2us required for each LED bit, we can update an LED strip in less than 0.1 milliseconds. 
+The time required to address all LEDs is minimal and not visible. With 33 LED controllers using 24 bits each, and 1.2us required for each LED bit, we can update the entire LED strip in less than 0.1 milliseconds. 
 
 * LED Colors, Animations, and Patterns
 
@@ -373,15 +394,15 @@ In this mode, the Proxy Broker will not automatically poll ChargePoint API (unle
 
 The following commands are supported: 
 
-​	**poll**	 Make a single query to ChargePoint and update Station Controller(s)
+**poll**	Make a single query to ChargePoint and update Station Controller(s)
 
-​	**state** <LED ID> <state string> 
+**state** 	*\<LED ID> \<state string>* 
 
-​		Sets the internal state of an LED ID to a state string. Valid states (and numeric values). LED bars are numbered 1 and 2 within the Proxy Broker.  		See table below: 
+Sets the internal state of an LED ID to a state string. Valid states (and numeric values). LED bars are numbered 1 and 2 within the Proxy Broker.  		See table below: 
 
-​	**m** <LED ID> <Numeric State Value> 
+**m** 	*\<LED ID> \<Numeric State Value>* 
 
-​			Sets the internal state of an LED ID to a numeric value. Identical to **state** but easier to 			type.  See table below:
+Sets the internal state of an LED ID to a numeric value. Identical to **state** but easier to type.  See table below:
 
 ```
    STATE STRING             NUMERIC VALUE
