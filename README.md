@@ -31,8 +31,17 @@ Once installed, switch to the *5.1* branch
 
 Clone the repo:
 ```
-git clone https://gitlab.appliedlogix.com/mn8-energy/light-controller-firmware.git
+% git clone https://gitlab.appliedlogix.com/mn8-energy/light-controller-firmware.git <local_name>
 ```
+
+Update the subrepos (includes AWS, MQTT, JSON, HTTP functionality):
+
+```
+% cd <local_name>
+% git submodule update --init --recursive
+```
+
+
 
 ### Compiling/flashing/monitoring
 
