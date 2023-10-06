@@ -75,14 +75,14 @@ void ChargingAnimation::refresh(uint8_t* led_pixels, int led_count, int start_pi
         new_charged_led_count = led_count;
     }
 
-    ESP_LOGD(TAG, "Charging animation: %d %ld %ld", 
+    ESP_LOGD(TAG, "refresh start: %d %u %u",
         new_charged_led_count,
         this->charged_led_count,
         this->charge_anim_pixel_count);
 
     if (new_charged_led_count != this->charged_led_count && this->charged_led_count == this->charge_anim_pixel_count) {
+        ESP_LOGD(TAG, "INCREASING CHARGED LED COUNT from %d to %d", this->charged_led_count, new_charged_led_count);
         this->charged_led_count = new_charged_led_count;
-        ESP_LOGD(TAG, "INCREASING LED COUNT %d", new_charged_led_count);
     }
 
     // To keep var name short, we'll use anim_px to represent the number of pixels
@@ -97,7 +97,7 @@ void ChargingAnimation::refresh(uint8_t* led_pixels, int led_count, int start_pi
     int s4 = s3 + 2;
     int l4 = s4 >= led_count ? 0 : led_count - this->charged_led_count - 2;
 
-    ESP_LOGD(TAG, "Charging animation: %ld %ld %ld %d: %d-%d, %d-%d, %d-%d, %d-%d", 
+    ESP_LOGD(TAG, "refresh segments: %u %u %u %d: %d-%d, %d-%d, %d-%d, %d-%d",
         this->charge_percent,
         this->charged_led_count,
         this->charge_anim_pixel_count,
