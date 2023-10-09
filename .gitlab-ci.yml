@@ -16,3 +16,14 @@ build:
   script:
     - idf.py build
 
+utest:
+  stage: utest
+
+  image: gitlab.appliedlogix.com:4567/mn8-energy/light-controller-firmware
+
+  variables:
+    GIT_SUBMODULE_STRATEGY: recursive
+
+  script:
+    - echo $(pwd)
+
