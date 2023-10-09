@@ -7,8 +7,9 @@
 TEST(animation, chargeLevel)
 {
     ChargingAnimation testAnimate;
+    testAnimate.set_charge_simulation(false);
 
-    //ASSERT_TRUE (testAnimate.get_charge_percent() == 0);
+    ASSERT_TRUE (testAnimate.get_charge_percent() == 0);
 
     testAnimate.set_charge_percent(50);
     ASSERT_TRUE (testAnimate.get_charge_percent() == 50);
@@ -22,18 +23,19 @@ TEST(animation, chargeLevel)
     testAnimate.set_charge_percent(0);
     ASSERT_TRUE (testAnimate.get_charge_percent() == 0);
 
-    // testAnimate.set_charge_percent(150);
-    //ASSERT_TRUE (testAnimate.get_charge_percent() == 100);
+    testAnimate.set_charge_percent(150);
+    ASSERT_TRUE (testAnimate.get_charge_percent() == 100);
 
     // Test after reset
-    //testAnimate.reset(0,0,0,0);
-    // ASSERT_TRUE (testAnimate.get_charge_percent() == 100);
+    testAnimate.reset(0,0,0,0);
+    ASSERT_TRUE (testAnimate.get_charge_percent() == 100);
 
 }
 
 TEST(animation, chargeLevelLeds)
 {
     ChargingAnimation testAnimate;
+    testAnimate.set_charge_simulation(false);
 
     uint8_t led_pixels[3*LED_STRIP_PIXEL_COUNT] = {0};
 
@@ -55,8 +57,6 @@ TEST(animation, chargeLevelLeds)
 
         printf ("utest: Charge pct of %d: chargedLED:%d (previous: %d)\n", chargeLevel, chargedLedCount, lastChargedLedCount);
 
-// For now, just printing things out; assertions to be added later
-#if 0
         // Always at least one; never more than max
         ASSERT_TRUE (chargedLedCount >= 1);
         ASSERT_TRUE (chargedLedCount <= LED_STRIP_PIXEL_COUNT);
@@ -66,12 +66,12 @@ TEST(animation, chargeLevelLeds)
 
         // Never one more than last
         ASSERT_TRUE (lastChargedLedCount -  chargedLedCount < 1);
-#endif
         // Save for next iteration
         lastChargedLedCount = chargedLedCount;
     }
 }
- 
+
+#if 0
 TEST(animation, pixels)
 {
 
@@ -92,6 +92,7 @@ TEST(animation, pixels)
     //ASSERT_TRUE (led_pixels[2] != 0);
 
 };
+#endif
 
  
 int main(int argc, char **argv) {

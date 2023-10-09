@@ -7,3 +7,4 @@
 //
 
 #define ESP_LOGD(TAG, FMT, ...) printf (FMT"\n", ##__VA_ARGS__)
+#define ESP_LOGI(TAG, FMT, ...) printf (FMT"\n", ##__VA_ARGS__)

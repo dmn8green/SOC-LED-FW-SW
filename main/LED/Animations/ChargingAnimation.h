@@ -42,6 +42,7 @@ public:
     void reset(uint32_t static_color_1, uint32_t static_color_2, uint32_t chase_color, uint32_t chase_rate = 10);
     void refresh(uint8_t* led_pixels, int led_count, int start_pixel = 0) override;
     inline void set_charge_percent(uint32_t charge_percent) { this->charge_percent = charge_percent; }
+    inline void set_charge_simulation (bool set_sim_charge) {this->simulate_charge = set_sim_charge; }
 #ifdef UNIT_TEST
     inline uint32_t get_charge_percent(void) { return this->charge_percent; }
     inline uint32_t get_charged_led_count(void) { return this->charged_led_count; }
@@ -57,7 +58,7 @@ private:
     uint32_t static_color_2;
     uint32_t chase_color;
 
-    bool simulate_charge = true;
+    bool simulate_charge = false;
     uint32_t simulated_charge_percent = 0;
 
     uint32_t charge_anim_pixel_count = 0;
