@@ -29,6 +29,7 @@ set(COMPONENT_SRCS
     Utils/KeyStore.cpp
     Utils/FuseMacAddress.cpp
     Utils/HSV2RGB.cpp
+    Utils/FreeRTOSTask.cpp
     LED/LedTaskSpi.cpp
     LED/RmtOverSpi.cpp
     LED/Animations/ChasingAnimation.cpp
@@ -57,6 +58,9 @@ set(COMPONENT_SRCS
     Network/MQTT/mqtt_demo_mutual_auth.c
     App/Configuration/ThingConfig.cpp
     App/Configuration/ChargePointConfig.cpp
+    App/NetworkAgent/NetworkConnection.cpp
+    App/NetworkAgent/NetworkConnectionAgent.cpp
+    App/NetworkAgent/NetworkConnectionStateMachine.cpp
     App/MN8App.cpp
     main.cpp
 )

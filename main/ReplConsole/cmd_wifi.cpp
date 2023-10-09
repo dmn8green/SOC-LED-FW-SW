@@ -20,7 +20,7 @@
 
 static bool wifi_join(const char *ssid, const char *pass, int timeout_ms) {
     MN8App& app = MN8App::instance();
-    WifiConnection* wifi_connection = app.get_wifi_connection();
+    WifiConnection* wifi_connection = app.get_network_connection_agent().get_wifi_connection();
     wifi_creds_t creds = { 0 };
     strlcpy((char *) creds.ssid, ssid, sizeof(creds.ssid));
     if (pass) {
@@ -83,7 +83,7 @@ static operation_t infer_operation_from_args(void) {
 //*****************************************************************************
 static int on_join(const char *ssid, const char *pass, int timeout_ms) {
     MN8App& app = MN8App::instance();
-    WifiConnection* wifi_connection = app.get_wifi_connection();
+    WifiConnection* wifi_connection = app.get_network_connection_agent().get_wifi_connection();
     wifi_creds_t creds = { 0 };
     strlcpy((char *) creds.ssid, ssid, sizeof(creds.ssid));
     if (pass) {
@@ -99,7 +99,7 @@ static int on_join(const char *ssid, const char *pass, int timeout_ms) {
 static int on_leave() {
     printf("Leaving wifi\n");
     MN8App& app = MN8App::instance();
-    WifiConnection* wifi_connection = app.get_wifi_connection();
+    WifiConnection* wifi_connection = app.get_network_connection_agent().get_wifi_connection();
     wifi_creds_t creds = { 0 };
     wifi_connection->set_credentials(creds);
     return 0;

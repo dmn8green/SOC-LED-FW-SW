@@ -53,7 +53,7 @@ private:
     uint32_t static_color_2;
     uint32_t chase_color;
 
-    bool simulate_charge = true;
+    bool simulate_charge = false;
     uint32_t simulated_charge_percent = 0;
 
     uint32_t charge_anim_pixel_count = 0;
