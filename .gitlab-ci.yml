@@ -27,7 +27,8 @@ utest:
 
   script:
     - echo $(pwd)
-    - cd main/gtest 
+    - cd main/gtest
+    - cmake .
     - cmake --build .
     - ./led-test
 
