@@ -41,23 +41,17 @@ esp_err_t NetworkConnectionAgent::setup(void)
 
     ESP_GOTO_ON_ERROR(
         esp_event_handler_register(ETH_EVENT, ESP_EVENT_ANY_ID, &NetworkConnectionAgent::sOnEthEvent, this),
-        err,
-        TAG,
-        "Failed to register ETH_EVENT handler"
+        err, TAG, "Failed to register ETH_EVENT handler"
     );
 
     ESP_GOTO_ON_ERROR(
         esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID, &NetworkConnectionAgent::sOnWifiEvent, this),
-        err,
-        TAG,
-        "Failed to register WIFI_EVENT handler"
+        err, TAG, "Failed to register WIFI_EVENT handler"
     );
     
     ESP_GOTO_ON_ERROR(
         esp_event_handler_register(IP_EVENT, ESP_EVENT_ANY_ID, &NetworkConnectionAgent::sOnIPEvent, this),
-        err,
-        TAG,
-        "Failed to register IP_EVENT handler"
+        err, TAG, "Failed to register IP_EVENT handler"
     );
 
 err:
@@ -75,15 +69,12 @@ void NetworkConnectionAgent::onIPEvent(esp_event_base_t event_base, int32_t even
             ESP_LOGI(TAG, "Connected with IP Address");
             next_event = e_network_connection_event_net_connected;
             xQueueSend(this->update_queue, &next_event, portMAX_DELAY);
-
-            //xEventGroupSetBits( this->event_group, NET_CONNECTED_BIT );
             break;
         case IP_EVENT_STA_LOST_IP:
         case IP_EVENT_ETH_LOST_IP:
             ESP_LOGI(TAG, "Disconnected from IP Address");
             next_event = e_network_connection_event_net_disconnected;
             xQueueSend(this->update_queue, &next_event, portMAX_DELAY);
-            //xEventGroupClearBits( this->event_group, NET_CONNECTED_BIT );
             break;
         default:
             ESP_LOGI(TAG, "Got wifi event %d", event);
@@ -145,43 +136,6 @@ void NetworkConnectionAgent::onWifiEvent(esp_event_base_t event_base, int32_t ev
             xQueueSend(this->update_queue, &next_event, portMAX_DELAY);
             ESP_LOGI(TAG, "Wifi Disconnected");
             break;
-        case WIFI_EVENT_STA_AUTHMODE_CHANGE:
-            ESP_LOGI(TAG, "Wifi Authmode Changed");
-            break;
-        case WIFI_EVENT_STA_WPS_ER_SUCCESS:
-            ESP_LOGI(TAG, "Wifi WPS ER Success");
-            break;
-        case WIFI_EVENT_STA_WPS_ER_FAILED:
-            ESP_LOGI(TAG, "Wifi WPS ER Failed");
-            break;
-        case WIFI_EVENT_STA_WPS_ER_TIMEOUT:
-            ESP_LOGI(TAG, "Wifi WPS ER Timeout");
-            break;
-        case WIFI_EVENT_STA_WPS_ER_PIN:
-            ESP_LOGI(TAG, "Wifi WPS ER Pin");
-            break;
-        case WIFI_EVENT_AP_START:
-            ESP_LOGI(TAG, "Wifi AP Started");
-            break;
-        case WIFI_EVENT_AP_STOP:
-            ESP_LOGI(TAG, "Wifi AP Stopped");
-            break;
-        case WIFI_EVENT_AP_STACONNECTED:
-            ESP_LOGI(TAG, "Wifi AP STA Connected");
-            break;
-        case WIFI_EVENT_AP_STADISCONNECTED:
-            ESP_LOGI(TAG, "Wifi AP STA Disconnected");
-            break;
-        case WIFI_EVENT_AP_PROBEREQRECVED:
-            ESP_LOGI(TAG, "Wifi AP Probe Request Received");
-            break;
-        case WIFI_EVENT_ACTION_TX_STATUS:
-            ESP_LOGI(TAG, "Wifi Action TX Status");
-            break;
-        case WIFI_EVENT_ROC_DONE:
-            ESP_LOGI(TAG, "Wifi ROC Done");
-            break;
-            
         default:
             ESP_LOGI(TAG, "Got wifi event %d", event);
             break;

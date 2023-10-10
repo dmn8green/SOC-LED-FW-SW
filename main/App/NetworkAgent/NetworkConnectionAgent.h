@@ -20,7 +20,7 @@
 #define CONNECTION_STATE_MACHINE_TASK_STACK_SIZE 5000
 #define CONNECTION_STATE_MACHINE_TASK_PRIORITY 5
 #define CONNECTION_STATE_MACHINE_TASK_CORE_NUM 0
-#define CONNECTION_STATE_MACHINE_TASK_NAME "NetworkConnectionAgent"
+#define CONNECTION_STATE_MACHINE_TASK_NAME "net_agent"
 
 //******************************************************************************
 /**
