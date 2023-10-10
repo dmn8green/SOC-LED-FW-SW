@@ -37,10 +37,6 @@ esp_err_t Connection::initialize(void) {
         return err;
     }
 
-    if (this->configuration->is_enabled()) {
-        ret = this->up();
-    }
-
     return ret;
 }
 

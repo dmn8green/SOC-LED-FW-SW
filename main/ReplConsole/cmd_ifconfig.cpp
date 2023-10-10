@@ -224,8 +224,8 @@ static int op_interface_manual(Connection *connection)
 static int print_interface_information_op(Connection *connection)
 {
     if (!connection) {
-        print_interface_information("wifi", MN8App::instance().get_wifi_connection());
-        print_interface_information("eth", MN8App::instance().get_ethernet_connection());
+        print_interface_information("wifi", MN8App::instance().get_network_connection_agent().get_wifi_connection());
+        print_interface_information("eth", MN8App::instance().get_network_connection_agent().get_ethernet_connection());
     } else {
         print_interface_information(connection->get_name(), connection);
     }
@@ -241,9 +241,14 @@ static int ifconfig_cmd(int argc, char **argv)
         return 1;
     }
         
-    Connection *connection = MN8App::instance().get_connection(ifconfig_args.interface->sval[0]);
+    Connection *connection = MN8App::instance().get_network_connection_agent().get_connection(ifconfig_args.interface->sval[0]);
 
     operation_t op = infer_operation_from_args();
+    if (nullptr == connection && op != e_print_interface_information_op) {
+        printf("ERROR: %s is not a valid interface", ifconfig_args.interface->sval[0]);
+        return 1;
+    }
+
     switch (op) {
         case e_print_interface_information_op: return print_interface_information_op(connection);
         case e_interface_up_op:            return op_interface_up(connection);
