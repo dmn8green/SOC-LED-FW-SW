@@ -77,13 +77,21 @@ void ChargingAnimation::refresh(uint8_t* led_pixels, int led_count, int start_pi
         new_charged_led_count = led_count;
     }
 
-    ESP_LOGD(TAG, "refresh start: %d %" PRIu32 " %" PRIu32,
-        new_charged_led_count,
-        this->charged_led_count,
-        this->charge_anim_pixel_count);
+    if (!quiet)
+    {
+        ESP_LOGD(TAG, "refresh start: %d %" PRIu32 " %" PRIu32,
+            new_charged_led_count,
+            this->charged_led_count,
+            this->charge_anim_pixel_count);
+    }
 
-    if (new_charged_led_count != this->charged_led_count && this->charged_led_count == this->charge_anim_pixel_count) {
-        ESP_LOGD(TAG, "INCREASING CHARGED LED COUNT from %" PRIu32 " to %d", this->charged_led_count, new_charged_led_count);
+    // if (new_charged_led_count != this->charged_led_count && this->charged_led_count == this->charge_anim_pixel_count) {
+    if (new_charged_led_count != this->charged_led_count) {
+
+        if (!quiet)
+        {
+            ESP_LOGD(TAG, "INCREASING CHARGED LED COUNT from %" PRIu32 " to %d", this->charged_led_count, new_charged_led_count);
+        }
         this->charged_led_count = new_charged_led_count;
     }
 
@@ -99,12 +107,15 @@ void ChargingAnimation::refresh(uint8_t* led_pixels, int led_count, int start_pi
     int s4 = s3 + 2;
     int l4 = s4 >= led_count ? 0 : led_count - this->charged_led_count - 2;
 
-    ESP_LOGD(TAG, "refresh segments: %" PRIu32 " %" PRIu32 " %" PRIu32 "  %d: %d-%d, %d-%d, %d-%d, %d-%d",
-        this->charge_percent,
-        this->charged_led_count,
-        this->charge_anim_pixel_count,
-        anim_px,
-        s1, l1, s2, l2, s3, l3, s4, l4);
+    if (!quiet)
+    {
+        ESP_LOGD(TAG, "refresh segments: %" PRIu32 " %" PRIu32 " %" PRIu32 "  %d: %d-%d, %d-%d, %d-%d, %d-%d",
+            this->charge_percent,
+            this->charged_led_count,
+            this->charge_anim_pixel_count,
+            anim_px,
+            s1, l1, s2, l2, s3, l3, s4, l4);
+    }
 
     // The refresh takes in the start pixel and last pixel to refresh
     // TODO Refactor refresh to take start before last. This will make the code more readable.
@@ -115,7 +126,10 @@ void ChargingAnimation::refresh(uint8_t* led_pixels, int led_count, int start_pi
 
     if (++this->charge_anim_pixel_count > this->charged_led_count) {
         this->charge_anim_pixel_count = 0;
-        ESP_LOGD(TAG, "Reseting charge anim pixel count");
+        if (!quiet)
+        {
+            ESP_LOGD(TAG, "Resetting charge anim pixel count");
+        }
     }
 
     if (simulate_charge) {
