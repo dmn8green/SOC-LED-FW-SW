@@ -10,6 +10,7 @@
  */
 //******************************************************************************
 
+#include "Led.h"
 #include "LedTaskSpi.h"
 
 #include "Utils/Colors.h"
@@ -22,8 +23,6 @@
 
 #include <memory.h>
 #include <math.h>
-
-#define LED_STRIP_PIXEL_COUNT 32
 
 static const char *TAG = "LedTaskSpi";
 
