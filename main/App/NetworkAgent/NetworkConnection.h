@@ -36,6 +36,7 @@ public:
     esp_err_t start(void);
 
     // Accessors
+    bool is_configured(void);
     bool is_enabled(void);
     bool check_connectivity(bool thorough_check = false);
 

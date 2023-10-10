@@ -15,22 +15,22 @@
 #include "esp_err.h"
 
 typedef enum {
-    e_network_connection_state_disabled,              //?! To indicate that the network connection are all disabled
-    e_network_connection_state_connecting,            //?! To indicate that at least one network connection is connecting
-    e_network_connection_state_connected,             //?! To indicate that at least one network connection is connected
-    e_network_connection_state_testing_connection,    //?! To indicate that at least one network connection is testing the connection
-    e_network_connection_state_disconnecting,         //?! To indicate that both network connections are disconnecting
-    e_network_connection_state_no_connection_error    //?! To indicate that both network connections are disconnected, network error
+    e_nc_state_disabled,              //?! To indicate that the network connection are all disabled
+    e_nc_state_connecting,            //?! To indicate that at least one network connection is connecting
+    e_nc_state_connected,             //?! To indicate that at least one network connection is connected
+    e_nc_state_testing_connection,    //?! To indicate that at least one network connection is testing the connection
+    e_nc_state_disconnecting,         //?! To indicate that both network connections are disconnecting
+    e_nc_state_no_connection_error    //?! To indicate that both network connections are disconnected, network error
 } net_conn_agent_state_t;
 
 typedef enum {
-    e_network_connection_event_net_connecting,
-    e_network_connection_event_net_connected,
-    e_network_connection_event_net_disconnecting,
-    e_network_connection_event_net_disconnected,
-    e_network_connection_event_timeout,
-    e_network_connection_event_wifi_down,
-    e_network_connection_event_eth_down
+    e_nc_event_net_connecting,
+    e_nc_event_net_connected,
+    e_nc_event_net_disconnecting,
+    e_nc_event_net_disconnected,
+    e_nc_event_timeout,
+    e_nc_event_wifi_down,
+    e_nc_event_eth_down
 } net_conn_agent_event_t;
 
 //******************************************************************************
@@ -57,7 +57,7 @@ protected:
 
 private:
     NetworkConnection* connection = nullptr;
-    net_conn_agent_state_t state = net_conn_agent_state_t::e_network_connection_state_disabled;
+    net_conn_agent_state_t state = net_conn_agent_state_t::e_nc_state_disabled;
     typedef net_conn_agent_state_t (NetworkConnectionStateMachine::*StateFn)(net_conn_agent_event_t event);
     StateFn state_handler;
 };

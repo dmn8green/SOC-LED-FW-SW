@@ -67,13 +67,13 @@ void NetworkConnectionAgent::onIPEvent(esp_event_base_t event_base, int32_t even
         case IP_EVENT_STA_GOT_IP:
         case IP_EVENT_ETH_GOT_IP:
             ESP_LOGI(TAG, "Connected with IP Address");
-            next_event = e_network_connection_event_net_connected;
+            next_event = e_nc_event_net_connected;
             xQueueSend(this->update_queue, &next_event, portMAX_DELAY);
             break;
         case IP_EVENT_STA_LOST_IP:
         case IP_EVENT_ETH_LOST_IP:
             ESP_LOGI(TAG, "Disconnected from IP Address");
-            next_event = e_network_connection_event_net_disconnected;
+            next_event = e_nc_event_net_disconnected;
             xQueueSend(this->update_queue, &next_event, portMAX_DELAY);
             break;
         default:
@@ -90,21 +90,21 @@ void NetworkConnectionAgent::onEthEvent(esp_event_base_t event_base, int32_t eve
     switch (event) {
         case ETHERNET_EVENT_CONNECTED:
             ESP_LOGI(TAG, "Ethernet Connected");
-            next_event = e_network_connection_event_net_connected;
+            next_event = e_nc_event_net_connected;
             xQueueSend(this->update_queue, &next_event, portMAX_DELAY);
             break;
         case ETHERNET_EVENT_DISCONNECTED:
             ESP_LOGI(TAG, "Ethernet Disconnected");
-            next_event = e_network_connection_event_net_disconnected;
+            next_event = e_nc_event_net_disconnected;
             xQueueSend(this->update_queue, &next_event, portMAX_DELAY);
             break;
         case ETHERNET_EVENT_START:
             ESP_LOGI(TAG, "Ethernet Started");
-            next_event = e_network_connection_event_net_connecting;
+            next_event = e_nc_event_net_connecting;
             xQueueSend(this->update_queue, &next_event, portMAX_DELAY);
             break;
         case ETHERNET_EVENT_STOP:
-            next_event = e_network_connection_event_net_disconnected;
+            next_event = e_nc_event_net_disconnected;
             xQueueSend(this->update_queue, &next_event, portMAX_DELAY);
             ESP_LOGI(TAG, "Ethernet Stopped");
             break;
@@ -128,11 +128,11 @@ void NetworkConnectionAgent::onWifiEvent(esp_event_base_t event_base, int32_t ev
             break;
         case WIFI_EVENT_STA_CONNECTED:
             ESP_LOGI(TAG, "Wifi Connected");
-            next_event = e_network_connection_event_net_connected;
+            next_event = e_nc_event_net_connected;
             xQueueSend(this->update_queue, &next_event, portMAX_DELAY);
             break;
         case WIFI_EVENT_STA_DISCONNECTED:
-            next_event = e_network_connection_event_net_disconnected;
+            next_event = e_nc_event_net_disconnected;
             xQueueSend(this->update_queue, &next_event, portMAX_DELAY);
             ESP_LOGI(TAG, "Wifi Disconnected");
             break;
@@ -175,13 +175,21 @@ void NetworkConnectionAgent::taskFunction(void)
 
     while (1)
     {
+        // TODO if we are connected, or expected to be connected, we should
+        // ping every 15 minutes to ensure the connection is still good.
+        // If the connection goes bad, we should loose the mqtt.  So maybe
+        // we should have an event to check the connection (using ping) and
+        // a state that is checking the connection.  If the connection is
+        // good, we go back to the connected state.  If the connection is
+        // bad, we go to the error state?  We should also check if the wifi
+        // is bad, take it down and try reconnecting it?
         if (xQueueReceive(this->update_queue, &event, queue_timeout) == pdTRUE) {
             this->state_machine.handle_event(event);
         } else {
             // We timed out, if connected, do a ping to ensure connection is still good.
             // If not connected, then we will try to connect.
             ESP_LOGI(TAG, "Network connection state machine timed out, ping");
-            this->state_machine.handle_event(e_network_connection_event_timeout);
+            this->state_machine.handle_event(e_nc_event_timeout);
         }
     }
 }

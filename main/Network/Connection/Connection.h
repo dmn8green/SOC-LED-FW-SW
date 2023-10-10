@@ -20,6 +20,7 @@ public:
     virtual esp_err_t up(bool persistent = false);
     virtual esp_err_t down(bool persistent = false);
 
+    inline bool is_configured() { return this->configuration->is_configured(); }
     inline bool is_connected() { return this->isConnected; }
     inline bool is_enabled() { return this->isEnabled; }
     inline bool is_dhcp() { return this->useDHCP; }

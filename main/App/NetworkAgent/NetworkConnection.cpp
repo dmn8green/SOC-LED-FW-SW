@@ -197,6 +197,15 @@ bool NetworkConnection::is_enabled(void) {
 }
 
 //*****************************************************************************
+bool NetworkConnection::is_configured(void) {
+    bool is_configured = this->wifi_connection->is_configured();
+    if (this->has_ethernet_phy) {
+        is_configured |= this->ethernet_connection->is_configured();
+    }
+    return is_configured;
+}
+
+//*****************************************************************************
 bool NetworkConnection::check_connectivity(bool thorough_check) {
     // This should check the network using ping or something.
     if (thorough_check) {

@@ -46,21 +46,11 @@ void NetworkConnectionStateMachine::handle_event(net_conn_agent_event_t event) {
     net_conn_agent_state_t next_state = std::invoke(state_handler, this, event);
     if (next_state != this->state) {
         switch(next_state) {
-            case e_network_connection_state_disabled:
-                this->state_handler = &SM::disabled_handle_event;
-                break;
-            case e_network_connection_state_connecting:
-                this->state_handler = &SM::connecting_handle_event;
-                break;
-            case e_network_connection_state_connected:
-                this->state_handler = &SM::connected_handle_event;
-                break;
-            case e_network_connection_state_disconnecting:
-                this->state_handler = &SM::disconnecting_handle_event;
-                break;
-            case e_network_connection_state_no_connection_error:
-                this->state_handler = &SM::no_connection_error_handle_event;
-                break;
+            case e_nc_state_disabled            : this->state_handler = &SM::disabled_handle_event; break;
+            case e_nc_state_connecting          : this->state_handler = &SM::connecting_handle_event; break;
+            case e_nc_state_connected           : this->state_handler = &SM::connected_handle_event; break;
+            case e_nc_state_disconnecting       : this->state_handler = &SM::disconnecting_handle_event; break;
+            case e_nc_state_no_connection_error : this->state_handler = &SM::no_connection_error_handle_event; break;
             default:
                 break;
         }
@@ -77,36 +67,24 @@ void NetworkConnectionStateMachine::handle_event(net_conn_agent_event_t event) {
 //*****************************************************************************
 net_conn_agent_state_t NetworkConnectionStateMachine::disabled_handle_event(net_conn_agent_event_t event) {
     ESP_LOGI(TAG, "Disabled handle event");
-    net_conn_agent_state_t next_state = e_network_connection_state_disabled;
+    net_conn_agent_state_t next_state = e_nc_state_disabled;
 
     // enter state
-    if (this->state != e_network_connection_state_disabled) {
+    if (this->state != e_nc_state_disabled) {
         ESP_LOGI(TAG, "Enter state disabled");
-        this->state = e_network_connection_state_disabled;
+        this->state = e_nc_state_disabled;
     }
 
     switch (event) {
-        case e_network_connection_event_net_connecting:
-            next_state = e_network_connection_state_connecting;
-            break;
-        case e_network_connection_event_net_connected:
-            next_state = e_network_connection_state_connected;
-            break;
-        case e_network_connection_event_net_disconnecting:
-            ESP_LOGE(TAG, "Cannot disconnect, network is disabled");
-            break;
-        case e_network_connection_event_net_disconnected:
-            ESP_LOGE(TAG, "Cannot disconnect, network is disabled");
-            break;
-        case e_network_connection_event_timeout:
-            ESP_LOGI(TAG, "Network connection state machine timed out, ping");
-            break;
+        case e_nc_event_net_connecting    : next_state = e_nc_state_connecting; break;
+        case e_nc_event_net_connected     : next_state = e_nc_state_connected; break;
         default:
+            ESP_LOGI(TAG, "Invalid event %d while in state %d", event, this->state);
             break;
     }
 
     // leave state
-    if (next_state != e_network_connection_state_disabled) {
+    if (next_state != e_nc_state_disabled) {
         ESP_LOGI(TAG, "Leaving state disabled");
     }
 
@@ -116,28 +94,19 @@ net_conn_agent_state_t NetworkConnectionStateMachine::disabled_handle_event(net_
 //*****************************************************************************
 net_conn_agent_state_t NetworkConnectionStateMachine::connecting_handle_event(net_conn_agent_event_t event) {
     ESP_LOGI(TAG, "Connecting handle event");
-    net_conn_agent_state_t next_state = e_network_connection_state_connecting;
+    net_conn_agent_state_t next_state = e_nc_state_connecting;
 
     // enter state
-    if (this->state != e_network_connection_state_connecting) {
+    if (this->state != e_nc_state_connecting) {
         ESP_LOGI(TAG, "Enter state connecting");
-        this->state = e_network_connection_state_connecting;
+        this->state = e_nc_state_connecting;
     }
 
     switch (event) {
-        case e_network_connection_event_net_connecting:
-            ESP_LOGI(TAG, "Already connecting");
-            break;
-        case e_network_connection_event_net_connected:
-            next_state = e_network_connection_state_connected;
-            break;
-        case e_network_connection_event_net_disconnecting:
-            next_state = e_network_connection_state_disconnecting;
-            break;
-        case e_network_connection_event_net_disconnected:
-            next_state = e_network_connection_state_no_connection_error;
-            break;
-        case e_network_connection_event_timeout:
+        case e_nc_event_net_connected     : next_state = e_nc_state_connected; break;
+        case e_nc_event_net_disconnecting : next_state = e_nc_state_disconnecting; break;
+        case e_nc_event_net_disconnected  : next_state = e_nc_state_no_connection_error; break;
+        case e_nc_event_timeout:
             ESP_LOGI(TAG, "Network connection state machine timed out, ping");
             break;
         default:
@@ -145,7 +114,7 @@ net_conn_agent_state_t NetworkConnectionStateMachine::connecting_handle_event(ne
     }
 
     // leave state
-    if (next_state != e_network_connection_state_connecting) {
+    if (next_state != e_nc_state_connecting) {
         ESP_LOGI(TAG, "Leaving state connecting");
     }
 
@@ -155,28 +124,18 @@ net_conn_agent_state_t NetworkConnectionStateMachine::connecting_handle_event(ne
 //*****************************************************************************
 net_conn_agent_state_t NetworkConnectionStateMachine::connected_handle_event(net_conn_agent_event_t event) {
     ESP_LOGI(TAG, "Connected handle event");
-    net_conn_agent_state_t next_state = e_network_connection_state_connected;
+    net_conn_agent_state_t next_state = e_nc_state_connected;
 
     // enter state
-    if (this->state != e_network_connection_state_connected) {
+    if (this->state != e_nc_state_connected) {
         ESP_LOGI(TAG, "Enter state connected");
-        this->state = e_network_connection_state_connected;
+        this->state = e_nc_state_connected;
     }
 
     switch (event) {
-        case e_network_connection_event_net_connecting:
-            next_state = e_network_connection_state_connecting;
-            break;
-        case e_network_connection_event_net_connected:
-            ESP_LOGI(TAG, "Already connected");
-            break;
-        case e_network_connection_event_net_disconnecting:
-            next_state = e_network_connection_state_disconnecting;
-            break;
-        case e_network_connection_event_net_disconnected:
-            next_state = e_network_connection_state_no_connection_error;
-            break;
-        case e_network_connection_event_timeout:
+        case e_nc_event_net_disconnecting: next_state = e_nc_state_disconnecting; break;
+        case e_nc_event_net_disconnected : next_state = e_nc_state_no_connection_error; break;
+        case e_nc_event_timeout:
             ESP_LOGI(TAG, "Network connection state machine timed out, ping");
             break;
         default:
@@ -184,7 +143,7 @@ net_conn_agent_state_t NetworkConnectionStateMachine::connected_handle_event(net
     }
 
     // leave state
-    if (next_state != e_network_connection_state_connected) {
+    if (next_state != e_nc_state_connected) {
         ESP_LOGI(TAG, "Leaving state connected");
     }
 
@@ -194,28 +153,19 @@ net_conn_agent_state_t NetworkConnectionStateMachine::connected_handle_event(net
 //*****************************************************************************
 net_conn_agent_state_t NetworkConnectionStateMachine::disconnecting_handle_event(net_conn_agent_event_t event) {
     ESP_LOGI(TAG, "Disconnecting handle event");
-    net_conn_agent_state_t next_state = e_network_connection_state_disconnecting;
+    net_conn_agent_state_t next_state = e_nc_state_disconnecting;
 
     // enter state
-    if (this->state != e_network_connection_state_disconnecting) {
+    if (this->state != e_nc_state_disconnecting) {
         ESP_LOGI(TAG, "Enter state disconnecting");
-        this->state = e_network_connection_state_disconnecting;
+        this->state = e_nc_state_disconnecting;
     }
 
     switch (event) {
-        case e_network_connection_event_net_connecting:
-            next_state = e_network_connection_state_connecting;
-            break;
-        case e_network_connection_event_net_connected:
-            next_state = e_network_connection_state_connected;
-            break;
-        case e_network_connection_event_net_disconnecting:
-            ESP_LOGI(TAG, "Already disconnecting");
-            break;
-        case e_network_connection_event_net_disconnected:
-            next_state = e_network_connection_state_no_connection_error;
-            break;
-        case e_network_connection_event_timeout:
+        case e_nc_event_net_connecting  : next_state = e_nc_state_connecting; break;
+        case e_nc_event_net_connected   : next_state = e_nc_state_connected; break;
+        case e_nc_event_net_disconnected: next_state = e_nc_state_no_connection_error; break;
+        case e_nc_event_timeout:
             ESP_LOGI(TAG, "Network connection state machine timed out, ping");
             break;
         default:
@@ -223,7 +173,7 @@ net_conn_agent_state_t NetworkConnectionStateMachine::disconnecting_handle_event
     }
 
     // leave state
-    if (next_state != e_network_connection_state_disconnecting) {
+    if (next_state != e_nc_state_disconnecting) {
         ESP_LOGI(TAG, "Leaving state disconnecting");
     }
 
@@ -233,28 +183,28 @@ net_conn_agent_state_t NetworkConnectionStateMachine::disconnecting_handle_event
 //*****************************************************************************
 net_conn_agent_state_t NetworkConnectionStateMachine::no_connection_error_handle_event(net_conn_agent_event_t event) {
     ESP_LOGI(TAG, "No connection error handle event");
-    net_conn_agent_state_t next_state = e_network_connection_state_no_connection_error;
+    net_conn_agent_state_t next_state = e_nc_state_no_connection_error;
 
     // enter state
-    if (this->state != e_network_connection_state_no_connection_error) {
+    if (this->state != e_nc_state_no_connection_error) {
         ESP_LOGI(TAG, "Enter state connection error");
-        this->state = e_network_connection_state_no_connection_error;
+        this->state = e_nc_state_no_connection_error;
     }
 
     switch (event) {
-        case e_network_connection_event_net_connecting:
-            next_state = e_network_connection_state_connecting;
+        case e_nc_event_net_connecting:
+            next_state = e_nc_state_connecting;
             break;
-        case e_network_connection_event_net_connected:
-            next_state = e_network_connection_state_connected;
+        case e_nc_event_net_connected:
+            next_state = e_nc_state_connected;
             break;
-        case e_network_connection_event_net_disconnecting:
+        case e_nc_event_net_disconnecting:
             ESP_LOGI(TAG, "Already disconnected and in error???");
             break;
-        case e_network_connection_event_net_disconnected:
+        case e_nc_event_net_disconnected:
             ESP_LOGI(TAG, "Already disconnected and in error???");
             break;
-        case e_network_connection_event_timeout:
+        case e_nc_event_timeout:
             ESP_LOGI(TAG, "Network connection state machine timed out, Reboot?");
             break;
         default:
@@ -262,7 +212,7 @@ net_conn_agent_state_t NetworkConnectionStateMachine::no_connection_error_handle
     }
 
     // leave state
-    if (next_state != e_network_connection_state_no_connection_error) {
+    if (next_state != e_nc_state_no_connection_error) {
         ESP_LOGI(TAG, "Leaving state connection error");
     }
 
