@@ -26,7 +26,7 @@
  * @param start_pixel  Starting pixel
  */
 void StaticAnimation::refresh(uint8_t* led_pixels, int led_count, int start_pixel) {
-    for (int i = start_pixel; i < + start_pixel + led_count; i++) {
+    for (int i = start_pixel; i < (start_pixel + led_count); i++) {
         // ESP_LOGI(TAG, "i: %d r: %ld g: %ld b: %ld\n", i, (this->color >> 16) & 0xFF, (this->color >> 8) & 0xFF, this->color & 0xFF);
         led_pixels[i * 3 + 0] = (this->color >> 8) & 0xFF;
         led_pixels[i * 3 + 1] = (this->color >> 16) & 0xFF;
