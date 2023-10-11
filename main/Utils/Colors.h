@@ -12,7 +12,7 @@
 
 #pragma once
 
-#define COLOR_RED    0xFF0000
+#define COLOR_RED    0xFF0000  // RGB
 #define COLOR_GREEN  0x00FF00
 #define COLOR_BLUE   0x0000FF
 #define COLOR_WHITE  0x808080
@@ -21,6 +21,9 @@
 #define COLOR_CYAN   0x00FF80
 #define COLOR_YELLOW 0xFFFF00
 #define COLOR_PURPLE 0xFF6DC5
+#define COLOR_BLACK  0x000000
+#define COLOR_OFF    COLOR_BLACK
+#define COLOR_NONE   COLOR_BLACK
 
 #define COLOR_YELLOW_HSV 60, 100,  100
 #define COLOR_BLUE_HSV   240, 100, 100

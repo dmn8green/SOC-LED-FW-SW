@@ -16,6 +16,31 @@
 #include "PulsingAnimation.h"
 #include "ChasingAnimation.h"
 
+#define MIN(a,b) (a < b ? a : b)
+#define MAX(a,b) (a > b ? a : b)
+
+// The solid color at the base of the LED bar, regardless of charge.
+#define CHARGE_BASE_LED_CNT   (1)
+
+// The solid color indicating charge level. If more than one LED is specified
+// the top/highest one will indicate the charge level
+#define CHARGE_LEVEL_LED_CNT (2)
+
+// The displayed "Charge Level" is a raw division of charge percentage by the
+// number of LEDs. The mathematically correct division of LEDs is perhaps not
+// the most helpful -- the bar will not show "full" until exactly 100% of charge
+// is achieved, which may never happen. Also, the low-end of the bar has a fixed
+// level (CHARGE_BASE_LED_CNT, above) requiring a higher inital charge to see
+// any perceived progress at charge start. This value defines a "fudge factor"
+// (in the positive direction only) added to a charge level to increase the
+// display level.
+//
+// Leave this value at 0 for "raw" display, or use a value of 1-5
+// to "goose" the charge level a little bit (it's an old circus term).
+//
+#define CHARGE_PERCENT_BUMP  (3)
+
+
 //******************************************************************************
 /**
  * @brief 'Charging' color animation
@@ -46,7 +71,7 @@ public:
     inline bool get_charge_simulation (void) {return this->simulate_charge; }
 #ifdef UNIT_TEST
     inline uint32_t get_charge_percent(void) { return this->charge_percent; }
-    inline uint32_t get_charged_led_count(void) { return this->charged_led_count; }
+    inline uint32_t get_led_charge_top_leds(void) { return this->charge_top_leds; }
     inline void set_quiet (bool newVal) { this->quiet = newVal; }
 #endif
 
@@ -65,5 +90,5 @@ private:
     uint32_t simulated_charge_percent = 0;
 
     uint32_t charge_anim_pixel_count = 0;
-    uint32_t charged_led_count = 1;
+    uint32_t charge_top_leds = 0;
 };
