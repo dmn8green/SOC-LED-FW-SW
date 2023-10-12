@@ -91,7 +91,7 @@ void LedTaskSpi::vTaskCodeLed()
         }
 
         if (this->animation != NULL) {
-            this->animation->refresh(this->led_pixels, LED_STRIP_PIXEL_COUNT);
+            this->animation->refresh(this->led_pixels, 0, LED_STRIP_PIXEL_COUNT);
             this->rmt_over_spi.write_led_value_to_strip(this->led_pixels);
             queue_timeout = this->animation->get_rate() / portTICK_PERIOD_MS;
             // ESP_LOGI(TAG, "%d: Queue timeout: %ld", this->led_number, queue_timeout);
