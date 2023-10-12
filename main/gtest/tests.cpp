@@ -75,7 +75,7 @@ TEST(animation, chargeLevelLedsStatic)
     {
         uint8_t led_pixels[3*LED_STRIP_PIXEL_COUNT] = {0};
         testAnimate.set_charge_percent(chargeLevel);
-        testAnimate.refresh (led_pixels, LED_STRIP_PIXEL_COUNT, 0);
+        testAnimate.refresh (led_pixels, 0, LED_STRIP_PIXEL_COUNT);
         uint32_t chargedLedCount = testAnimate.get_led_charge_top_leds();
 
         printf ("utest: Charge pct of %d: chargedLED:%d (previous: %d)\n", chargeLevel, chargedLedCount, lastChargedLedCount);
@@ -121,7 +121,7 @@ TEST(animation, chargeLevelLedsDynamic)
 
         testAnimate.reset(COLOR_BLUE, COLOR_WHITE, COLOR_BLUE, 100);
         testAnimate.set_charge_percent(chargeLevel);
-        testAnimate.refresh (led_pixels, LED_STRIP_PIXEL_COUNT, 0);
+        testAnimate.refresh (led_pixels, 0, LED_STRIP_PIXEL_COUNT);
 
         // Make sure we are starting with normal blue LED count (usually 3)
         int baseBlueCnt = CHARGE_BASE_LED_CNT + CHARGE_LEVEL_LED_CNT;
@@ -130,7 +130,7 @@ TEST(animation, chargeLevelLedsDynamic)
         int lastBlueCnt = baseBlueCnt;
         for (int cycles = 0; cycles < 100; cycles++)
         {
-            testAnimate.refresh (led_pixels, LED_STRIP_PIXEL_COUNT, 0);
+            testAnimate.refresh (led_pixels, 0, LED_STRIP_PIXEL_COUNT);
             // Should have one more blue pixel than last time, or it's cycled
             // back to base (3 LEDs).
             int blueCnt = blueLedCount (led_pixels);
@@ -159,7 +159,7 @@ TEST(animation, chargeLevelPixels)
 
     // Just one mid-level charge for now
     testAnimate.set_charge_percent(50);
-    testAnimate.refresh (led_pixels, LED_STRIP_PIXEL_COUNT, 0);
+    testAnimate.refresh (led_pixels, 0, LED_STRIP_PIXEL_COUNT);
 
     // first LED blue
     ASSERT_TRUE (led_pixels[0] == 0x00);
@@ -351,7 +351,7 @@ void interactive_mode (void)
             int numCycles = 1100;
             for (int c = 0; c < numCycles; c++)
             {
-                testAnimate.refresh(led_pixels, LED_STRIP_PIXEL_COUNT, 0);
+                testAnimate.refresh(led_pixels, 0, LED_STRIP_PIXEL_COUNT);
                 showLedStrip (led_pixels);
             }
 
@@ -417,7 +417,7 @@ void interactive_mode (void)
                     }
                 }
 
-                testAnimate.refresh(led_pixels, LED_STRIP_PIXEL_COUNT, 0);
+                testAnimate.refresh(led_pixels, 0, LED_STRIP_PIXEL_COUNT);
                 showLedStrip (led_pixels);
             }
         }

@@ -40,11 +40,11 @@ void ChasingAnimation::reset(
  * @brief Refresh the LED pixels
  * 
  * @param led_pixels   Pointer to the LED pixels
+ * @param start_pixel  Starting pixel (offset into led_pixels)
  * @param led_count    Number of LED pixels to be updated
- * @param start_pixel  Starting pixel
  */
-void ChasingAnimation::refresh(uint8_t* led_pixels, int led_count, int start_pixel) {
-    for (int i = start_pixel; i < led_count; i++) {
+void ChasingAnimation::refresh(uint8_t* led_pixels, int start_pixel, int led_count) {
+    for (int i = start_pixel; i < start_pixel + led_count; i++) {
         led_pixels[i * 3 + 0] = (this->base_color >> 16) & 0xFF;
         led_pixels[i * 3 + 1] = (this->base_color >> 8) & 0xFF;
         led_pixels[i * 3 + 2] = this->base_color & 0xFF;

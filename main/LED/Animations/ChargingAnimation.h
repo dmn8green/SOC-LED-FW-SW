@@ -65,7 +65,7 @@
 class ChargingAnimation : public BaseAnimation {
 public:
     void reset(uint32_t static_color_1, uint32_t static_color_2, uint32_t chase_color, uint32_t chase_rate = 10);
-    void refresh(uint8_t* led_pixels, int led_count, int start_pixel = 0) override;
+    void refresh(uint8_t* led_pixels, int start_pixel = 0, int led_count=0) override;
     inline void set_charge_percent(uint32_t charge_percent) { this->charge_percent = charge_percent <= 100 ? charge_percent:100; }
     inline void set_charge_simulation (bool set_sim_charge) {this->simulate_charge = set_sim_charge; }
     inline bool get_charge_simulation (void) {return this->simulate_charge; }

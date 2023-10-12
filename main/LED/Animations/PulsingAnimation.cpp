@@ -61,10 +61,10 @@ void PulsingAnimation::reset(
  * @brief Refresh the LED pixels
  * 
  * @param led_pixels   Pointer to the LED pixels
+ * @param start_pixel  Starting pixel offset in led_pixels
  * @param led_count    Number of LED pixels to be updated
- * @param start_pixel  Starting pixel
  */
-void PulsingAnimation::refresh(uint8_t* led_pixels, int led_count, int start_pixel) {
+void PulsingAnimation::refresh(uint8_t* led_pixels, int start_pixel, int led_count) {
     #define AT_MIN_VALUE (this->pulse_count == this->min_value)
     #define AT_MAX_VALUE (this->pulse_count == this->max_value)
 
@@ -87,7 +87,7 @@ void PulsingAnimation::refresh(uint8_t* led_pixels, int led_count, int start_pix
 
     hsv2rgb(hue, saturation, value, &red, &green, &blue);
 
-    for (int pixel_idx = start_pixel; pixel_idx < led_count; pixel_idx++) {
+    for (int pixel_idx = start_pixel; pixel_idx < start_pixel + led_count; pixel_idx++) {
         // Build RGB pixels
         led_pixels[pixel_idx * 3 + 0] = green;
         led_pixels[pixel_idx * 3 + 1] = red;

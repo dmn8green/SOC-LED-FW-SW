@@ -12,6 +12,7 @@
 
 #include "ChargingAnimation.h"
 
+#include <stdio.h>
 #include <inttypes.h>
 
 #include "esp_log.h"
@@ -95,7 +96,7 @@ void ChargingAnimation::reset(
  * @param[in] led_count    Number of LED pixels to be updated
  * @param[in] start_pixel  Starting pixel
  */
-void ChargingAnimation::refresh(uint8_t* led_pixels, int led_count, int start_pixel) {
+void ChargingAnimation::refresh(uint8_t* led_pixels, int start_pixel, int led_count) {
 
     int adjusted_charge_pct = MIN ((charge_percent + CHARGE_PERCENT_BUMP), 100);
     int charged_led_count = (((led_count * adjusted_charge_pct) / 100));
@@ -152,13 +153,11 @@ void ChargingAnimation::refresh(uint8_t* led_pixels, int led_count, int start_pi
              s1, l1, s2, l2, s3, l3, s4, l4);
     }
 
-    // The refresh takes in the segment's start pixel (offset) and pixel count
-    // to refresh
-    // TODO: Refactor refresh to take start before count. This will make the code more readable.
-    static_charging_solid_animation.refresh (led_pixels, l1, s1);
-    static_charging_empty_animation.refresh (led_pixels, l2, s2);
-    static_charge_animation.refresh         (led_pixels, l3, s3);
-    static_remaining_animation.refresh      (led_pixels, l4, s4);
+    // Each segment's refresh() updates from start pixel (offset) to pixel count
+    static_charging_solid_animation.refresh (led_pixels, s1, l1);
+    static_charging_empty_animation.refresh (led_pixels, s2, l2);
+    static_charge_animation.refresh         (led_pixels, s3, l3);
+    static_remaining_animation.refresh      (led_pixels, s4, l4);
 
     // Reset animation to base
     if (++charge_anim_pixel_count > animationLeds) {
@@ -174,11 +173,5 @@ void ChargingAnimation::refresh(uint8_t* led_pixels, int led_count, int start_pi
         if ((++simulated_charge_percent) % 10 == 0) {
             charge_percent = charge_percent >= 100 ? 0 : charge_percent + 1;
         }
-        // TODO: charged_led_count was removed. Is the above sufficient?
-#if 0
-        if (this->charged_led_count>=led_count) {
-            this->charged_led_count = 0;
-        }
-#endif
     }
 }

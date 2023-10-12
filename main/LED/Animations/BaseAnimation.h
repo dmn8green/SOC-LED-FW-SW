@@ -46,7 +46,7 @@
  */
 class BaseAnimation : public NoCopy {
 public:
-    virtual void refresh(uint8_t* led_pixels, int led_count, int start_pixel = 0) = 0;
+    virtual void refresh(uint8_t* led_pixels, int start_pixel=0, int led_count=0) = 0;
 
     inline uint32_t get_rate(void) { return this->rate; }
     inline void set_rate(uint32_t rate) { this->rate = rate; }
