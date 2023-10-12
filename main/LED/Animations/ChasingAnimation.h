@@ -26,7 +26,7 @@
 class ChasingAnimation : public BaseAnimation {
 public:
     void reset(uint32_t base_color, uint32_t chasing_color, uint32_t chase_rate = 10);
-    void refresh(uint8_t* led_pixels, int led_count, int start_pixel = 0) override;
+    void refresh(uint8_t* led_pixels, int start_pixel=0, int led_count=0) override;
 
 private:
     uint32_t base_color;

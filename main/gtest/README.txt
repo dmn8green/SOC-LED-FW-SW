@@ -12,3 +12,7 @@ In this workspace:
 2. cmake .  / make   (creates led-test executable) 
 3. ./led-test
 
+NOTE:  "led-test" can now be run with -i option, which
+       will start an interactive simulation of charging
+       animation.
+

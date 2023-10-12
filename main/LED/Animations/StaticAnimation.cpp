@@ -15,18 +15,18 @@
 
 #include "esp_log.h"
 
-static const char* TAG = "StaticAnimation";
+//static const char* TAG = "StaticAnimation";
 
 //******************************************************************************
 /**
  * @brief Refresh the LED pixels
  * 
  * @param led_pixels   Pointer to the LED pixels
- * @param led_count    Number of LED pixels to be updated
  * @param start_pixel  Starting pixel
+ * @param led_count    Number of LED pixels to be updated
  */
-void StaticAnimation::refresh(uint8_t* led_pixels, int led_count, int start_pixel) {
-    for (int i = start_pixel; i < led_count; i++) {
+void StaticAnimation::refresh(uint8_t* led_pixels, int start_pixel, int led_count) {
+    for (int i = start_pixel; i < (start_pixel + led_count); i++) {
         // ESP_LOGI(TAG, "i: %d r: %ld g: %ld b: %ld\n", i, (this->color >> 16) & 0xFF, (this->color >> 8) & 0xFF, this->color & 0xFF);
         led_pixels[i * 3 + 0] = (this->color >> 8) & 0xFF;
         led_pixels[i * 3 + 1] = (this->color >> 16) & 0xFF;
