@@ -413,7 +413,7 @@ void interactive_mode (void)
                     }
                     if (cutDuringAnimate)
                     {
-                        testAnimate.set_charge_percent(chargePct-5);
+                        testAnimate.set_charge_percent(MAX (chargePct-5, 0));
                     }
                 }
 
