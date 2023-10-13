@@ -17,7 +17,7 @@
 
 #include "esp_log.h"
 
-static const char* TAG = "PulsingAnimation";
+static const char* TAG = "PLA";  // Pulse Animation (PA is ProgressAnimation)
 
 //******************************************************************************
 /**
@@ -64,7 +64,7 @@ void PulsingAnimation::reset(
  * @param start_pixel  Starting pixel offset in led_pixels
  * @param led_count    Number of LED pixels to be updated
  */
-void PulsingAnimation::refresh(uint8_t* led_pixels, int start_pixel, int led_count) {
+int PulsingAnimation::refresh(uint8_t* led_pixels, int start_pixel, int led_count) {
     #define AT_MIN_VALUE (this->pulse_count == this->min_value)
     #define AT_MAX_VALUE (this->pulse_count == this->max_value)
 
@@ -93,4 +93,6 @@ void PulsingAnimation::refresh(uint8_t* led_pixels, int start_pixel, int led_cou
         led_pixels[pixel_idx * 3 + 1] = red;
         led_pixels[pixel_idx * 3 + 2] = blue;
     }
+
+    return led_count;
 }

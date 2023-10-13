@@ -13,8 +13,7 @@
 
 #include "BaseAnimation.h"
 #include "StaticAnimation.h"
-#include "PulsingAnimation.h"
-#include "ChasingAnimation.h"
+#include "ChargeIndicator.h"
 
 #define MIN(a,b) (a < b ? a : b)
 #define MAX(a,b) (a > b ? a : b)
@@ -65,21 +64,20 @@
 class ChargingAnimation : public BaseAnimation {
 public:
     void reset(uint32_t static_color_1, uint32_t static_color_2, uint32_t chase_color, uint32_t chase_rate = 10);
-    void refresh(uint8_t* led_pixels, int start_pixel = 0, int led_count=0) override;
+    int refresh(uint8_t* led_pixels, int start_pixel = 0, int led_count=0) override;
     inline void set_charge_percent(uint32_t charge_percent) { this->charge_percent = charge_percent <= 100 ? charge_percent:100; }
     inline void set_charge_simulation (bool set_sim_charge) {this->simulate_charge = set_sim_charge; }
     inline bool get_charge_simulation (void) {return this->simulate_charge; }
 #ifdef UNIT_TEST
     inline uint32_t get_charge_percent(void) { return this->charge_percent; }
-    inline uint32_t get_led_charge_top_leds(void) { return this->charge_top_leds; }
     inline void set_quiet (bool newVal) { this->quiet = newVal; }
 #endif
 
 private:
-    StaticAnimation static_charging_solid_animation;
-    StaticAnimation static_charging_empty_animation;
-    StaticAnimation static_charge_animation;
-    StaticAnimation static_remaining_animation;
+    StaticAnimation base;
+    ChargeIndicator charge_indicator;
+    StaticAnimation top;
+
     uint32_t charge_percent = 0;
     uint32_t static_color_1;
     uint32_t static_color_2;
@@ -87,8 +85,6 @@ private:
 
     bool simulate_charge = false;
     bool quiet = false;
-    uint32_t simulated_charge_percent = 0;
+    uint32_t simulated_charge_counter = 0;
 
-    uint32_t charge_anim_pixel_count = 0;
-    uint32_t charge_top_leds = 0;
 };

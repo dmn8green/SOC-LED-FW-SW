@@ -8,6 +8,21 @@
  * 
  * @copyright Copyright MN8 (c) 2023
  * 
+ * The top-level class for an LED bar displaying an active charging
+ * status.
+ *
+ * TODO:  Object hierarchy. Everything eventually is a static
+ *        animation class.
+ *
+ *        CA: Charge Animation (this class)
+ *            B: Base (static)
+ *            CI: Charge Indicator
+ *                PA: Progress Animation
+ *                   L: Low (static)
+ *                   H: High (static)
+ *                CL: Charge Level Indicator (static)
+ *            T: Top (static)
+ *
  */
 
 #include "ChargingAnimation.h"
@@ -17,7 +32,7 @@
 
 #include "esp_log.h"
 
-static const char* TAG = "ChargingAnimation";
+static const char* TAG = "CA"; // ChargingAnimation
 
 //******************************************************************************
 /**
@@ -37,30 +52,31 @@ void ChargingAnimation::reset(
     this->static_color_2 = static_color_2;
     this->chase_color = chase_color;
 
-    this->charge_percent = charge_percent;
     this->BaseAnimation::set_rate(chase_rate);
 
-    this->static_charging_solid_animation.reset(chase_color);
-    this->static_charging_empty_animation.reset(static_color_2);
-    this->static_charge_animation.reset(static_color_1);
-    this->static_remaining_animation.reset(static_color_2);
+    this->base.reset(static_color_1);
+    this->charge_indicator.reset(static_color_1, static_color_2, chase_color, CHARGE_LEVEL_LED_CNT);
+    this->top.reset(static_color_2);
 }
 
 //******************************************************************************
 /**
  * @brief Refresh the LED pixels
  *
- *      The charging animation split the LEDS in 4 static segments:
- *           - first 2 segments are used for the charging animation
- *           - third segments is 2 blue pixel indicating where the charge is at
- *           - last segment is the amount of charge left
+ * @param[in] led_pixels   Pointer to the LED pixels
+ * @param[in] led_count    Number of LED pixels to be updated
+ * @param[in] start_pixel  Starting pixel
  *
- *      The first segment is solid color at the physical bottom of the LED. Usually at
- *      least one LED, but defined by CHARGE_BASE_LED_CNT. If the charge level is low enough,
- *      only CHARGE_BASE_LED_CNT will be on. As the charge increases, the charge level
- *      indicator may be shown as well, possibly overlapping with the CHARGE_BASE_LED_CNT
- *      LEDs. Until at least one available LED is present between the two indicators, no
-        animation is done.
+ *      The charging animation split the LEDS into three segments:
+ *           - A "base" from which any animation will appear to originate
+ *           - A "charge indicator" that includes animation AND the charge level indicator
+ *           - A "top" segment with the background color
+ *
+ *      The "base" segment is always least one LED, and defined by CHARGE_BASE_LED_CNT.
+ *      If the charge level is low enough, only CHARGE_BASE_LED_CNT will be on. As the
+ *      charge increases, the charge level is incorporated into the base. There can be
+ *      overlap of the CHARGE_BASE_LED_CNT and CHARGE_LEVEL_LED_CNT. Until at least one
+ *      available LED is present between the two indicators, no animation is done.
  * 
  *      The following examples are with CHARGE_BASE_LED_CNT=1 and CHARGE_LEVEL_LED_CNT=2
  * 
@@ -70,7 +86,7 @@ void ChargingAnimation::reset(
  *      1) Normal mid-charge (50%): BASE and LEVEL indicators are separated by enough
  *         LEDs to provide a "chase" animation. (B=Blue, >=Animation area):
  *
- *                  0                     1                   2                 3
+ *                  0                   1                   2                   3
  *                  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
  *        LED BAR: |B|>|>|>|>|>|>|>|>|>|>|>|>|>|>|>|B|B|.|.|.|.|.|.|.|.|.|.|.|.|.|.|
  *                  │                               │ │
@@ -78,9 +94,9 @@ void ChargingAnimation::reset(
  *                  └─ CHARGE_BASE_LED_CNT          │ │
  *                                                  └─┴─ CHARGE_LEVEL_LED_CNT
  *
- *      2) Below threshold at which any animation can happen:
+ *      2) Below threshold at which any animation will happen:
  *
- *                  1                   2                 3
+ *                  0                   1                   2                   3
  *                  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
  *        LED BAR: |B|.|.|.|.|.|.|.|.|.|.|.|.|.|.|.|.|.|.|.|.|.|.|.|.|.|.|.|.|.|.|.|
  *        LED BAR: |B|B|.|.|.|.|.|.|.|.|.|.|.|.|.|.|.|.|.|.|.|.|.|.|.|.|.|.|.|.|.|.|
@@ -88,90 +104,62 @@ void ChargingAnimation::reset(
  *
  *      3) Minimum animation level:
  *
- *                  0                     1                   2                 3
+ *                  0                   1                   2                   3
  *                  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
  *        LED BAR: |B|>|B|B|.|.|.|.|.|.|.|.|.|.|.|.|.|.|.|.|.|.|.|.|.|.|.|.|.|.|.|.|
- * 
- * @param[in] led_pixels   Pointer to the LED pixels
- * @param[in] led_count    Number of LED pixels to be updated
- * @param[in] start_pixel  Starting pixel
  */
-void ChargingAnimation::refresh(uint8_t* led_pixels, int start_pixel, int led_count) {
+int ChargingAnimation::refresh(uint8_t* led_pixels, int start_pixel, int led_count) {
 
     int adjusted_charge_pct = MIN ((charge_percent + CHARGE_PERCENT_BUMP), 100);
     int charged_led_count = (((led_count * adjusted_charge_pct) / 100));
 
-    int lowLeds = CHARGE_BASE_LED_CNT;
-
-    int chargeIndicatorLedsShown = charged_led_count - CHARGE_LEVEL_LED_CNT < 0 ? charged_led_count : CHARGE_LEVEL_LED_CNT;
+    // If there is no animation, we will handle the "base" level adjustment here (this
+    // happens at low charge levels only
+    int low_leds = CHARGE_BASE_LED_CNT;
+    int ci_leds_shown = charged_led_count - CHARGE_LEVEL_LED_CNT < 0 ? charged_led_count : CHARGE_LEVEL_LED_CNT;
 
     // (-): overlap  (0): adjacent (+): animation
-    int solidSeparation = (charged_led_count - chargeIndicatorLedsShown - CHARGE_BASE_LED_CNT);
+    int solid_separation = (charged_led_count - ci_leds_shown - CHARGE_BASE_LED_CNT);
 
     // Animation only if we have positive space between solid indicators
-    int animationLeds = 0;
-    if (solidSeparation < 0)
+    int animation_leds = 0;
+    if (solid_separation < 0)
     {
         // If indicators overlap, largest one determines base.
-        lowLeds = MAX (chargeIndicatorLedsShown, CHARGE_BASE_LED_CNT);
+        low_leds = MAX (ci_leds_shown, CHARGE_BASE_LED_CNT);
     }
-    else if (solidSeparation == 0)
+    else if (solid_separation == 0)
     {
-        // Two indicators are adjacent. Still no animation.
-        lowLeds = chargeIndicatorLedsShown + CHARGE_BASE_LED_CNT;
+        // Indicators are adjacent. Still no animation.
+        low_leds = ci_leds_shown + CHARGE_BASE_LED_CNT;
     }
     else
     {
-        animationLeds = solidSeparation;
+        // We have animation!
+        animation_leds = solid_separation;
     }
 
+    // Fill in all needed segments.
+    int filled_leds = 0;
+    filled_leds += base.refresh (led_pixels, 0, low_leds);
 
-    // To keep var name short, we'll use s1, l1, s2, l2, s3, l3, s4, l4 to represent the start and length of each segment
-    int s1 = 0;
-    int l1 = lowLeds + (charge_anim_pixel_count);
+    filled_leds += charge_indicator.refresh (led_pixels, low_leds, animation_leds > 0 ? animation_leds + CHARGE_LEVEL_LED_CNT : 0);
 
-    int s2 = l1;
-    int l2 = animationLeds - charge_anim_pixel_count;
-
-    int s3 = animationLeds > 0 ? l1 + l2 : 0;
-    int l3 = animationLeds > 0 ? CHARGE_LEVEL_LED_CNT : 0;
-
-    int s4 = l1 + l2 + l3;
-    int l4 = (led_count - s4);
-
-    // for test reporting of displayed charge level
-    charge_top_leds = s4;
-
-    if (l1 + l2 + l3 + l4 != led_count)
-    {
-        printf ("\n\nERROR!!!\n\n");
-    }
-
-    if (!quiet)
-    {
-        ESP_LOGD(TAG, "refresh segments: s1:%d-%d s2:%d-%d, s3:%d-%d, s4:%d-%d",
-             s1, l1, s2, l2, s3, l3, s4, l4);
-    }
-
-    // Each segment's refresh() updates from start pixel (offset) to pixel count
-    static_charging_solid_animation.refresh (led_pixels, s1, l1);
-    static_charging_empty_animation.refresh (led_pixels, s2, l2);
-    static_charge_animation.refresh         (led_pixels, s3, l3);
-    static_remaining_animation.refresh      (led_pixels, s4, l4);
-
-    // Reset animation to base
-    if (++charge_anim_pixel_count > animationLeds) {
-        charge_anim_pixel_count = 0;
-        if (!quiet)
-        {
-            ESP_LOGD(TAG, "Resetting charge anim pixel count (for next time)");
-        }
-    }
+    top.refresh (led_pixels, filled_leds, (led_count - filled_leds));
 
     if (simulate_charge) {
-        //ESP_LOGI(TAG, "Simulating charge percent %ld %ld", simulated_charge_percent, charge_percent);
-        if ((++simulated_charge_percent) % 10 == 0) {
-            charge_percent = charge_percent >= 100 ? 0 : charge_percent + 1;
+
+        // Every 10 cycles, bump the charge level or revert to zero
+
+        if ((++simulated_charge_counter) % 10 == 0) {
+            charge_percent++;
+            if (charge_percent > 100)
+            {
+                charge_percent = 0;
+            }
+            ESP_LOGI(TAG, "Simulating charge percent %" PRIu32, charge_percent);
         }
     }
+
+    return led_count;
 }
