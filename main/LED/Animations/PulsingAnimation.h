@@ -47,7 +47,7 @@ public:
         BasePulseCurve* pulse_curve = nullptr
     );
 
-    void refresh(uint8_t* led_pixels, int start_pixel=0, int led_count=0) override;
+    int refresh(uint8_t* led_pixels, int start_pixel=0, int led_count=0) override;
 
 private:
     uint32_t h, s, v;

@@ -1,3 +1,5 @@
+#if 0
+
 //******************************************************************************
 /**
  * @file ChasingAnimation.cpp
@@ -43,7 +45,7 @@ void ChasingAnimation::reset(
  * @param start_pixel  Starting pixel (offset into led_pixels)
  * @param led_count    Number of LED pixels to be updated
  */
-void ChasingAnimation::refresh(uint8_t* led_pixels, int start_pixel, int led_count) {
+int ChasingAnimation::refresh(uint8_t* led_pixels, int start_pixel, int led_count) {
     for (int i = start_pixel; i < start_pixel + led_count; i++) {
         led_pixels[i * 3 + 0] = (this->base_color >> 16) & 0xFF;
         led_pixels[i * 3 + 1] = (this->base_color >> 8) & 0xFF;
@@ -57,4 +59,8 @@ void ChasingAnimation::refresh(uint8_t* led_pixels, int start_pixel, int led_cou
     if (++this->current_pixel >= led_count) {
         this->current_pixel = 0;
     }
+
+    return led_count;
 }
+
+#endif

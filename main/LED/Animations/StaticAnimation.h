@@ -24,15 +24,15 @@
  * 
  * Since it is static, the rate is set to portMAX_DELAY (in the base class).
  * 
- * The refresh will get called only once.  If the led is unplugged or loose
- * power, it will not be refreshed again until the rate is changed or a refresh
- * is forced.  This is a scenario that should never happen.
+ * The refresh will get called only once.  If the led strip loses power, 
+ * it will not be refreshed again until the rate is changed or a refresh
+ * is forced. This is a scenario that should never happen.
  */
 class StaticAnimation : public BaseAnimation {
 public:
     void reset(uint32_t color);
-    void refresh(uint8_t* led_pixels, int start_pixel=0, int led_count=0) override;
+    int refresh(uint8_t* led_pixels, int start_pixel=0, int led_count=0) override;
 
 private:
-    uint32_t color;
+    uint32_t color = 0xDEADBEEF;
 };

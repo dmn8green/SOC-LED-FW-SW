@@ -21,7 +21,7 @@
 #include "freertos/task.h"
 #include "freertos/queue.h"
 
-#include "Animations/ChasingAnimation.h"
+// #include "Animations/ChasingAnimation.h"
 #include "Animations/ChargingAnimation.h"
 #include "Animations/StaticAnimation.h"
 #include "Animations/SmoothRatePulseCurve.h"
@@ -104,7 +104,7 @@ private:
     QueueHandle_t state_update_queue;
 
     BaseAnimation* animation = nullptr;
-    ChasingAnimation chasing_animation;
+    // ChasingAnimation chasing_animation;
     ChargingAnimation charging_animation;
     StaticAnimation static_animation;
     SmoothRatePulseCurve smooth_rate_pulse_curve;

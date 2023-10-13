@@ -32,7 +32,9 @@ set(COMPONENT_SRCS
     Utils/FreeRTOSTask.cpp
     LED/LedTaskSpi.cpp
     LED/RmtOverSpi.cpp
-    LED/Animations/ChasingAnimation.cpp
+    #LED/Animations/ChasingAnimation.cpp
+    LED/Animations/ChargeIndicator.cpp
+    LED/Animations/ProgressAnimation.cpp
     LED/Animations/PulsingAnimation.cpp
     LED/Animations/StaticAnimation.cpp
     LED/Animations/SmoothRatePulseCurve.cpp
