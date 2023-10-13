@@ -17,7 +17,7 @@
 
 #include "esp_log.h"
 
-static const char* TAG = "CI"; // Charge Indicator
+//static const char* TAG = "CI"; // Charge Indicator
 
 //******************************************************************************
 /**
@@ -30,31 +30,29 @@ static const char* TAG = "CI"; // Charge Indicator
  * @returns Number of LEDs/pixels updated. May NOT be the same as 'led_count' if
  *          animation is in progress.
  *
- * This method may be called with zero size.
+ * Interesting values of led_count must be handled:
+ *    0:  progress_animation must be called in case latent animation is going
+ *    1:  May have to render one of the two CL LEDs.
  *
  */
 int ChargeIndicator::refresh(uint8_t* led_pixels, int start_pixel, int led_count) {
 
     led_count = std::max (0, led_count);
 
-    if (led_count < ci_led_count)
-    {
-        ESP_LOGE (TAG, "Short charge indicator update");
-        return 0;
-    }
-
     int animation_leds = std::max (0, led_count - (int)ci_led_count);
     int leds_updated = 0;
 
     leds_updated += progress_animation.refresh (led_pixels, start_pixel, animation_leds);
-    leds_updated += charge_level.refresh (led_pixels, start_pixel + leds_updated, ci_led_count);
+    bool latentAnimation = (leds_updated == animation_leds) ? false:true;
 
-#if 0
-    if (led_count != leds_updated)
+    if (latentAnimation)
     {
-    	ESP_LOGI (TAG, "Charge Indicator returning different number (%d) of LEDs than requested (%d)", led_count, leds_updated);
+        leds_updated += charge_level.refresh (led_pixels, start_pixel + leds_updated, ci_led_count);
     }
-#endif
+    else
+    {
+        leds_updated += charge_level.refresh (led_pixels, start_pixel + leds_updated, (led_count - animation_leds));
+    }
 
     return leds_updated;
 }

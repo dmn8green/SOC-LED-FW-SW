@@ -306,6 +306,32 @@ TEST (charge_indicator, base)
     // Negative request and NULL array return zero 
     ASSERT_TRUE (ci.refresh (led_pixels, 0, -1) == 0); 
     ASSERT_TRUE (ci.refresh (nullptr, 0, 0) == 0); 
+
+    // Can handle updates of less than cli size
+    ci.reset(COLOR_BLUE, COLOR_WHITE, COLOR_BLUE, 2);
+    ASSERT_TRUE (ci.refresh (led_pixels, 0, 1) == 1);
+    int blueLeds = blueLedCount (led_pixels, LED_STRIP_PIXEL_COUNT);
+    ASSERT_TRUE (blueLeds == 1);
+
+    // Exactly cli_size
+    ci.reset(COLOR_BLUE, COLOR_WHITE, COLOR_BLUE, 2);
+    ASSERT_TRUE (ci.refresh (led_pixels, 0, 2) == 2);
+    blueLeds = blueLedCount (led_pixels, LED_STRIP_PIXEL_COUNT);
+    ASSERT_TRUE (blueLeds == 2);
+
+    // One more than cli size (first bg pixel should appear)
+    ci.reset(COLOR_BLUE, COLOR_WHITE, COLOR_BLUE, 2);
+    ASSERT_TRUE (ci.refresh (led_pixels, 0, 2) == 2);
+    blueLeds = blueLedCount (led_pixels, LED_STRIP_PIXEL_COUNT);
+    ASSERT_TRUE (blueLeds == 2);
+
+    // Changing levels during animation
+    ci.reset(COLOR_BLUE, COLOR_WHITE, COLOR_BLUE, 2);
+    ASSERT_TRUE (ci.refresh (led_pixels, 0, 12) == 12);
+    blueLeds = blueLedCount (led_pixels, LED_STRIP_PIXEL_COUNT);
+    ASSERT_TRUE (blueLeds == 2);
+    ASSERT_TRUE (ci.refresh (led_pixels, 0, 13) == 12);  // Ask for 13, but 12 is still animating
+
 }
 
 //******************************************************************************

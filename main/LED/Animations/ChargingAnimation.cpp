@@ -25,6 +25,7 @@
  *
  */
 
+#include <algorithm>
 #include "ChargingAnimation.h"
 
 #include <stdio.h>
@@ -111,46 +112,22 @@ void ChargingAnimation::reset(
 int ChargingAnimation::refresh(uint8_t* led_pixels, int start_pixel, int led_count) {
 
     int adjusted_charge_pct = MIN ((charge_percent + CHARGE_PERCENT_BUMP), 100);
+
+    // At full animation (or without animation), number of LEDs lit for this charge level
+    // this is the top of our second segment
     int charged_led_count = (((led_count * adjusted_charge_pct) / 100));
 
-    // If there is no animation, we will handle the "base" level adjustment here (this
-    // happens at low charge levels only
-    int low_leds = CHARGE_BASE_LED_CNT;
-    int ci_leds_shown = charged_led_count - CHARGE_LEVEL_LED_CNT < 0 ? charged_led_count : CHARGE_LEVEL_LED_CNT;
+    // Fill in all needed segments. First one's easy
+    int filled_leds = base.refresh (led_pixels, 0, CHARGE_BASE_LED_CNT);
 
-    // (-): overlap  (0): adjacent (+): animation
-    int solid_separation = (charged_led_count - ci_leds_shown - CHARGE_BASE_LED_CNT);
+    // The charge indicator, including "short" versions at low charge levels (no animation)
+    filled_leds += charge_indicator.refresh (led_pixels, filled_leds, (std::max (0, (charged_led_count - CHARGE_BASE_LED_CNT))));
 
-    // Animation only if we have positive space between solid indicators
-    int animation_leds = 0;
-    if (solid_separation < 0)
-    {
-        // If indicators overlap, largest one determines base.
-        low_leds = MAX (ci_leds_shown, CHARGE_BASE_LED_CNT);
-    }
-    else if (solid_separation == 0)
-    {
-        // Indicators are adjacent. Still no animation.
-        low_leds = ci_leds_shown + CHARGE_BASE_LED_CNT;
-    }
-    else
-    {
-        // We have animation!
-        animation_leds = solid_separation;
-    }
-
-    // Fill in all needed segments.
-    int filled_leds = 0;
-    filled_leds += base.refresh (led_pixels, 0, low_leds);
-
-    filled_leds += charge_indicator.refresh (led_pixels, low_leds, animation_leds > 0 ? animation_leds + CHARGE_LEVEL_LED_CNT : 0);
-
+    // Everything left over
     top.refresh (led_pixels, filled_leds, (led_count - filled_leds));
 
     if (simulate_charge) {
-
         // Every 10 cycles, bump the charge level or revert to zero
-
         if ((++simulated_charge_counter) % 10 == 0) {
             charge_percent++;
             if (charge_percent > 100)
