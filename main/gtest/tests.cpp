@@ -169,7 +169,6 @@ TEST(animation, chargeLevelLedsDynamic)
  *                     from ChargingAnimation::refresh(). 
  * 
  */
-#if 0
 TEST(animation, reduceToZero)
 {
     ChargingAnimation testAnimate;
@@ -183,13 +182,11 @@ TEST(animation, reduceToZero)
     // Just one mid-level charge for now
     testAnimate.set_charge_percent(100);
     testAnimate.refresh (led_pixels, 0, LED_STRIP_PIXEL_COUNT);
-    showLedStrip (led_pixels);
     uint32_t blueLeds = blueLedCount (led_pixels, LED_STRIP_PIXEL_COUNT);
     ASSERT_TRUE (blueLeds == 3); 
 
     // Validate that animation starts
     testAnimate.refresh (led_pixels, 0, LED_STRIP_PIXEL_COUNT);
-    showLedStrip (led_pixels);
     blueLeds = blueLedCount (led_pixels, LED_STRIP_PIXEL_COUNT);
     ASSERT_TRUE (blueLeds == 4); 
 
@@ -197,18 +194,15 @@ TEST(animation, reduceToZero)
     testAnimate.set_charge_percent(0);
     testAnimate.refresh (led_pixels, 0, LED_STRIP_PIXEL_COUNT);
     blueLeds = blueLedCount (led_pixels, LED_STRIP_PIXEL_COUNT);
-    showLedStrip (led_pixels);
     ASSERT_TRUE (blueLeds == 5);
 
     for (int x = blueLeds; x < LED_STRIP_PIXEL_COUNT; x++)
     {
         testAnimate.refresh (led_pixels, 0, LED_STRIP_PIXEL_COUNT);
-        showLedStrip (led_pixels);
         blueLeds = blueLedCount (led_pixels, LED_STRIP_PIXEL_COUNT);
         ASSERT_TRUE (blueLeds == (x+1));
     } 
 }
-#endif 
 
 //******************************************************************************
 /**
