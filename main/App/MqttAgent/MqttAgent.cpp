@@ -223,13 +223,15 @@ void MqttAgent::taskFunction(void) {
                 // pubsub.cleanup_outgoing_publishes();
             }
 
+            this->event_callback(e_mqtt_agent_connected, this->event_callback_context);
+
+            // This should be in the main app state machine logic.
+            // but for testing right now.
             char topic[32];
             memset(topic, 0x00, 32);
             snprintf(topic, 32, "%s/ledstate", this->thing_config->get_thing_name());
             this->subscribe(topic, NULL, NULL);
 
-            // This should be in the main app state machine logic.
-            // but for testing right now.
             memset(topic, 0x00, 32);
             snprintf(topic, 32, "%s/%s", this->thing_config->get_thing_name(), "latest");
             this->publish_message(topic, "{}", 0);
@@ -243,41 +245,14 @@ void MqttAgent::taskFunction(void) {
         ret = this->process_mqtt_loop();
         if (ret != ESP_OK) {
             ESP_LOGE(TAG, "Failed to process mqtt loop");
+            this->event_callback(e_mqtt_agent_disconnected, this->event_callback_context);
             this->mqtt_connection.disconnect(&this->mqtt_context);
             connected = false;
         }
 
-        // handle incoming publish requests.
-        
 
         // delay 5 seconds
         vTaskDelay(5000 / portTICK_PERIOD_MS);
-
-        
-
-        // // If a connection was previously established, close it to free memory.
-        
-            // Connect to ssl
-
-            // On success get socket fd to poll. and connect to the broker.
-
-            // Connect to the mqtt broker.
-
-            // On error disconnect tls, and backoff for retry.
-            
-        // } while (no good connection or timed out)
-
-        // // if connected
-        // while (mqtt is connected) {
-        //     // Wait on the socket fd for data to be received.
-        //     // If data avail
-        //     //     MQTT process loop
-        //     //     ukTaskNotifyTake??? No clue what that is
-        //     // If error bit is set
-        //     //    Disconnect from the broker
-        //     //    Post disconnect event. (using esp_event_post???)
-        //     // Delay for 1 
-        // }
     }
 
     vTaskDelete(NULL);
@@ -386,12 +361,3 @@ void MqttAgent::onWifiEvent(esp_event_base_t event_base, int32_t event_id, void 
     }
 }
 
-
-// There is also a MQTTAgent task and an AgentConnectionTask
-// The AgentConnectionTask is responsible for connecting to the broker.
-
-// The agent task stays in a while loop 
-// Calls the mqtt loop
-// until mqttstatus is no longer successful. 
-//      Not sure this make sense. what if the connection is lost?
-//      The agentconnectiontask will retry the connection.

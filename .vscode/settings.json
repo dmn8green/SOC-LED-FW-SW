@@ -18,7 +18,8 @@
         "variant": "cpp",
         "spi_periph.h": "c",
         "core_mqtt.h": "c",
-        "network_transport.h": "c"
+        "network_transport.h": "c",
+        "core_mqtt_state.h": "c"
     },
     "workbench.colorCustomizations": {
         "activityBar.activeBackground": "#85379d",

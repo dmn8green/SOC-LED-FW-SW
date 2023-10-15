@@ -1325,62 +1325,6 @@ static int unsubscribeFromTopic( MQTTContext_t * pMqttContext )
 
 /*-----------------------------------------------------------*/
 
-// static int publishToTopic( MQTTContext_t * pMqttContext )
-// {
-//     int returnStatus = EXIT_SUCCESS;
-//     MQTTStatus_t mqttStatus = MQTTSuccess;
-//     uint8_t publishIndex = MAX_OUTGOING_PUBLISHES;
-
-//     assert( pMqttContext != NULL );
-
-//     /* Get the next free index for the outgoing publish. All QoS1 outgoing
-//      * publishes are stored until a PUBACK is received. These messages are
-//      * stored for supporting a resend if a network connection is broken before
-//      * receiving a PUBACK. */
-//     returnStatus = getNextFreeIndexForOutgoingPublishes( &publishIndex );
-
-//     if( returnStatus == EXIT_FAILURE )
-//     {
-//         LogError( ( "Unable to find a free spot for outgoing PUBLISH message.\n\n" ) );
-//     }
-//     else
-//     {
-//         char topic[] = "502B838D3A08/latest";
-//         char payload[] = "{}";
-        
-//         /* This example publishes to only one topic and uses QOS1. */
-//         outgoingPublishPackets[ publishIndex ].pubInfo.qos = MQTTQoS1;
-//         outgoingPublishPackets[ publishIndex ].pubInfo.pTopicName = topic;
-//         outgoingPublishPackets[ publishIndex ].pubInfo.topicNameLength = strlen(topic);
-//         outgoingPublishPackets[ publishIndex ].pubInfo.pPayload = payload;
-//         outgoingPublishPackets[ publishIndex ].pubInfo.payloadLength = strlen(payload);
-
-//         /* Get a new packet id. */
-//         outgoingPublishPackets[ publishIndex ].packetId = MQTT_GetPacketId( pMqttContext );
-
-//         /* Send PUBLISH packet. */
-//         mqttStatus = MQTT_Publish( pMqttContext,
-//                                    &outgoingPublishPackets[ publishIndex ].pubInfo,
-//                                    outgoingPublishPackets[ publishIndex ].packetId );
-
-//         if( mqttStatus != MQTTSuccess )
-//         {
-//             LogError( ( "Failed to send PUBLISH packet to broker with error = %s.",
-//                         MQTT_Status_strerror( mqttStatus ) ) );
-//             cleanupOutgoingPublishAt( publishIndex );
-//             returnStatus = EXIT_FAILURE;
-//         }
-//         else
-//         {
-//             LogInfo( ( "PUBLISH sent for topic %.*s to broker with packet ID %u.\n\n",
-//                        MQTT_EXAMPLE_TOPIC_LENGTH,
-//                        MQTT_EXAMPLE_TOPIC,
-//                        outgoingPublishPackets[ publishIndex ].packetId ) );
-//         }
-//     }
-
-//     return returnStatus;
-// }
 
 int publishToTopic( MQTTContext_t * pMqttContext, char* topic, char* payload )
 {

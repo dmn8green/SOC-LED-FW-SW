@@ -34,6 +34,8 @@ public:
 public:
     esp_err_t setup(void);
     esp_err_t start(void);
+    esp_err_t connect(void);
+    esp_err_t disconnect(void);
 
     // Accessors
     bool is_configured(void);

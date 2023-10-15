@@ -54,13 +54,17 @@ set(COMPONENT_SRCS
     Network/Configuration/NetworkConfiguration.cpp
     Network/Configuration/WifiConfiguration.cpp
     Network/Configuration/EthConfiguration.cpp
-    Network/MQTT/MqttAgent.cpp
     Network/MQTT/mqtt_demo_mutual_auth.c
     App/Configuration/ThingConfig.cpp
     App/Configuration/ChargePointConfig.cpp
     App/NetworkAgent/NetworkConnection.cpp
     App/NetworkAgent/NetworkConnectionAgent.cpp
     App/NetworkAgent/NetworkConnectionStateMachine.cpp
+    App/MqttAgent/MqttAgent.cpp
+    App/MqttAgent/MqttContext.cpp
+    App/MqttAgent/MqttConnection.cpp
+    App/MN8Context.cpp
+    App/MN8StateMachine.cpp
     App/MN8App.cpp
     main.cpp
 )

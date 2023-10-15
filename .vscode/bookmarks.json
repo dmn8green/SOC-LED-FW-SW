@@ -1,0 +1,29 @@
+{
+	"files": [
+		{
+			"path": "main/Network/MQTT/mqtt_demo_mutual_auth.c",
+			"bookmarks": [
+				{
+					"line": 342,
+					"column": 25,
+					"label": ""
+				},
+				{
+					"line": 1353,
+					"column": 34,
+					"label": ""
+				},
+				{
+					"line": 1405,
+					"column": 11,
+					"label": ""
+				},
+				{
+					"line": 1683,
+					"column": 15,
+					"label": ""
+				}
+			]
+		}
+	]
+}

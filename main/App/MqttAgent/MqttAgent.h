@@ -45,12 +45,25 @@ public:
     ) {};
     ~MqttAgent(void) = default;
 
-    esp_err_t setup(ThingConfig* thing_config);
-
 public:
+    esp_err_t setup(ThingConfig* thing_config);
+    void connect(void);
+    void disconnect(void);
+
     esp_err_t subscribe(const char *topic, mqttCallbackFn callback, void* context);
     esp_err_t unsubscribe(const char *topic);
     esp_err_t publish_message(const char *topic, const char *payload, uint8_t retry_count = 0);
+
+    typedef enum {
+        e_mqtt_agent_connected,
+        e_mqtt_agent_disconnected,
+    } event_t;
+
+    typedef void(*event_callback_t)(event_t event, void* context);
+    inline void register_event_callback(event_callback_t callback, void* context) {
+        this->event_callback = callback;
+        this->event_callback_context = context;
+    }
 
 protected:
     virtual void taskFunction(void) override;
@@ -89,4 +102,7 @@ private:
 
     MqttConnection mqtt_connection;
     MqttContext mqtt_context;
+
+    event_callback_t event_callback;
+    void* event_callback_context;
 };

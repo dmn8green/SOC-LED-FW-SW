@@ -220,3 +220,32 @@ bool NetworkConnection::check_connectivity(bool thorough_check) {
     }
     return false;
 }
+
+//*****************************************************************************
+esp_err_t NetworkConnection::connect(void) {
+    esp_err_t ret = ESP_OK;
+
+    if (this->wifi_connection->is_enabled()) {
+        ESP_GOTO_ON_ERROR(this->wifi_connection->up(), err, TAG, "Failed to bring up wifi connection");
+    }
+
+    if (this->has_ethernet_phy && this->ethernet_connection->is_enabled()) {
+        ESP_GOTO_ON_ERROR(this->ethernet_connection->up(), err, TAG, "Failed to bring up ethernet connection");
+    }
+err:
+    return ret;
+}
+
+//*****************************************************************************
+esp_err_t NetworkConnection::disconnect(void) {
+    esp_err_t ret = ESP_OK;
+
+    if (this->wifi_connection->is_enabled()) {
+        ESP_GOTO_ON_ERROR(this->wifi_connection->down(), err, TAG, "Failed to bring down wifi connection");
+    }
+    if (this->has_ethernet_phy && this->ethernet_connection->is_enabled()) {
+        ESP_GOTO_ON_ERROR(this->ethernet_connection->down(), err, TAG, "Failed to bring down ethernet connection");
+    }
+err:
+    return ret;
+}
