@@ -217,7 +217,12 @@ void MqttAgent::taskFunction(void) {
                              portMAX_DELAY );
 
         // Connect to the broker
+        ESP_LOGD(TAG, "Connected flag is %s", connected ? "true" : "false");
         if (!connected) {
+            // sleep for a second to ensure the connection is fully up.
+            vTaskDelay(1000 / portTICK_PERIOD_MS);
+
+
             ret = this->mqtt_connection.connect_with_retries(this->mqtt_context.get_mqtt_context(), 10);
             if (ret != ESP_OK) {
                 ESP_LOGE(TAG, "Failed to connect to MQTT broker");
@@ -239,6 +244,10 @@ void MqttAgent::taskFunction(void) {
                 );
                 // pubsub.cleanup_outgoing_publishes();
             }
+
+
+            // sleep for a second to ensure the connection is fully up.
+            vTaskDelay(1000 / portTICK_PERIOD_MS);
 
             this->event_callback(e_mqtt_agent_connected, this->event_callback_context);
 
@@ -266,10 +275,6 @@ void MqttAgent::taskFunction(void) {
             this->mqtt_connection.disconnect(this->mqtt_context.get_mqtt_context());
             connected = false;
         }
-
-
-        // delay 5 seconds
-        vTaskDelay(5000 / portTICK_PERIOD_MS);
     }
 
     vTaskDelete(NULL);

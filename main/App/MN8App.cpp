@@ -135,7 +135,6 @@ esp_err_t MN8App::setup(void) {
 
     this->context.get_network_connection_agent().register_event_callback(this->sOn_network_event, this);
     this->context.get_mqtt_agent().register_event_callback(this->sOn_mqtt_event, this);
-    ESP_LOGI(TAG, "******************* Registering mqtt callback with mn8app this %p", this);
     this->context.get_mqtt_agent().register_handle_incoming_mqtt(this->sOn_incoming_mqtt, this);
 
     ESP_GOTO_ON_ERROR(
@@ -150,12 +149,11 @@ esp_err_t MN8App::setup(void) {
     thing_config.load();
     if (thing_config.is_configured()) {
         this->context.get_mqtt_agent().setup(&thing_config);
-        handleIncomingPublishCallback = handleIncomingPublish;
+//        handleIncomingPublishCallback = handleIncomingPublish;
         this->context.get_mqtt_agent().start();
     }
 
     this->context.get_network_connection_agent().start();
-    this->context.get_mqtt_agent().start();
 
     this->state_machine.setup(&this->context);
 
@@ -193,8 +191,41 @@ void MN8App::on_incoming_mqtt(
     size_t payloadLength,
     uint16_t packetIdentifier
 ) {
+    StaticJsonDocument<200> doc;
+    DeserializationError error = deserializeJson(doc, pPayload, payloadLength);
+    if (error) {
+        ESP_LOGE(TAG, "deserializeJson() failed: %s", error.c_str());
+        return;
+    }
+
+    JsonObject root = doc.as<JsonObject>();
+    if (root.isNull()) {
+        ESP_LOGE(TAG, "deserializeJson() failed: %s", error.c_str());
+        return;
+    }
+
+    if (root.containsKey("port1")) {
+        JsonObject port1 = root["port1"];
+        if (port1.containsKey("state")) {
+            const char* state = port1["state"];
+            int charge_percent = port1["charge_percent"];
+            ESP_LOGI(TAG, "port 1 new state : %s", state);
+            this->get_context().get_led_task_0().set_state(state, charge_percent);
+        }
+    }
+
+    if (root.containsKey("port2")) {
+        JsonObject port2 = root["port2"];
+        if (port2.containsKey("state")) {
+            const char* state = port2["state"];
+            int charge_percent = port2["charge_percent"];
+            ESP_LOGI(TAG, "port 2 new state : %s", state);
+            this->get_context().get_led_task_1().set_state(state, charge_percent);
+        }
+    }
+
     ESP_LOGI(TAG, "Incoming publish received : %.*s", payloadLength, pPayload);
-    // ESP_LOGI(TAG, "Incoming publish received : %s", (char*) root["state"]);
+
 }
 
 //*****************************************************************************

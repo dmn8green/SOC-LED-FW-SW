@@ -11,6 +11,10 @@ FreeRTOSTask::FreeRTOSTask(uint32_t stackSize=5000, uint8_t priority=11, uint8_t
 }
 
 esp_err_t FreeRTOSTask::start(void) {
+    if (this->task_handle != nullptr) {
+        return ESP_FAIL;
+    }
+
     xTaskCreatePinnedToCore(
         FreeRTOSTask::sTaskFunction, this->task_name(), this->stack_size, this,
         this->priority, &this->task_handle, this->core_num);

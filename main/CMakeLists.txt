@@ -54,7 +54,6 @@ set(COMPONENT_SRCS
     Network/Configuration/NetworkConfiguration.cpp
     Network/Configuration/WifiConfiguration.cpp
     Network/Configuration/EthConfiguration.cpp
-    Network/MQTT/mqtt_demo_mutual_auth.c
     App/Configuration/ThingConfig.cpp
     App/Configuration/ChargePointConfig.cpp
     App/NetworkAgent/NetworkConnection.cpp

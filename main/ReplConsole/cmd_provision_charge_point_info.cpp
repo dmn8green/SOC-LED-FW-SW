@@ -85,10 +85,10 @@ static int provision_charge_point_info(const char* station_id, const char* site_
 
     ESP_LOGI(TAG, "Publishing to topic: %s", topic);
 
-    if (publishToTopic(pmqttContext, topic,  payload) != 0) {
-        ESP_LOGE(TAG, "Failed to publish to topic");
-        return -1;
-    }
+    // if (publishToTopic(pmqttContext, topic,  payload) != 0) {
+    //     ESP_LOGE(TAG, "Failed to publish to topic");
+    //     return -1;
+    // }
     ESP_LOGI(TAG, "Published to topic");
     return 0;
 }

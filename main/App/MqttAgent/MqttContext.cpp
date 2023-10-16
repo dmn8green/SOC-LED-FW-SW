@@ -14,10 +14,10 @@ MqttContext::MqttContext(void) {
     this->buffer = (uint8_t*)malloc( NETWORK_BUFFER_SIZE );
     memset( this->buffer, 0x00, NETWORK_BUFFER_SIZE );
     
-    memset( (void*) &this->mqtt_context, 0x00, sizeof( MQTTContext_t ) );
+    // memset( (void*) &this->mqtt_context, 0x00, sizeof( MQTTContext_t ) );
 
-    ESP_LOGI(TAG, "!!!!!!!! mn8context: %p", this);
-    this->mqtt_context.mn8_context = this;
+    // ESP_LOGI(TAG, "!!!!!!!! mn8context: %p", this);
+    // this->mqtt_context.mn8_context = this;
 }
 
 //******************************************************************************
@@ -44,7 +44,7 @@ esp_err_t MqttContext::initialize(NetworkContext_t * network_context, EventCallb
     network_buffer.pBuffer = this->buffer;
     network_buffer.size = NETWORK_BUFFER_SIZE;
 
-    mqtt_status = MQTT_Init( &this->mqtt_context,
+    mqtt_status = MQTT_Init( this,
                             &transport,
                             &MqttContext::sClock_get_time_ms,
                             &MqttContext::sEvent_callback,
@@ -99,11 +99,4 @@ void MqttContext::event_callback(
     if (this->callback != nullptr) {
         this->callback( mqtt_context, packet_info, deserialized_info, this->callback_context );
     }
-
-    // if ((packet_info->type & 0xF0U) == MQTT_PACKET_TYPE_PUBLISH) {
-    //     assert( deserialized_info->pPublishInfo != NULL );
-    //     // subscription_handler->handle_publish( packet_info, deserialized_info );
-    // } else {
-    //     // pubsub_handler->handle_packet( packet_info, deserialized_info );
-    // }
 }

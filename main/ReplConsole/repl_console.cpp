@@ -29,6 +29,22 @@
 
 static esp_console_repl_t *repl = nullptr;
 
+static int enter_config_cmd(int argc, char **argv) {
+
+    MN8App& app = MN8App::instance();
+
+    register_led();
+    register_wifi();
+    register_ifconfig();
+    register_provision_charge_point_info();
+    if (!app.is_iot_thing_provisioned()) {
+        register_provision_iot();
+    }
+
+    return 0;
+}
+
+
 void repl_configure(uint16_t txPin, uint16_t rxPin, uint16_t channel, uint32_t baudRate)
 {
     esp_console_repl_config_t repl_config = ESP_CONSOLE_REPL_CONFIG_DEFAULT();
@@ -45,16 +61,20 @@ void repl_configure(uint16_t txPin, uint16_t rxPin, uint16_t channel, uint32_t b
     ESP_ERROR_CHECK(esp_console_new_repl_uart(&uart_config, &repl_config, &repl));
 
     MN8App& app = MN8App::instance();
+
     register_tasks();
-    register_wifi();
-    register_ifconfig();
     register_reboot();
     register_ping();
-    register_led();
-    register_provision_charge_point_info();
-    if (!app.is_iot_thing_provisioned()) {
-        register_provision_iot();
-    }
+
+    const esp_console_cmd_t leave_app = {
+        .command = "enter-config",
+        .help = "enter config mode",
+        .hint = NULL,
+        .func = &enter_config_cmd,
+        .argtable = nullptr
+    };
+    ESP_ERROR_CHECK(esp_console_cmd_register(&leave_app));
+
 }
 
 void repl_start(void)
