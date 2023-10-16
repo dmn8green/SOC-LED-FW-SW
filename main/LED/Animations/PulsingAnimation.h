@@ -13,6 +13,7 @@
 
 #include "BaseAnimation.h"
 #include "BasePulseCurve.h"
+#include "Utils/Colors.h"
 
 //******************************************************************************
 /**
@@ -38,19 +39,18 @@
 class PulsingAnimation : public BaseAnimation {
 public:
     void reset(
-        uint32_t h, 
-        uint32_t s, 
-        uint32_t v, 
+	    COLOR_HSV *pHsv,
         uint32_t min_value = 10, 
         uint32_t rate = 10, 
         bool pulse_saturation = false,
         BasePulseCurve* pulse_curve = nullptr
     );
 
-    void refresh(uint8_t* led_pixels, int start_pixel=0, int led_count=0) override;
+    int refresh(uint8_t* led_pixels, int start_pixel=0, int led_count=0) override;
 
 private:
-    uint32_t h, s, v;
+    COLOR_HSV hsv;
+    // uint32_t h, s, v;
 
     uint32_t min_value = 0;
     uint32_t max_value = 100;

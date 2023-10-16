@@ -29,10 +29,13 @@ set(COMPONENT_SRCS
     Utils/KeyStore.cpp
     Utils/FuseMacAddress.cpp
     Utils/HSV2RGB.cpp
+    Utils/Colors.cpp
     Utils/FreeRTOSTask.cpp
     LED/LedTaskSpi.cpp
     LED/RmtOverSpi.cpp
-    LED/Animations/ChasingAnimation.cpp
+    #LED/Animations/ChasingAnimation.cpp
+    LED/Animations/ChargeIndicator.cpp
+    LED/Animations/ProgressAnimation.cpp
     LED/Animations/PulsingAnimation.cpp
     LED/Animations/StaticAnimation.cpp
     LED/Animations/SmoothRatePulseCurve.cpp

@@ -10,16 +10,94 @@
 #include "Utils/Colors.h"
 
 /* Helper function prototypes */
-static int blueLedCount (uint8_t *pLedPixels);
+static int blueLedCount (uint8_t *pLedPixels, uint32_t led_count);
+static int blueLedLast (uint8_t *pLedPixels, uint32_t led_count);
 static void showLed (uint8_t *pLedPixels, int ledIndex);
+static void showLedStrip (uint8_t *pLedPixels);
 static void showLedStripHeader(void);
+
+static Colors& colors = Colors::instance();
+
+#define COLOR_GREEN_HSV_HIGH     120, 100, 100
+#define COLOR_YELLOW_HSV_HIGH    60, 100,  100
+#define COLOR_BLUE_HSV_HIGH      240, 100, 100
+#define COLOR_WHITE_HSV_HIGH     0,   0,   50
 
 //******************************************************************************
 /**
- * @brief Test get/set of charge level; range limits enforced, etc.
+ * @brief   Test color conversion RGB
  *
  */
+TEST(colors, base_hsv)
+{
+    COLOR_HSV *pHSV = nullptr;
 
+    pHSV = colors.getHsv (LED_COLOR_YELLOW);
+
+    LED_COLOR get_color = colors.isHsv (pHSV);
+
+    ASSERT_TRUE (get_color == LED_COLOR_YELLOW);
+
+    uint32_t r;
+    uint32_t g;
+    uint32_t b;
+    uint32_t rgb;
+
+    Colors::instance().hsv2rgb(COLOR_GREEN_HSV_HIGH, &r, &g, &b);
+    rgb = (r << 16) | (g << 8) | b;
+    ASSERT_TRUE (Colors::instance().isRgb (rgb) == LED_COLOR_GREEN);
+
+    Colors::instance().hsv2rgb(COLOR_YELLOW_HSV_HIGH, &r, &g, &b);
+    rgb = (r << 16) | (g << 8) | b;
+    ASSERT_TRUE (Colors::instance().isRgb (rgb) == LED_COLOR_YELLOW); 
+
+    Colors::instance().hsv2rgb(COLOR_BLUE_HSV_HIGH, &r, &g, &b);
+    rgb = (r << 16) | (g << 8) | b;
+    ASSERT_TRUE (Colors::instance().isRgb (rgb) == LED_COLOR_BLUE);
+
+    Colors::instance().hsv2rgb(COLOR_WHITE_HSV_HIGH, &r, &g, &b);
+    rgb = (r << 16) | (g << 8) | b;
+    ASSERT_TRUE (Colors::instance().isRgb (rgb) == LED_COLOR_WHITE);
+
+}
+
+//******************************************************************************
+/**
+ * @brief   Test color conversion HSV
+ *
+ */
+TEST(colors, base_rgb)
+{
+    int start_color = LED_COLOR_START;
+    int end_color = LED_COLOR_END;
+
+    colors.setMode (LED_INTENSITY_LOW);
+
+    // Loop through public LED_COLORs, convert to RGB and back again
+    for (int led_color = start_color; led_color < end_color; led_color++)
+    {
+        uint32_t rgb_color = colors.getRgb(static_cast<LED_COLOR>(led_color));
+        LED_COLOR get_color = colors.isRgb(rgb_color);
+
+        ASSERT_TRUE ( (int)get_color == led_color);
+    }
+
+    colors.setMode (LED_INTENSITY_HIGH);
+
+    // Loop through public LED_COLORs, convert to RGB and back again
+    for (int led_color = start_color; led_color < end_color; led_color++)
+    {
+        uint32_t rgb_color = colors.getRgb(static_cast<LED_COLOR>(led_color));
+        LED_COLOR get_color = colors.isRgb(rgb_color);
+    }
+}
+
+//******************************************************************************
+/**
+ * @brief Test initial display of charge at all levels from 0 to 100
+ *
+ * Get/Set charge levels. Validate bounds checking
+ */
 TEST(animation, chargeLevelGetSet)
 {
     ChargingAnimation testAnimate;
@@ -52,7 +130,9 @@ TEST(animation, chargeLevelGetSet)
 //******************************************************************************
 /**
  * @brief Test initial display of charge at all levels from 0 to 100  
- * 
+ *
+ *        Find the "lastBlueLed", which indicates the top of the
+ *        charge indicator.
  */
 
 TEST(animation, chargeLevelLedsStatic)
@@ -70,36 +150,47 @@ TEST(animation, chargeLevelLedsStatic)
     //   - Increase only by one (all levels must be visited)
     //   - Reaches but does not exceed LED_STRIP_PIXEL_COUNT
 
-    uint32_t lastChargedLedCount = 0;
+    int lastTopBlue = 0;
     for (int chargeLevel = 0; chargeLevel <= 100; chargeLevel++)
     {
         uint8_t led_pixels[3*LED_STRIP_PIXEL_COUNT] = {0};
+        testAnimate.reset(colors.getRgb(LED_COLOR_BLUE), colors.getRgb(LED_COLOR_WHITE), colors.getRgb(LED_COLOR_BLUE), 100);
         testAnimate.set_charge_percent(chargeLevel);
         testAnimate.refresh (led_pixels, 0, LED_STRIP_PIXEL_COUNT);
-        uint32_t chargedLedCount = testAnimate.get_led_charge_top_leds();
 
-        printf ("utest: Charge pct of %d: chargedLED:%d (previous: %d)\n", chargeLevel, chargedLedCount, lastChargedLedCount);
+        int topBlue = blueLedLast(led_pixels, LED_STRIP_PIXEL_COUNT);
+
+        //printf ("utest: Charge pct of %d: topBlue:%d (previous: %d)\n", chargeLevel, topBlue, lastTopBlue);
 
         // Always at least one; never more than max
-        ASSERT_TRUE (chargedLedCount >= 1);
-        ASSERT_TRUE (chargedLedCount <= LED_STRIP_PIXEL_COUNT);
+        ASSERT_TRUE (topBlue >= 0);  // -1 if not found; this is an offset
+        ASSERT_TRUE (topBlue <= LED_STRIP_PIXEL_COUNT);
 
         // Always at least previous level
-        ASSERT_TRUE (chargedLedCount >= lastChargedLedCount);
+        ASSERT_TRUE (topBlue >= lastTopBlue);
 
         // Never one more than last (for this test; real life could go backwards)
-        ASSERT_TRUE (chargedLedCount -  lastChargedLedCount <= 1);
+        ASSERT_TRUE (topBlue - lastTopBlue <= 1);
 
         // Save for next iteration
-        lastChargedLedCount = chargedLedCount;
+        lastTopBlue = topBlue;
     }
+
+    // Did we reach the top of the LED bar? 
+    ASSERT_TRUE (lastTopBlue == LED_STRIP_PIXEL_COUNT-1);
 }
 
 //******************************************************************************
 /**
  * @brief Test animated display at a few charge levels.
  *
+ *        At various charge levels, do a longer loop to
+ *        test animation of LEDS.
+ *
  *        Counts total number of blue pixels on the LED bar.
+ *        At a fixed charge level, the number of blue LEDs
+ *        should increase each cycle and revert back to three.
+ *
  *        This is not as throrough as a full pixel-by-pixel check
  *        but still effective and easy to implement.
  *
@@ -119,13 +210,13 @@ TEST(animation, chargeLevelLedsDynamic)
 
         uint8_t led_pixels[3*LED_STRIP_PIXEL_COUNT] = {0};
 
-        testAnimate.reset(COLOR_BLUE, COLOR_WHITE, COLOR_BLUE, 100);
+        testAnimate.reset(colors.getRgb(LED_COLOR_BLUE), colors.getRgb(LED_COLOR_WHITE), colors.getRgb(LED_COLOR_BLUE), 100);
         testAnimate.set_charge_percent(chargeLevel);
         testAnimate.refresh (led_pixels, 0, LED_STRIP_PIXEL_COUNT);
 
         // Make sure we are starting with normal blue LED count (usually 3)
         int baseBlueCnt = CHARGE_BASE_LED_CNT + CHARGE_LEVEL_LED_CNT;
-        ASSERT_TRUE (blueLedCount (led_pixels) == baseBlueCnt);
+        ASSERT_TRUE (blueLedCount (led_pixels, LED_STRIP_PIXEL_COUNT) == baseBlueCnt);
 
         int lastBlueCnt = baseBlueCnt;
         for (int cycles = 0; cycles < 100; cycles++)
@@ -133,13 +224,62 @@ TEST(animation, chargeLevelLedsDynamic)
             testAnimate.refresh (led_pixels, 0, LED_STRIP_PIXEL_COUNT);
             // Should have one more blue pixel than last time, or it's cycled
             // back to base (3 LEDs).
-            int blueCnt = blueLedCount (led_pixels);
+            int blueCnt = blueLedCount (led_pixels, LED_STRIP_PIXEL_COUNT);
 
             ASSERT_TRUE (blueCnt == lastBlueCnt+1 || blueCnt == baseBlueCnt);
 
             lastBlueCnt = blueCnt;
         }
     }
+}
+
+//******************************************************************************
+/**
+ * @brief  Check pixel fill levels when reducing from 100 to 0. Observed 
+ *         bug during manual/interactive testing. 
+ *
+ *         KNOWN BUG:  The ChargingAnimation code knows too much 
+ *                     and when charge gets back to zero, does not 
+ *                     call the animation update. To fix 
+ *                     this, likely need to remove the calculations 
+ *                     from ChargingAnimation::refresh(). 
+ * 
+ */
+TEST(animation, reduceToZero)
+{
+    ChargingAnimation testAnimate;
+    ASSERT_FALSE (testAnimate.get_charge_simulation());
+
+    uint8_t led_pixels[3*LED_STRIP_PIXEL_COUNT] = {0};
+
+    // Since we are testing pixels, need to setup colors
+    testAnimate.reset(colors.getRgb(LED_COLOR_BLUE),
+        colors.getRgb(LED_COLOR_WHITE),
+        colors.getRgb(LED_COLOR_BLUE), 100);
+
+    // Just one mid-level charge for now
+    testAnimate.set_charge_percent(100);
+    testAnimate.refresh (led_pixels, 0, LED_STRIP_PIXEL_COUNT);
+    uint32_t blueLeds = blueLedCount (led_pixels, LED_STRIP_PIXEL_COUNT);
+    ASSERT_TRUE (blueLeds == 3); 
+
+    // Validate that animation starts
+    testAnimate.refresh (led_pixels, 0, LED_STRIP_PIXEL_COUNT);
+    blueLeds = blueLedCount (led_pixels, LED_STRIP_PIXEL_COUNT);
+    ASSERT_TRUE (blueLeds == 4); 
+
+    // Drop the charge level. Validate animation continues 
+    testAnimate.set_charge_percent(0);
+    testAnimate.refresh (led_pixels, 0, LED_STRIP_PIXEL_COUNT);
+    blueLeds = blueLedCount (led_pixels, LED_STRIP_PIXEL_COUNT);
+    ASSERT_TRUE (blueLeds == 5);
+
+    for (int x = blueLeds; x < LED_STRIP_PIXEL_COUNT; x++)
+    {
+        testAnimate.refresh (led_pixels, 0, LED_STRIP_PIXEL_COUNT);
+        blueLeds = blueLedCount (led_pixels, LED_STRIP_PIXEL_COUNT);
+        ASSERT_TRUE (blueLeds == (x+1));
+    } 
 }
 
 //******************************************************************************
@@ -155,26 +295,29 @@ TEST(animation, chargeLevelPixels)
     uint8_t led_pixels[3*LED_STRIP_PIXEL_COUNT] = {0};
 
     // Since we are testing pixels, need to setup colors
-    testAnimate.reset(COLOR_BLUE, COLOR_WHITE, COLOR_BLUE, 100);
+    testAnimate.reset(colors.getRgb(LED_COLOR_BLUE),
+        colors.getRgb(LED_COLOR_WHITE), colors.getRgb(LED_COLOR_BLUE), 100);
 
     // Just one mid-level charge for now
     testAnimate.set_charge_percent(50);
     testAnimate.refresh (led_pixels, 0, LED_STRIP_PIXEL_COUNT);
 
     // first LED blue
-    ASSERT_TRUE (led_pixels[0] == 0x00);
-    ASSERT_TRUE (led_pixels[1] == 0x00);
-    ASSERT_TRUE (led_pixels[2] == 0xFF);
+    uint32_t colorRgb = (led_pixels[0] << 16) |
+                        (led_pixels[1] << 8) |
+                        (led_pixels[2] << 0);
+    ASSERT_TRUE (colors.isRgb(colorRgb) == LED_COLOR_BLUE);
 
     // Second LED white
-    ASSERT_TRUE (led_pixels[3] == 0x80);
-    ASSERT_TRUE (led_pixels[4] == 0x80);
-    ASSERT_TRUE (led_pixels[5] == 0x80);
+    colorRgb =             (led_pixels[3] << 16) |
+                        (led_pixels[4] << 8) |
+                        (led_pixels[5] << 0);
+    ASSERT_TRUE (colors.isRgb(colorRgb) == LED_COLOR_WHITE);
 
     // Verify that LEDs up to charge level are non-zero. Other
     // tests validate that get_charged_led_count() is OK, so we
     // use it here.
-    uint32_t chargeLeds = testAnimate.get_led_charge_top_leds();
+    uint32_t chargeLeds = blueLedCount (led_pixels, LED_STRIP_PIXEL_COUNT);
 
     ASSERT_TRUE (chargeLeds > 1); 
 
@@ -185,20 +328,131 @@ TEST(animation, chargeLevelPixels)
 
 //******************************************************************************
 /**
+ * @brief  Test Progress Animation object 
+ *         
+ */
+TEST (progress_animation, base)
+{
+    ProgressAnimation pa;  
+
+    uint8_t led_pixels[3*LED_STRIP_PIXEL_COUNT] = {0};
+
+    pa.reset(colors.getRgb(LED_COLOR_BLUE), colors.getRgb(LED_COLOR_WHITE));
+
+    // Negative request and NULL array return zero 
+    ASSERT_TRUE (pa.refresh (led_pixels, 0, -1) == 0); 
+    ASSERT_TRUE (pa.refresh (nullptr, 0, 0) == 0); 
+
+
+    // Animations have the property of retaining a previous "fill" level 
+    // until animation completes. Set up a charge level of 10 pixels, then 
+    // immediately request one more pixel 
+    pa.reset(colors.getRgb(LED_COLOR_BLUE), colors.getRgb(LED_COLOR_WHITE));
+
+    ASSERT_TRUE (pa.refresh (led_pixels, 0, 10) == 10); 
+    ASSERT_TRUE (pa.refresh (led_pixels, 0, 11) == 10); 
+    ASSERT_TRUE (pa.refresh (led_pixels, 0, 9) == 10); 
+
+    // After some time, a request for a different value is "accepted" 
+
+    for (int x = 0; x  <10; x++) 
+    {
+        pa.refresh(led_pixels, 0, 11);  
+    }
+
+    ASSERT_TRUE (pa.refresh (led_pixels, 0, 11) == 11); 
+
+
+}
+
+//******************************************************************************
+/**
+ * @brief  Test Charge Indicator animation object 
+ *         
+ */
+TEST (charge_indicator, base)
+{
+    ChargeIndicator ci;  
+
+    uint8_t led_pixels[3*LED_STRIP_PIXEL_COUNT] = {0};
+
+    ci.reset(colors.getRgb(LED_COLOR_BLUE), colors.getRgb(LED_COLOR_WHITE), colors.getRgb(LED_COLOR_BLUE), 2);
+
+    // Negative request and NULL array return zero 
+    ASSERT_TRUE (ci.refresh (led_pixels, 0, -1) == 0); 
+    ASSERT_TRUE (ci.refresh (nullptr, 0, 0) == 0); 
+
+    // Can handle updates of less than cli size
+    ci.reset(colors.getRgb(LED_COLOR_BLUE), colors.getRgb(LED_COLOR_WHITE), colors.getRgb(LED_COLOR_BLUE), 2);
+    ASSERT_TRUE (ci.refresh (led_pixels, 0, 1) == 1);
+    int blueLeds = blueLedCount (led_pixels, LED_STRIP_PIXEL_COUNT);
+    ASSERT_TRUE (blueLeds == 1);
+
+    // Exactly cli_size
+    ci.reset(colors.getRgb(LED_COLOR_BLUE), colors.getRgb(LED_COLOR_WHITE), colors.getRgb(LED_COLOR_BLUE), 2);
+    ASSERT_TRUE (ci.refresh (led_pixels, 0, 2) == 2);
+    blueLeds = blueLedCount (led_pixels, LED_STRIP_PIXEL_COUNT);
+    ASSERT_TRUE (blueLeds == 2);
+
+    // One more than cli size (first bg pixel should appear)
+    ci.reset(colors.getRgb(LED_COLOR_BLUE), colors.getRgb(LED_COLOR_WHITE), colors.getRgb(LED_COLOR_BLUE), 2);
+    ASSERT_TRUE (ci.refresh (led_pixels, 0, 2) == 2);
+    blueLeds = blueLedCount (led_pixels, LED_STRIP_PIXEL_COUNT);
+    ASSERT_TRUE (blueLeds == 2);
+
+    // Changing levels during animation
+    ci.reset(colors.getRgb(LED_COLOR_BLUE), colors.getRgb(LED_COLOR_WHITE), colors.getRgb(LED_COLOR_BLUE), 2);
+    ASSERT_TRUE (ci.refresh (led_pixels, 0, 12) == 12);
+    blueLeds = blueLedCount (led_pixels, LED_STRIP_PIXEL_COUNT);
+    ASSERT_TRUE (blueLeds == 2);
+    ASSERT_TRUE (ci.refresh (led_pixels, 0, 13) == 12);  // Ask for 13, but 12 is still animating
+
+}
+
+//******************************************************************************
+/**
+ * @brief  Test static animation object 
+ *         
+ */
+TEST (static_animation, base)
+{
+    StaticAnimation sa;  
+
+    uint8_t led_pixels[3*LED_STRIP_PIXEL_COUNT] = {0};
+
+    sa.reset(colors.getRgb(LED_COLOR_BLUE));
+
+    // Verify that static animations return the number of LEDs specified
+    for (int x = 0; x < LED_STRIP_PIXEL_COUNT; x++) 
+    {
+        ASSERT_TRUE (sa.refresh (led_pixels, 0, x) == x);
+    }
+
+    // Negative request and NULL array return zero 
+    ASSERT_TRUE (sa.refresh (led_pixels, 0, -1) == 0); 
+    ASSERT_TRUE (sa.refresh (nullptr, 0, 0) == 0); 
+
+}
+
+
+//******************************************************************************
+/**
  * @brief  Count number of BLUE LEDs in an array. Helper function for
  *         testing animation.
  */
-static int blueLedCount (uint8_t *pLedPixels)
+static int blueLedCount (uint8_t *pLedPixels, uint32_t led_count)
 {
     int blueCount = 0;
 
     if (pLedPixels != NULL)
     {
-        for (int x = 0; x < LED_STRIP_PIXEL_COUNT; x++)
+        for (int x = 0; x < led_count; x++)
         {
-            if ((pLedPixels[(3 * x) + 0] == 0x00) &&
-                (pLedPixels[(3 * x) + 1] == 0x00) &&
-                (pLedPixels[(3 * x) + 2] == 0xFF))
+            uint32_t colorRgb = (pLedPixels[(3 * x) + 0] << 16) |
+                                (pLedPixels[(3 * x) + 1] << 8) |
+                                (pLedPixels[(3 * x) + 2] << 0);
+
+            if (colors.isRgb(colorRgb) == LED_COLOR_BLUE)
             {
                 blueCount++;
             }
@@ -209,9 +463,31 @@ static int blueLedCount (uint8_t *pLedPixels)
     return blueCount;
 }
 
+//******************************************************************************
+/**
+ * @brief  Return offset of topmost BLUE led (-1 if not found)
+ */
+static int blueLedLast (uint8_t *pLedPixels, uint32_t led_count)
+{
+    int retVal = -1;
 
+    if (pLedPixels != NULL)
+    {
+        for (int x = 0; x < led_count; x++)
+        {
+            uint32_t colorRgb = (pLedPixels[(3 * x) + 0] << 16) |
+                                (pLedPixels[(3 * x) + 1] << 8) |
+                                (pLedPixels[(3 * x) + 2] << 0);
 
+            if (colors.isRgb(colorRgb) == LED_COLOR_BLUE)
+            {
+                retVal = x;
+            }
+        }
+    }
 
+    return retVal;
+}
 
 //******************************************************************************
 /**
@@ -229,43 +505,50 @@ static void showLed (uint8_t *pLedPixels, int ledIndex)
     // Left pixel bar (in black)
     printf ("|");
 
-    uint32_t color = r << 16 | g << 8 | b; 
+    uint32_t rgb = r << 16 | g << 8 | b;
 
-    switch (color) 
+    LED_COLOR ledColor = colors.isRgb(rgb);
+
+    switch (ledColor)
     {
-        case COLOR_WHITE: 
+        case LED_COLOR_WHITE:
             printf("\033[37m");
             pchar = '.';
             break; 
-        case COLOR_CYAN: 
+        case LED_COLOR_CYAN:
             printf("\033[36m");
             pchar = 'C';
             break;
-        case COLOR_PURPLE:  // Magenta
+        case LED_COLOR_PURPLE:  // Magenta
             printf("\033[35m");
             pchar = 'P';
             break; 
-        case COLOR_YELLOW:
+        case LED_COLOR_YELLOW:
             printf("\033[33m");
             pchar = 'Y';
             break; 
-        case COLOR_RED:
+        case LED_COLOR_RED:
             printf("\033[31m");
             pchar = 'R';
             break;
-        case COLOR_GREEN:
+        case LED_COLOR_GREEN:
             printf("\033[32m");
             pchar = 'G';
             break; 
-        case COLOR_BLUE:
+        case LED_COLOR_BLUE:
             printf("\033[34m");
             pchar = 'B';
             break; 
-        case COLOR_BLACK:
+        case LED_COLOR_BLACK:
             pchar = ' '; 
             break; 
         default: 
             break;
+    }
+
+    if (colors.getMode() == LED_INTENSITY_LOW)
+    {
+        pchar = tolower(pchar);
     }
 
     printf ("%c", pchar);
@@ -321,6 +604,7 @@ void interactive_mode (void)
                 "  +<num> to bump charge level 5%% during animation\n"
                 "  -<num> to cut charge level 5%% during animation\n"
                 " 'q' or 'x' to quit\n"
+                " 'd' to toggle day/night mode\n"
                 " 's' to run charge simulation (long!)\n"
                 "led_test> ");
 
@@ -331,18 +615,21 @@ void interactive_mode (void)
             printf ("Input error");
             return;
         }
-
-        if (tolower(string[0]) == 'q' || tolower(string[0]) == 'x')
+        else if (tolower(string[0]) == 'd')
+        {
+            colors.setMode (colors.getMode() == LED_INTENSITY_HIGH ? LED_INTENSITY_LOW:LED_INTENSITY_HIGH);
+            printf ("Day/Night mode: %s\n", colors.getMode() == LED_INTENSITY_HIGH ? "Day":"Night");
+        }
+        else if (tolower(string[0]) == 'q' || tolower(string[0]) == 'x')
         {
             printf ("\nexiting\n");
             return;
         }
-
-        if (tolower(string[0]) == 's')
+        else if (tolower(string[0]) == 's')
         {
             // Simulated charge
             ChargingAnimation testAnimate;
-            testAnimate.reset(COLOR_BLUE, COLOR_WHITE, COLOR_BLUE, 100);
+            testAnimate.reset(colors.getRgb(LED_COLOR_BLUE), colors.getRgb(LED_COLOR_WHITE), colors.getRgb(LED_COLOR_BLUE), 100);
             uint8_t led_pixels[3*LED_STRIP_PIXEL_COUNT] = {0};
             testAnimate.set_quiet (true);
             testAnimate.set_charge_simulation(true);
@@ -392,7 +679,9 @@ void interactive_mode (void)
             testAnimate.set_quiet (true);
 
             uint8_t led_pixels[3*LED_STRIP_PIXEL_COUNT] = {0};
-            testAnimate.reset(COLOR_BLUE, COLOR_WHITE, COLOR_BLUE, 100);
+            testAnimate.reset(colors.getRgb(LED_COLOR_BLUE),
+                colors.getRgb(LED_COLOR_WHITE),
+                colors.getRgb(LED_COLOR_BLUE), 100);
 
             testAnimate.set_charge_percent(chargePct);
 
@@ -439,7 +728,7 @@ int main(int argc, char **argv) {
     switch (c)
     {
         case 'i':
-        interactive = true;
+            interactive = true;
     }
 
     if (!interactive)

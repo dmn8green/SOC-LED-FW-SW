@@ -14,10 +14,11 @@
 #include "PulsingAnimation.h"
 
 #include "Utils/HSV2RGB.h"
+#include "Utils/Colors.h"
 
 #include "esp_log.h"
 
-static const char* TAG = "PulsingAnimation";
+static const char* TAG = "PLA";  // Pulse Animation (PA is ProgressAnimation)
 
 //******************************************************************************
 /**
@@ -32,17 +33,18 @@ static const char* TAG = "PulsingAnimation";
  * @param pulse_curve       Pointer to the pulse curve
  */
 void PulsingAnimation::reset(
-    uint32_t h, 
-    uint32_t s, 
-    uint32_t v, 
+	COLOR_HSV *pHsv,
     uint32_t min_value, 
     uint32_t rate, 
     bool pulse_saturation,
     BasePulseCurve* pulse_curve
 ) {
-    this->h = h;
-    this->s = s;
-    this->v = v;
+
+	this->hsv = *pHsv;
+
+    // this->h = pHsv->h;
+    // this->s = pHsv->s;
+    // this->v = pHsv->v;
 
     this->min_value = min_value;
     this->BaseAnimation::set_rate(rate);
@@ -50,7 +52,7 @@ void PulsingAnimation::reset(
     this->pulse_curve = pulse_curve;
     ESP_LOGI(TAG, "Pulse curve is %p", this->pulse_curve);
 
-    this->max_value = pulse_saturation ? s : v;
+    this->max_value = pulse_saturation ? hsv.s : hsv.v;
 
     this->pulse_count = 0;
     this->increasing = true;
@@ -64,16 +66,16 @@ void PulsingAnimation::reset(
  * @param start_pixel  Starting pixel offset in led_pixels
  * @param led_count    Number of LED pixels to be updated
  */
-void PulsingAnimation::refresh(uint8_t* led_pixels, int start_pixel, int led_count) {
+int PulsingAnimation::refresh(uint8_t* led_pixels, int start_pixel, int led_count) {
     #define AT_MIN_VALUE (this->pulse_count == this->min_value)
     #define AT_MAX_VALUE (this->pulse_count == this->max_value)
 
     uint32_t red, green, blue;
     uint32_t hue, saturation, value;
 
-    hue = this->h;
-    saturation = this->pulse_saturation ? this->pulse_count : this->s;
-    value = this->pulse_saturation ? this->v : this->pulse_count;
+    hue = this->hsv.h;
+    saturation = this->pulse_saturation ? this->pulse_count : this->hsv.s;
+    value = this->pulse_saturation ? this->hsv.v : this->pulse_count;
     // ESP_LOGI(TAG, "HSV: %ld, %ld, %ld", hue, saturation, value);
 
     // If we are at the min or max value, then we need to change direction.
@@ -85,7 +87,7 @@ void PulsingAnimation::refresh(uint8_t* led_pixels, int start_pixel, int led_cou
     this->increasing = AT_MIN_VALUE ? true : AT_MAX_VALUE ? false : this->increasing;
     //ESP_LOGI(TAG, "%ld: Pulse count: %ld", this->led_number, this->pulse_count);
 
-    hsv2rgb(hue, saturation, value, &red, &green, &blue);
+    Colors::instance().hsv2rgb(hue, saturation, value, &red, &green, &blue);
 
     for (int pixel_idx = start_pixel; pixel_idx < start_pixel + led_count; pixel_idx++) {
         // Build RGB pixels
@@ -93,4 +95,6 @@ void PulsingAnimation::refresh(uint8_t* led_pixels, int start_pixel, int led_cou
         led_pixels[pixel_idx * 3 + 1] = red;
         led_pixels[pixel_idx * 3 + 2] = blue;
     }
+
+    return led_count;
 }
