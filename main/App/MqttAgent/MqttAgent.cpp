@@ -25,6 +25,7 @@ static const char *TAG = "mqtt_agent";
 esp_err_t MqttAgent::setup(ThingConfig* thing_config) {
     struct timespec tp;
 
+    ESP_LOGI(TAG, "Setting this %p", this);
     this->thing_config = thing_config;
     this->event_group = xEventGroupCreate();
 
@@ -54,7 +55,8 @@ esp_err_t MqttAgent::setup(ThingConfig* thing_config) {
     
     // ESP_LOGI(TAG, "%s\n%s\n%s\n", client_cert, client_key, root_ca);
     this->mqtt_connection.initialize(this->thing_config);
-    this->mqtt_context.initialize(this->mqtt_connection.get_network_context(), &MqttAgent::sOn_mqtt_pubsub_event, (void*)this);
+    ESP_LOGI(TAG, "MqttConnection initialized with mn8app %p", this);
+    this->mqtt_context.initialize(this->mqtt_connection.get_network_context(), &MqttAgent::sOn_mqtt_pubsub_event, this);
 
     ( void ) clock_gettime( CLOCK_REALTIME, &tp );
     srand( tp.tv_nsec );
@@ -78,15 +80,15 @@ esp_err_t MqttAgent::subscribe(const char *topic, mqttCallbackFn callback, void*
     // ( void ) memset( ( void * ) pGlobalSubscriptionList, 0x00, sizeof( pGlobalSubscriptionList ) );
 
     /* This example subscribes to only one topic and uses QOS1. */
-    sub_info[0].qos = MQTTQoS1;
+    sub_info[0].qos = MQTTQoS0;
     sub_info[0].pTopicFilter = topic;
     sub_info[0].topicFilterLength = strlen(topic);
 
     /* Generate packet identifier for the SUBSCRIBE packet. */
-    packet_id = MQTT_GetPacketId( &this->mqtt_context );
+    packet_id = MQTT_GetPacketId( this->mqtt_context.get_mqtt_context() );
 
     /* Send SUBSCRIBE packet. */
-    mqtt_status = MQTT_Subscribe( &this->mqtt_context,
+    mqtt_status = MQTT_Subscribe( this->mqtt_context.get_mqtt_context(),
                                  sub_info,
                                  1,
                                  packet_id );
@@ -119,14 +121,14 @@ esp_err_t MqttAgent::publish_message(const char *topic, const char *payload, uin
     MQTTPublishInfo_t packet;
     memset(&packet, 0x00, sizeof(MQTTPublishInfo_t));
 
-    packet.qos = MQTTQoS1;
+    packet.qos = MQTTQoS0;
     packet.pTopicName = topic;
     packet.topicNameLength = strlen(topic);
     packet.pPayload = (uint8_t*)payload;
     packet.payloadLength = strlen(payload);
-    packet_id = MQTT_GetPacketId( &this->mqtt_context );
+    packet_id = MQTT_GetPacketId( this->mqtt_context.get_mqtt_context() );
 
-    mqtt_status = MQTT_Publish( &this->mqtt_context, &packet, packet_id );
+    mqtt_status = MQTT_Publish( this->mqtt_context.get_mqtt_context(), &packet, packet_id );
     if( mqtt_status != MQTTSuccess )
     {
         ESP_LOGE( TAG, "Failed to send PUBLISH packet to broker with error = %s.",
@@ -141,16 +143,31 @@ esp_err_t MqttAgent::publish_message(const char *topic, const char *payload, uin
     return ret;
 }
 
+void MqttAgent::register_handle_incoming_mqtt(handle_incoming_mqtt_fn callback, void* context) {
+    this->handle_incoming_mqtt = callback;
+    this->handle_incoming_mqtt_context = context;
+    ESP_LOGI(TAG, "<<<<<<<<<<<<< Registered handle_incoming_mqtt callback mn8app %p", this->handle_incoming_mqtt_context);
+}
+
 //******************************************************************************
 void MqttAgent::on_mqtt_pubsub_event(
     struct MQTTContext * context,
     struct MQTTPacketInfo * packet_info,
     struct MQTTDeserializedInfo * deserialized_info
 ) {
+    ESP_LOGI(TAG, "Got publish event will call agent %p, mn8app %p", this, this->handle_incoming_mqtt_context);
+
     if ((packet_info->type & 0xF0U) == MQTT_PACKET_TYPE_PUBLISH) {
         assert( deserialized_info->pPublishInfo != NULL );
-        ESP_LOGI(TAG, "Got publish event");
-        // subscription_handler->handle_publish( packet_info, deserialized_info );
+        MQTTPublishInfo_t * pPublishInfo = deserialized_info->pPublishInfo;
+        handle_incoming_mqtt(
+            pPublishInfo->pTopicName,
+            pPublishInfo->topicNameLength,
+            (const char*)pPublishInfo->pPayload,
+            pPublishInfo->payloadLength,
+            deserialized_info->packetIdentifier,
+            this->handle_incoming_mqtt_context
+        );
     } else {
         ESP_LOGI(TAG, "Got other event");
         // pubsub_handler->handle_packet( packet_info, deserialized_info );
@@ -164,7 +181,7 @@ esp_err_t MqttAgent::process_mqtt_loop(void) {
     // Only stay in the loop if there is more incoming data.  This under the hood
     // ends up calling our subscribe callback.
     do {
-        mqtt_status = MQTT_ProcessLoop( &this->mqtt_context );
+        mqtt_status = MQTT_ProcessLoop( this->mqtt_context.get_mqtt_context() );
 
         if (mqtt_status == MQTTNeedMoreBytes) {
             // Need to wait a bit between calls to MQTT_ProcessLoop().
@@ -201,7 +218,7 @@ void MqttAgent::taskFunction(void) {
 
         // Connect to the broker
         if (!connected) {
-            ret = this->mqtt_connection.connect_with_retries(&this->mqtt_context, 10);
+            ret = this->mqtt_connection.connect_with_retries(this->mqtt_context.get_mqtt_context(), 10);
             if (ret != ESP_OK) {
                 ESP_LOGE(TAG, "Failed to connect to MQTT broker");
                 continue;
@@ -246,7 +263,7 @@ void MqttAgent::taskFunction(void) {
         if (ret != ESP_OK) {
             ESP_LOGE(TAG, "Failed to process mqtt loop");
             this->event_callback(e_mqtt_agent_disconnected, this->event_callback_context);
-            this->mqtt_connection.disconnect(&this->mqtt_context);
+            this->mqtt_connection.disconnect(this->mqtt_context.get_mqtt_context());
             connected = false;
         }
 

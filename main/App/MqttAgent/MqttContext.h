@@ -19,35 +19,34 @@
  */
 #define INCOMING_PUBLISH_RECORD_LEN    ( 10U )
 
-#define NETWORK_BUFFER_SIZE     ( 1024U )
-#define OS_NAME                 "FreeRTOS"
-#define OS_VERSION              tskKERNEL_VERSION_NUMBER
-#define HARDWARE_PLATFORM_NAME  "ESP32"
-#define AWS_MQTT_PORT           ( 8883 )
-
-#include "core_mqtt.h"
-#define MQTT_LIB    "core-mqtt@" MQTT_LIBRARY_VERSION
-
 typedef void (* EventCallback_t )( struct MQTTContext * pContext,
                                    struct MQTTPacketInfo * pPacketInfo,
                                    struct MQTTDeserializedInfo * pDeserializedInfo,
                                    void* context );
 
-class MqttContext : public NoCopy, public MQTTContext_t {
+class MqttContext : public NoCopy {
 public:
     MqttContext(void);
     ~MqttContext(void) = default;
 
 public:
     esp_err_t initialize(NetworkContext_t * network_context, EventCallback_t callback, void * pCallbackContext);
+    inline MQTTContext_t * get_mqtt_context(void) { return &this->mqtt_context; }
 
 private:
+    typedef struct : MQTTContext_t {
+        MqttContext *mn8_context = nullptr;
+    } MN8MQTTContext_t;
+
+
     static uint32_t sClock_get_time_ms(void);
 
     static void sEvent_callback( MQTTContext_t * pMqttContext,
                                  MQTTPacketInfo_t * pPacketInfo,
                                  MQTTDeserializedInfo_t * pDeserializedInfo ) { 
-                                    ((MqttContext*)pMqttContext)->event_callback(pMqttContext, pPacketInfo, pDeserializedInfo);
+                                    MN8MQTTContext_t* tmp = static_cast<MN8MQTTContext_t*>(pMqttContext);
+                                    ESP_LOGI("MqttContext", "sEvent_callback %p mn8ctx = %p", tmp, tmp->mn8_context);
+                                    tmp->mn8_context->event_callback(pMqttContext, pPacketInfo, pDeserializedInfo);
                                 }
 
     void event_callback( MQTTContext_t * pMqttContext,
@@ -57,7 +56,8 @@ private:
 private:
     MQTTPubAckInfo_t outgoing_records[ OUTGOING_PUBLISH_RECORD_LEN ];
     MQTTPubAckInfo_t incoming_records[ INCOMING_PUBLISH_RECORD_LEN ];
+    MN8MQTTContext_t mqtt_context;
     uint8_t * buffer = nullptr;
     EventCallback_t callback = nullptr;
-    void * pCallbackContext = nullptr;
+    void * callback_context = nullptr;
 };

@@ -59,17 +59,31 @@ esp_err_t MN8StateMachine::setup(MN8Context* context)
     this->context = context;
 
     this->state = e_mn8_unknown_state;
+    this->state_handler = &MN8StateMachine::off_state;
 
+    return ret;
+}
+
+//*****************************************************************************
+esp_err_t MN8StateMachine::turn_on(void) {
     bool is_provisioned = 
-        !context->is_iot_thing_provisioned() ||
+        context->is_iot_thing_provisioned() &&
         //!context->is_cp_provisioned() ||
-        !context->get_network_connection_agent().is_configured();
+        context->get_network_connection_agent().is_configured();
 
     // figure out the initial state.
-    this->state_handler = is_provisioned ? 
-        &MN8StateMachine::disconnected_handle_event :
-        &MN8StateMachine::unprovisioned_handle_event;
-    return ret;
+    ESP_LOGI(TAG, "is_provisioned = %d", is_provisioned);
+    if (is_provisioned) {
+        this->handle_event(e_mn8_event_turn_on);
+    }
+
+    return ESP_OK;
+}
+
+//*****************************************************************************
+esp_err_t MN8StateMachine::turn_off(void) {
+    this->handle_event(e_mn8_event_turn_off);
+    return ESP_OK;
 }
 
 //*****************************************************************************
@@ -79,12 +93,12 @@ void MN8StateMachine::handle_event(mn8_event_t event) {
     mn8_state_t next_state = std::invoke(state_handler, this, event);
     if (next_state != this->state) {
         switch(next_state) {
-            case e_mn8_unprovisioned    : this->state_handler = &SM::unprovisioned_handle_event; break;
-            case e_mn8_connecting       : this->state_handler = &SM::connecting_handle_event; break;
-            case e_mn8_connected        : this->state_handler = &SM::connected_handle_event; break;
-            case e_mn8_connection_error : this->state_handler = &SM::connection_error_handle_event; break;
-            case e_mn8_disconnecting    : this->state_handler = &SM::disconnecting_handle_event; break;
-            case e_mn8_disconnected     : this->state_handler = &SM::disconnected_handle_event; break;
+            case e_mn8_off              : this->state_handler = &SM::off_state; break;
+            case e_mn8_connecting       : this->state_handler = &SM::connecting_state; break;
+            case e_mn8_connected        : this->state_handler = &SM::connected_state; break;
+            case e_mn8_connection_error : this->state_handler = &SM::connection_error_state; break;
+            case e_mn8_disconnecting    : this->state_handler = &SM::disconnecting_state; break;
+            case e_mn8_disconnected     : this->state_handler = &SM::disconnected_state; break;
             default:
                 break;
         }
@@ -107,21 +121,25 @@ void MN8StateMachine::handle_event(mn8_event_t event) {
  * 
  * @param event The event to handle.
  */
-mn8_state_t MN8StateMachine::unprovisioned_handle_event(mn8_event_t event) {
+mn8_state_t MN8StateMachine::off_state(mn8_event_t event) {
     mn8_state_t next_state = e_mn8_unknown_state;
 
-    if (this->state != e_mn8_unprovisioned) {
-        ESP_LOGI(TAG, "Entering unprovisioned state");
-        this->state = e_mn8_unprovisioned;
+    if (this->state != e_mn8_off) {
+        ESP_LOGI(TAG, "Entering off state");
+        this->state = e_mn8_off;
     }
 
     switch (event) {
+        case e_mn8_event_turn_on:
+            this->context->get_network_connection_agent().connect();
+            next_state = e_mn8_connecting;
+            break;
         default:
-            next_state = e_mn8_unprovisioned;
+            next_state = e_mn8_off;
     }
 
-    if (next_state != e_mn8_unprovisioned) {
-        ESP_LOGI(TAG, "Leaving unprovisioned state");
+    if (next_state != e_mn8_off) {
+        ESP_LOGI(TAG, "Leaving off state");
     }
 
     return next_state;
@@ -136,7 +154,7 @@ mn8_state_t MN8StateMachine::unprovisioned_handle_event(mn8_event_t event) {
  * 
  * @param event The event to handle.
  */
-mn8_state_t MN8StateMachine::connecting_handle_event(mn8_event_t event) {
+mn8_state_t MN8StateMachine::connecting_state(mn8_event_t event) {
     mn8_state_t next_state = e_mn8_unknown_state;
 
     if (this->state != e_mn8_connecting) {
@@ -150,8 +168,7 @@ mn8_state_t MN8StateMachine::connecting_handle_event(mn8_event_t event) {
             // if (this->context->get_network_connection_agent().is_connected() &&
             //     this->context->get_mqtt_agent().is_connected())
             // {
-            //     next_state = e_mn8_connected;
-            // }
+            next_state = e_mn8_connected;
             
             break;
         default:
@@ -176,7 +193,7 @@ mn8_state_t MN8StateMachine::connecting_handle_event(mn8_event_t event) {
  * 
  * @param event The event to handle.
  */
-mn8_state_t MN8StateMachine::connected_handle_event(mn8_event_t event) {
+mn8_state_t MN8StateMachine::connected_state(mn8_event_t event) {
     mn8_state_t next_state = e_mn8_unknown_state;
 
     if (this->state != e_mn8_connected) {
@@ -218,7 +235,7 @@ mn8_state_t MN8StateMachine::connected_handle_event(mn8_event_t event) {
  * 
  * @param event The event to handle.
  */
-mn8_state_t MN8StateMachine::connection_error_handle_event(mn8_event_t event) {
+mn8_state_t MN8StateMachine::connection_error_state(mn8_event_t event) {
     mn8_state_t next_state = e_mn8_unknown_state;
 
     if (this->state != e_mn8_connection_error) {
@@ -239,7 +256,7 @@ mn8_state_t MN8StateMachine::connection_error_handle_event(mn8_event_t event) {
 }
 
 //*****************************************************************************
-mn8_state_t MN8StateMachine::disconnecting_handle_event(mn8_event_t event) {
+mn8_state_t MN8StateMachine::disconnecting_state(mn8_event_t event) {
     mn8_state_t next_state = e_mn8_unknown_state;
 
     if (this->state != e_mn8_disconnecting) {
@@ -260,7 +277,7 @@ mn8_state_t MN8StateMachine::disconnecting_handle_event(mn8_event_t event) {
 }
 
 //*****************************************************************************
-mn8_state_t MN8StateMachine::disconnected_handle_event(mn8_event_t event) {
+mn8_state_t MN8StateMachine::disconnected_state(mn8_event_t event) {
     mn8_state_t next_state = e_mn8_unknown_state;
 
     if (this->state != e_mn8_disconnected) {

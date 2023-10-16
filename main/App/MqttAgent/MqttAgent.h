@@ -65,6 +65,16 @@ public:
         this->event_callback_context = context;
     }
 
+    typedef void (*handle_incoming_mqtt_fn)(
+        const char* pTopicName,
+        uint16_t topicNameLength,
+        const char* pPayload,
+        size_t payloadLength,
+        uint16_t packetIdentifier,
+        void* context
+    );
+    void register_handle_incoming_mqtt(handle_incoming_mqtt_fn callback, void* context);
+
 protected:
     virtual void taskFunction(void) override;
     virtual const char* task_name(void) override { return MQTT_AGENT_TASK_NAME; }
@@ -88,6 +98,7 @@ protected:
         struct MQTTDeserializedInfo * pDeserializedInfo,
         void* context
     ) {
+        ESP_LOGI("MqttAgent", "sOn_mqtt_pubsub_event agent is %p mn8 %p", context, ((MqttAgent*)context)->handle_incoming_mqtt_context);
         ((MqttAgent*)context)->on_mqtt_pubsub_event(pContext, pPacketInfo, pDeserializedInfo);
     }
 
@@ -105,4 +116,7 @@ private:
 
     event_callback_t event_callback;
     void* event_callback_context;
+
+    handle_incoming_mqtt_fn handle_incoming_mqtt;
+    void* handle_incoming_mqtt_context;
 };

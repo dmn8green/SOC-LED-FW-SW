@@ -35,7 +35,7 @@ esp_err_t NetworkConnectionStateMachine::setup(NetworkConnection* connection)
     esp_err_t ret = ESP_OK;
     this->connection = connection;
     this->state = e_nc_state_unknown;
-    this->state_handler = &NetworkConnectionStateMachine::off_handle_event;
+    this->state_handler = &NetworkConnectionStateMachine::off_state;
     return ret;
 }
 
@@ -47,11 +47,11 @@ void NetworkConnectionStateMachine::handle_event(net_conn_agent_event_t event) {
     net_conn_agent_state_t next_state = std::invoke(state_handler, this, event);
     if (next_state != this->state) {
         switch(next_state) {
-            case e_nc_state_off                 : this->state_handler = &SM::off_handle_event; break;
-            case e_nc_state_connecting          : this->state_handler = &SM::connecting_handle_event; break;
-            case e_nc_state_connected           : this->state_handler = &SM::connected_handle_event; break;
-            case e_nc_state_testing_connection  : this->state_handler = &SM::testing_connection_handle_event; break;
-            case e_nc_state_no_connection_error : this->state_handler = &SM::no_connection_error_handle_event; break;
+            case e_nc_state_off                 : this->state_handler = &SM::off_state; break;
+            case e_nc_state_connecting          : this->state_handler = &SM::connecting_state; break;
+            case e_nc_state_connected           : this->state_handler = &SM::connected_state; break;
+            case e_nc_state_testing_connection  : this->state_handler = &SM::testing_connection_state; break;
+            case e_nc_state_no_connection_error : this->state_handler = &SM::no_connection_error_state; break;
             default:
                 break;
         }
@@ -66,8 +66,8 @@ void NetworkConnectionStateMachine::handle_event(net_conn_agent_event_t event) {
 }
 
 //*****************************************************************************
-net_conn_agent_state_t NetworkConnectionStateMachine::off_handle_event(net_conn_agent_event_t event) {
-    ESP_LOGI(TAG, "Disabled handle event");
+net_conn_agent_state_t NetworkConnectionStateMachine::off_state(net_conn_agent_event_t event) {
+    ESP_LOGI(TAG, "off state");
     net_conn_agent_state_t next_state = e_nc_state_off;
 
     // enter state
@@ -77,7 +77,8 @@ net_conn_agent_state_t NetworkConnectionStateMachine::off_handle_event(net_conn_
     }
 
     switch (event) {
-        case e_nc_event_net_connect       :
+        case e_nc_event_net_connect:
+            ESP_LOGI(TAG, "Connecting network");
             this->connection->connect();
             next_state = e_nc_state_connecting; 
             break;
@@ -88,14 +89,14 @@ net_conn_agent_state_t NetworkConnectionStateMachine::off_handle_event(net_conn_
 
     // leave state
     if (next_state != e_nc_state_off) {
-        ESP_LOGI(TAG, "Leaving state disabled");
+        ESP_LOGI(TAG, "Leaving state off");
     }
 
     return next_state;
 }
 
 //*****************************************************************************
-net_conn_agent_state_t NetworkConnectionStateMachine::connecting_handle_event(net_conn_agent_event_t event) {
+net_conn_agent_state_t NetworkConnectionStateMachine::connecting_state(net_conn_agent_event_t event) {
     ESP_LOGI(TAG, "Connecting handle event");
     net_conn_agent_state_t next_state = e_nc_state_connecting;
 
@@ -124,7 +125,7 @@ net_conn_agent_state_t NetworkConnectionStateMachine::connecting_handle_event(ne
 }
 
 //*****************************************************************************
-net_conn_agent_state_t NetworkConnectionStateMachine::connected_handle_event(net_conn_agent_event_t event) {
+net_conn_agent_state_t NetworkConnectionStateMachine::connected_state(net_conn_agent_event_t event) {
     ESP_LOGI(TAG, "Connected handle event");
     net_conn_agent_state_t next_state = e_nc_state_connected;
 
@@ -157,7 +158,7 @@ net_conn_agent_state_t NetworkConnectionStateMachine::connected_handle_event(net
 }
 
 //*****************************************************************************
-net_conn_agent_state_t NetworkConnectionStateMachine::disconnecting_handle_event(net_conn_agent_event_t event) {
+net_conn_agent_state_t NetworkConnectionStateMachine::disconnecting_state(net_conn_agent_event_t event) {
     ESP_LOGI(TAG, "Connecting handle event");
     net_conn_agent_state_t next_state = e_nc_state_connecting;
 
@@ -185,7 +186,7 @@ net_conn_agent_state_t NetworkConnectionStateMachine::disconnecting_handle_event
 }
 
 //*****************************************************************************
-net_conn_agent_state_t NetworkConnectionStateMachine::testing_connection_handle_event(net_conn_agent_event_t event) {
+net_conn_agent_state_t NetworkConnectionStateMachine::testing_connection_state(net_conn_agent_event_t event) {
     ESP_LOGI(TAG, "Connected handle event");
     net_conn_agent_state_t next_state = e_nc_state_testing_connection;
 
@@ -214,7 +215,7 @@ net_conn_agent_state_t NetworkConnectionStateMachine::testing_connection_handle_
 
 
 //*****************************************************************************
-net_conn_agent_state_t NetworkConnectionStateMachine::no_connection_error_handle_event(net_conn_agent_event_t event) {
+net_conn_agent_state_t NetworkConnectionStateMachine::no_connection_error_state(net_conn_agent_event_t event) {
     ESP_LOGI(TAG, "No connection error handle event");
     net_conn_agent_state_t next_state = e_nc_state_no_connection_error;
 

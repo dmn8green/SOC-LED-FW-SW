@@ -14,7 +14,6 @@
 #include "Utils/NoCopy.h"
 
 #include "App/Configuration/ThingConfig.h"
-#include "App/MqttAgent/MqttContext.h"
 
 #include "core_mqtt.h"
 #include "core_mqtt_state.h"
@@ -32,8 +31,8 @@ public:
 
 public:
     esp_err_t initialize(ThingConfig* thing_config);
-    esp_err_t connect_with_retries(MqttContext* mqtt_context, uint16_t retry_count = 5);
-    esp_err_t disconnect(MqttContext* mqtt_context);
+    esp_err_t connect_with_retries(MQTTContext_t* mqtt_context, uint16_t retry_count = 5);
+    esp_err_t disconnect(MQTTContext_t* mqtt_context);
 
     inline bool is_client_session_present(void) const { return client_session_present; }
     inline bool is_broker_session_present(void) const { return broker_session_present; }
@@ -41,8 +40,8 @@ public:
     inline NetworkContext_t* get_network_context(void) { return &network_context; }
 
 private:
-    esp_err_t connect_mqtt_socket(MqttContext* mqtt_context);
-    esp_err_t disconnect_mqtt_socket(MqttContext* mqtt_context);
+    esp_err_t connect_mqtt_socket(MQTTContext_t* mqtt_context);
+    esp_err_t disconnect_mqtt_socket(MQTTContext_t* mqtt_context);
 
 private:
     NetworkContext_t network_context;

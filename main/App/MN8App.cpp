@@ -135,6 +135,8 @@ esp_err_t MN8App::setup(void) {
 
     this->context.get_network_connection_agent().register_event_callback(this->sOn_network_event, this);
     this->context.get_mqtt_agent().register_event_callback(this->sOn_mqtt_event, this);
+    ESP_LOGI(TAG, "******************* Registering mqtt callback with mn8app this %p", this);
+    this->context.get_mqtt_agent().register_handle_incoming_mqtt(this->sOn_incoming_mqtt, this);
 
     ESP_GOTO_ON_ERROR(
         context.get_network_connection_agent().setup(), 
@@ -155,6 +157,7 @@ esp_err_t MN8App::setup(void) {
     this->context.get_network_connection_agent().start();
     this->context.get_mqtt_agent().start();
 
+    this->state_machine.setup(&this->context);
 
     this->message_queue = xQueueCreate(10, sizeof(mn8_event_t));
 
@@ -183,21 +186,37 @@ err:
     return ret;
 }
 
+void MN8App::on_incoming_mqtt( 
+    const char* pTopicName,
+    uint16_t topicNameLength,
+    const char* pPayload,
+    size_t payloadLength,
+    uint16_t packetIdentifier
+) {
+    ESP_LOGI(TAG, "Incoming publish received : %.*s", payloadLength, pPayload);
+    // ESP_LOGI(TAG, "Incoming publish received : %s", (char*) root["state"]);
+}
+
 //*****************************************************************************
 // callback for the network connection state machine.
 void MN8App::on_network_event(NetworkConnectionAgent::event_t event) {
     ESP_LOGI(TAG, "Network event : %d", event);
     switch (event) {
-        case NetworkConnectionAgent::event_t::e_net_agent_connection_error:
+        case NetworkConnectionAgent::event_t::e_net_agent_connection_error: {
+            mn8_event_t event = e_mn8_event_lost_network_connection;
+            xQueueSend(this->message_queue, &event, 0);
             break;
-        case NetworkConnectionAgent::event_t::e_net_agent_connecting:
+        }
+        case NetworkConnectionAgent::event_t::e_net_agent_connected: {
+            mn8_event_t event = e_mn8_event_net_connected;
+            xQueueSend(this->message_queue, &event, 0);
             break;
-        case NetworkConnectionAgent::event_t::e_net_agent_connected:
+        }
+        case NetworkConnectionAgent::event_t::e_net_agent_disconnected: {
+            mn8_event_t event = e_mn8_event_net_disconnected;
+            xQueueSend(this->message_queue, &event, 0);
             break;
-        case NetworkConnectionAgent::event_t::e_net_agent_disconnected:
-            break;
-        case NetworkConnectionAgent::event_t::e_net_agent_disconnecting:
-            break;
+        }
         default:
             break;
     }
@@ -208,10 +227,16 @@ void MN8App::on_network_event(NetworkConnectionAgent::event_t event) {
 void MN8App::on_mqtt_event(MqttAgent::event_t event) {
     ESP_LOGI(TAG, "MQTT event : %d", event);
     switch (event) {
-        case MqttAgent::event_t::e_mqtt_agent_connected:
+        case MqttAgent::event_t::e_mqtt_agent_connected: {
+            mn8_event_t event = e_mn8_event_mqtt_connected;
+            xQueueSend(this->message_queue, &event, 0);
             break;
-        case MqttAgent::event_t::e_mqtt_agent_disconnected:
+        }
+        case MqttAgent::event_t::e_mqtt_agent_disconnected: {
+            mn8_event_t event = e_mn8_event_mqtt_disconnected;
+            xQueueSend(this->message_queue, &event, 0);
             break;
+        }
         default:
             break;
     }
@@ -227,12 +252,17 @@ void MN8App::on_mqtt_event(MqttAgent::event_t event) {
  * 
  */
 void MN8App::loop(void) {
-    while(1) {
-        // check the network connection state machine.
-        // check the mqtt state machine.
+    mn8_event_t event;
+    TickType_t xTicksToWait = portMAX_DELAY;
+    
+    this->state_machine.turn_on();
 
-        vTaskDelay(5000 / portTICK_PERIOD_MS);
-        // ESP_LOGI(__func__, "Hello world!");
+    while(1) {
+        ESP_LOGI(TAG, "Waiting for event");
+        if (xQueueReceive(this->message_queue, &event, xTicksToWait) == pdTRUE) {
+            ESP_LOGI(TAG, "Event received : %d", event);
+            this->state_machine.handle_event(event);
+        }
     }
 }
 

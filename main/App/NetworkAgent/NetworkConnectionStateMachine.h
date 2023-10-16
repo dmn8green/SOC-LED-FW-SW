@@ -51,12 +51,12 @@ public:
     void handle_event(net_conn_agent_event_t event);
 
 protected:
-    net_conn_agent_state_t off_handle_event(net_conn_agent_event_t event);
-    net_conn_agent_state_t connecting_handle_event(net_conn_agent_event_t event);
-    net_conn_agent_state_t connected_handle_event(net_conn_agent_event_t event);
-    net_conn_agent_state_t disconnecting_handle_event(net_conn_agent_event_t event);
-    net_conn_agent_state_t testing_connection_handle_event(net_conn_agent_event_t event);
-    net_conn_agent_state_t no_connection_error_handle_event(net_conn_agent_event_t event);
+    net_conn_agent_state_t off_state(net_conn_agent_event_t event);
+    net_conn_agent_state_t connecting_state(net_conn_agent_event_t event);
+    net_conn_agent_state_t connected_state(net_conn_agent_event_t event);
+    net_conn_agent_state_t disconnecting_state(net_conn_agent_event_t event);
+    net_conn_agent_state_t testing_connection_state(net_conn_agent_event_t event);
+    net_conn_agent_state_t no_connection_error_state(net_conn_agent_event_t event);
 
 private:
     NetworkConnection* connection = nullptr;

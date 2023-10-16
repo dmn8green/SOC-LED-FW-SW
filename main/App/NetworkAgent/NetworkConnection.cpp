@@ -129,7 +129,7 @@ esp_err_t NetworkConnection::setup_wifi_connection(void) {
     }
     
     this->wifi_connection->initialize();
-    this->wifi_connection->up();
+    //this->wifi_connection->up();
 
     return ESP_OK;
 }
@@ -182,7 +182,7 @@ esp_err_t NetworkConnection::setup_ethernet_connection(void) {
     }
 
     this->ethernet_connection->initialize();
-    this->ethernet_connection->up();
+    //this->ethernet_connection->up();
 
     return ESP_OK;
 }
@@ -225,11 +225,11 @@ bool NetworkConnection::check_connectivity(bool thorough_check) {
 esp_err_t NetworkConnection::connect(void) {
     esp_err_t ret = ESP_OK;
 
-    if (this->wifi_connection->is_enabled()) {
+    if (!this->wifi_connection->is_enabled()) {
         ESP_GOTO_ON_ERROR(this->wifi_connection->up(), err, TAG, "Failed to bring up wifi connection");
     }
 
-    if (this->has_ethernet_phy && this->ethernet_connection->is_enabled()) {
+    if (this->has_ethernet_phy && !this->ethernet_connection->is_enabled()) {
         ESP_GOTO_ON_ERROR(this->ethernet_connection->up(), err, TAG, "Failed to bring up ethernet connection");
     }
 err:
