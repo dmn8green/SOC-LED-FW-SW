@@ -27,10 +27,10 @@
 static const char *TAG = "LedTaskSpi";
 
 // Gotta love meta programming.
-#define STATIC_ANIM_CASE(x, color) \
+#define STATIC_ANIM_CASE(x, colorRgb) \
     case x: \
-    ESP_LOGI(TAG, "%d: Switching to static anim state " #x " with the color " #color, this->led_number); \
-    this->static_animation.reset(color); this->animation = &this->static_animation; break;
+    ESP_LOGI(TAG, "%d: Switching to static anim state " #x " with the color " #colorRgb, this->led_number); \
+    this->static_animation.reset(colors.getRgb(colorRgb)); this->animation = &this->static_animation; break;
 
 
 //******************************************************************************
@@ -54,29 +54,36 @@ void LedTaskSpi::vTaskCodeLed()
     {
         if (state_changed)
         {
+            Colors& colors = Colors::instance();
             ESP_LOGI(TAG, "%d: State changed", this->led_number);
             ESP_LOGI(TAG, "New state is %d", this->state_info.state);
             switch (state_info.state)
             {
-            STATIC_ANIM_CASE(e_station_available,           COLOR_GREEN);
-            STATIC_ANIM_CASE(e_station_waiting_for_power,   COLOR_CYAN);
-            STATIC_ANIM_CASE(e_station_charging_complete,   COLOR_BLUE);
-            STATIC_ANIM_CASE(e_station_out_of_service,      COLOR_RED);
-            STATIC_ANIM_CASE(e_station_disable,             COLOR_RED);
-            STATIC_ANIM_CASE(e_station_offline,             COLOR_WHITE);
-            STATIC_ANIM_CASE(e_station_reserved,            COLOR_ORANGE);
-            STATIC_ANIM_CASE(e_station_unknown,             COLOR_PURPLE);
+            STATIC_ANIM_CASE(e_station_available,           LED_COLOR_GREEN);
+            STATIC_ANIM_CASE(e_station_waiting_for_power,   LED_COLOR_CYAN);
+            STATIC_ANIM_CASE(e_station_charging_complete,   LED_COLOR_BLUE);
+            STATIC_ANIM_CASE(e_station_out_of_service,      LED_COLOR_RED);
+            STATIC_ANIM_CASE(e_station_disable,             LED_COLOR_RED);
+            STATIC_ANIM_CASE(e_station_offline,             LED_COLOR_WHITE);
+            STATIC_ANIM_CASE(e_station_reserved,            LED_COLOR_ORANGE);
+            STATIC_ANIM_CASE(e_station_unknown,             LED_COLOR_PURPLE);
             case e_station_charging:
                 ESP_LOGI(TAG, "%d: Charging", this->led_number);
-                this->charging_animation.reset(COLOR_BLUE, COLOR_WHITE, COLOR_BLUE, 100);
+                this->charging_animation.reset(colors.getRgb(LED_COLOR_BLUE),
+                    colors.getRgb(LED_COLOR_WHITE),
+                    colors.getRgb(LED_COLOR_BLUE), 100);
                 this->charging_animation.set_charge_percent(state_info.charge_percent);
                 this->animation = &this->charging_animation;
                 break;
             case e_station_booting_up:
-                //ESP_LOGI(TAG, "%d: Station is booting up", this->led_number);
-                this->pulsing_animation.reset(COLOR_YELLOW_HSV, 0, 20, false, &smooth_rate_pulse_curve);
-                this->animation = &this->pulsing_animation;
+                {
+                    //ESP_LOGI(TAG, "%d: Station is booting up", this->led_number);
+                    COLOR_HSV *pHsv = colors.getHsv(LED_COLOR_YELLOW);
+                    this->pulsing_animation.reset(pHsv, 0, 20, false, &smooth_rate_pulse_curve);
+                    this->animation = &this->pulsing_animation;
+                }
                 break;
+
             default:
                 ESP_LOGE(TAG, "%d: Unknown state %d", this->led_number, state_info.state);
                 break;
