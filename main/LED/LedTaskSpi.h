@@ -12,6 +12,7 @@
 #pragma once
 
 #include "Utils/NoCopy.h"
+#include "Utils/Colors.h"
 #include "RmtOverSpi.h"
 
 #include "esp_err.h"

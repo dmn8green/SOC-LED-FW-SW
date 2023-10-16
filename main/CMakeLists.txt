@@ -29,6 +29,7 @@ set(COMPONENT_SRCS
     Utils/KeyStore.cpp
     Utils/FuseMacAddress.cpp
     Utils/HSV2RGB.cpp
+    Utils/Colors.cpp
     Utils/FreeRTOSTask.cpp
     LED/LedTaskSpi.cpp
     LED/RmtOverSpi.cpp
