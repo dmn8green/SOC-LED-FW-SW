@@ -69,6 +69,10 @@ void LedTaskSpi::vTaskCodeLed()
             STATIC_ANIM_CASE(e_station_unknown,             LED_COLOR_PURPLE);
             case e_station_charging:
                 ESP_LOGI(TAG, "%d: Charging", this->led_number);
+                if (this->animation == &this->charging_animation) {
+                    this->charging_animation.set_charge_percent(state_info.charge_percent);
+                    break;
+                }
                 this->charging_animation.reset(colors.getRgb(LED_COLOR_BLUE),
                     colors.getRgb(LED_COLOR_WHITE),
                     colors.getRgb(LED_COLOR_BLUE), 100);
