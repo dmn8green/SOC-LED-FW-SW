@@ -59,18 +59,14 @@ protected:
     static void sOn_mqtt_event(MqttAgent::event_t event, void* context) { ((MN8App*)context)->on_mqtt_event(event); }
 
     void on_incoming_mqtt( 
-        const char* pTopicName,
-        uint16_t topicNameLength,
-        const char* pPayload,
-        size_t payloadLength,
+        const char* pTopicName, uint16_t topicNameLength,
+        const char* pPayload, size_t payloadLength,
         uint16_t packetIdentifier
     );
 
     static void sOn_incoming_mqtt( 
-        const char* pTopicName,
-        uint16_t topicNameLength,
-        const char* pPayload,
-        size_t payloadLength,
+        const char* pTopicName, uint16_t topicNameLength,
+        const char* pPayload, size_t payloadLength,
         uint16_t packetIdentifier,
         void* context
     ) {

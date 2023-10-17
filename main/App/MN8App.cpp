@@ -59,6 +59,29 @@ static esp_err_t initialize_nvs(void)
 
 //*****************************************************************************
 /**
+ * @brief Configure GPIO for demo board.
+ * 
+ * This is to work around the being held in reset on boot because of a conflict
+ * with the eth dev kit board.
+*/
+static esp_err_t configure_gpio_for_demo(void) {
+    #define GPIO_BIT_MASK  ((1ULL<<GPIO_NUM_4)) 
+
+	gpio_config_t io_conf;
+	io_conf.intr_type = GPIO_INTR_DISABLE;
+	io_conf.mode = GPIO_MODE_OUTPUT;
+	io_conf.pin_bit_mask = GPIO_BIT_MASK;
+	io_conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
+	io_conf.pull_up_en = GPIO_PULLUP_DISABLE;
+	gpio_config(&io_conf);
+
+    gpio_set_level(GPIO_NUM_4, 1);
+
+    return ESP_OK;
+}
+
+//*****************************************************************************
+/**
  * @brief Setup the MN8App.
  * 
  * This function will setup the wifi and ethernet connections.
@@ -68,6 +91,7 @@ static esp_err_t initialize_nvs(void)
  */
 esp_err_t MN8App::setup(void) {
     esp_err_t ret = ESP_OK;
+
     auto& thing_config = this->context.get_thing_config();
 
     // Do this as early as possible to have feedback.
@@ -79,6 +103,10 @@ esp_err_t MN8App::setup(void) {
     // We need this to have our event loop.  Without this, we can't get the
     // network events or any other events.
     ESP_GOTO_ON_ERROR(esp_event_loop_create_default(), err, TAG, "Failed to create event loop");
+
+    // sleep 5 seconds
+    vTaskDelay(5000 / portTICK_PERIOD_MS);
+    configure_gpio_for_demo();
 
     this->context.get_network_connection_agent().register_event_callback(this->sOn_network_event, this);
     this->context.get_mqtt_agent().register_event_callback(this->sOn_mqtt_event, this);

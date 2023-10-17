@@ -58,6 +58,8 @@ esp_err_t MqttAgent::setup(ThingConfig* thing_config) {
     ESP_LOGI(TAG, "MqttConnection initialized with mn8app %p", this);
     this->mqtt_context.initialize(this->mqtt_connection.get_network_context(), &MqttAgent::sOn_mqtt_pubsub_event, this);
 
+    this->mqtt_mutex = xSemaphoreCreateMutex();
+
     ( void ) clock_gettime( CLOCK_REALTIME, &tp );
     srand( tp.tv_nsec );
 
@@ -84,6 +86,12 @@ esp_err_t MqttAgent::subscribe(const char *topic, mqttCallbackFn callback, void*
     sub_info[0].pTopicFilter = topic;
     sub_info[0].topicFilterLength = strlen(topic);
 
+    // take mutex
+    if (!xSemaphoreTake(this->mqtt_mutex, portMAX_DELAY)) {
+        ESP_LOGE(TAG, "Failed to take mqtt mutex");
+        return ESP_FAIL;
+    }
+
     /* Generate packet identifier for the SUBSCRIBE packet. */
     packet_id = MQTT_GetPacketId( this->mqtt_context.get_mqtt_context() );
 
@@ -105,6 +113,9 @@ esp_err_t MqttAgent::subscribe(const char *topic, mqttCallbackFn callback, void*
     }
 
     // TODO wait for the acknowledgement.
+
+    // give the mutex back
+    xSemaphoreGive(this->mqtt_mutex);
 
     return ret;
 }
@@ -128,6 +139,11 @@ esp_err_t MqttAgent::publish_message(const char *topic, const char *payload, uin
     packet.payloadLength = strlen(payload);
     packet_id = MQTT_GetPacketId( this->mqtt_context.get_mqtt_context() );
 
+    if (!xSemaphoreTake(this->mqtt_mutex, portMAX_DELAY)) {
+        ESP_LOGE(TAG, "Failed to take mqtt mutex");
+        return ESP_FAIL;
+    }
+
     mqtt_status = MQTT_Publish( this->mqtt_context.get_mqtt_context(), &packet, packet_id );
     if( mqtt_status != MQTTSuccess )
     {
@@ -139,6 +155,9 @@ esp_err_t MqttAgent::publish_message(const char *topic, const char *payload, uin
     {
         ESP_LOGI( TAG, "PUBLISH sent for topic %s to broker.\n\n", topic );
     }
+
+    // give mutex back
+    xSemaphoreGive(this->mqtt_mutex);
 
     return ret;
 }
@@ -177,6 +196,12 @@ void MqttAgent::on_mqtt_pubsub_event(
 //******************************************************************************
 esp_err_t MqttAgent::process_mqtt_loop(void) {
     MQTTStatus_t mqtt_status = MQTTSuccess;
+    esp_err_t ret = ESP_OK;
+
+    if (!xSemaphoreTake(this->mqtt_mutex, portMAX_DELAY)) {
+        ESP_LOGE(TAG, "Failed to take mqtt mutex");
+        return ESP_FAIL;
+    }
 
     // Only stay in the loop if there is more incoming data.  This under the hood
     // ends up calling our subscribe callback.
@@ -194,10 +219,13 @@ esp_err_t MqttAgent::process_mqtt_loop(void) {
     if (mqtt_status != MQTTSuccess) {
         ESP_LOGE(TAG, "MQTT_ProcessLoop() failed with status %s.",
                  MQTT_Status_strerror(mqtt_status));
-        return ESP_FAIL;
+        ret = ESP_FAIL;
     }
 
-    return ESP_OK;
+    // give back mutex
+    xSemaphoreGive(this->mqtt_mutex);
+
+    return ret;
 }
 
 //******************************************************************************

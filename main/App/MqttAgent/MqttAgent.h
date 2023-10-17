@@ -119,4 +119,6 @@ private:
 
     handle_incoming_mqtt_fn handle_incoming_mqtt;
     void* handle_incoming_mqtt_context;
+
+    SemaphoreHandle_t mqtt_mutex;
 };

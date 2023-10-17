@@ -37,9 +37,7 @@ static int enter_config_cmd(int argc, char **argv) {
     register_wifi();
     register_ifconfig();
     register_provision_charge_point_info();
-    if (!app.is_iot_thing_provisioned()) {
-        register_provision_iot();
-    }
+    register_provision_iot();
 
     return 0;
 }
