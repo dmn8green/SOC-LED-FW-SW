@@ -58,59 +58,6 @@ static esp_err_t initialize_nvs(void)
 }
 
 //*****************************************************************************
-// This needs to be moved to a different file.
-typedef void (* handleIncomingPublishCallback_t)( const char* pTopicName,
-                                                    uint16_t topicNameLength,
-                                                    const char* pPayload,
-                                                    size_t payloadLength,
-                                                  uint16_t packetIdentifier );
-extern "C" handleIncomingPublishCallback_t handleIncomingPublishCallback;
-
-void handleIncomingPublish( const char* pTopicName,
-                            uint16_t topicNameLength,
-                            const char* pPayload,
-                            size_t payloadLength,
-                            uint16_t packetIdentifier )
-{
-    StaticJsonDocument<200> doc;
-    DeserializationError error = deserializeJson(doc, pPayload, payloadLength);
-    if (error) {
-        ESP_LOGE(TAG, "deserializeJson() failed: %s", error.c_str());
-        return;
-    }
-
-    JsonObject root = doc.as<JsonObject>();
-    if (root.isNull()) {
-        ESP_LOGE(TAG, "deserializeJson() failed: %s", error.c_str());
-        return;
-    }
-
-    auto& app = MN8App::instance();
-    if (root.containsKey("port1")) {
-        JsonObject port1 = root["port1"];
-        if (port1.containsKey("state")) {
-            const char* state = port1["state"];
-            int charge_percent = port1["charge_percent"];
-            ESP_LOGI(TAG, "port 1 new state : %s", state);
-            app.get_context().get_led_task_0().set_state(state, charge_percent);
-        }
-    }
-
-    if (root.containsKey("port2")) {
-        JsonObject port2 = root["port2"];
-        if (port2.containsKey("state")) {
-            const char* state = port2["state"];
-            int charge_percent = port2["charge_percent"];
-            ESP_LOGI(TAG, "port 2 new state : %s", state);
-            app.get_context().get_led_task_1().set_state(state, charge_percent);
-        }
-    }
-
-    ESP_LOGI(TAG, "Incoming publish received : %.*s", payloadLength, pPayload);
-    // ESP_LOGI(TAG, "Incoming publish received : %s", (char*) root["state"]);
-}
-
-//*****************************************************************************
 /**
  * @brief Setup the MN8App.
  * 
@@ -149,7 +96,6 @@ esp_err_t MN8App::setup(void) {
     thing_config.load();
     if (thing_config.is_configured()) {
         this->context.get_mqtt_agent().setup(&thing_config);
-//        handleIncomingPublishCallback = handleIncomingPublish;
         this->context.get_mqtt_agent().start();
     }
 
