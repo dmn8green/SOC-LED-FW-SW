@@ -596,17 +596,20 @@ void interactive_mode (void)
 
     // read a long string with getline
 
+    int chargeBump = 5;
+
     while (true)
     {
 
         printf ("\nEnter an option:\n"
                 "  <num> to animate charge level (0-100)\n"
-                "  +<num> to bump charge level 5%% during animation\n"
-                "  -<num> to cut charge level 5%% during animation\n"
+                "  +<num> to bump charge level %d during animation\n"
+                "  -<num> to cut charge level %d during animation\n"
                 " 'q' or 'x' to quit\n"
                 " 'd' to toggle day/night mode\n"
+                " 'c' to change charge 'bump' value\n"
                 " 's' to run charge simulation (long!)\n"
-                "led_test> ");
+                "led_test> ", chargeBump, chargeBump);
 
         chars_read = getline(&string, &size, stdin);
 
@@ -643,6 +646,21 @@ void interactive_mode (void)
             }
 
         }
+        else if (tolower(string[0]) == 'c')
+        {
+            string[0] = ' ';
+            long newBump = strtol (string, NULL, 10);
+            if (newBump == LONG_MIN || newBump < 0 || newBump > 99)
+            {
+                printf ("Input error (must be positive value below 100)");
+                return;
+            }
+            else
+            {
+                chargeBump = (int)newBump;
+                printf ("New charge bump: %d\n", chargeBump);
+            }
+        }
         else
         {
 
@@ -673,7 +691,8 @@ void interactive_mode (void)
                 return;
             }
 
-            printf ("Animation of charge pct: %ld (bump during animate: %s)\n", chargePct, bumpDuringAnimate ? "yes":"no");
+            printf ("Animation of charge pct: %ld (bump during animate: %s)\n",
+                chargePct, bumpDuringAnimate ? "yes":"no");
 
             ChargingAnimation testAnimate;
             testAnimate.set_quiet (true);
@@ -698,11 +717,11 @@ void interactive_mode (void)
                     // if requested.
                     if (bumpDuringAnimate)
                     {
-                        testAnimate.set_charge_percent(chargePct+5);
+                        testAnimate.set_charge_percent(chargePct+chargeBump);
                     }
                     if (cutDuringAnimate)
                     {
-                        testAnimate.set_charge_percent(MAX (chargePct-5, 0));
+                        testAnimate.set_charge_percent(MAX (chargePct-chargeBump, 0));
                     }
                 }
 
