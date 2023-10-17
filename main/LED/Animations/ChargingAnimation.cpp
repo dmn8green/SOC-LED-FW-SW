@@ -111,7 +111,19 @@ void ChargingAnimation::reset(
  */
 int ChargingAnimation::refresh(uint8_t* led_pixels, int start_pixel, int led_count) {
 
-    int adjusted_charge_pct = MIN ((charge_percent + CHARGE_PERCENT_BUMP), 100);
+    int adjusted_charge_pct = 0;
+
+    // TODO: Should probably use a sliding value of charge bump based on LED bar
+    //       length; for now using our fixed value from 31/32 LED live tests if
+    //       we have a similar length.
+    if (led_count < 40)
+    {
+        adjusted_charge_pct = MIN ((charge_percent + CHARGE_PERCENT_BUMP), 100);
+    }
+    else
+    {
+        adjusted_charge_pct = charge_percent;
+    }
 
     // At full animation (or without animation), number of LEDs lit for this charge level
     // this is the top of our second segment

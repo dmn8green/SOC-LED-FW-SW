@@ -122,13 +122,52 @@ TEST(colors, base_rgb)
     }
 }
 
+
+//******************************************************************************
+/**
+ * @brief Animation test fixture. Needed to support parameterized runs
+ *        of all the 'animation' tests. Override and then restore the
+ *        LedCount global (for now).
+ *
+ */
+class animation: public ::testing::TestWithParam<int>
+{
+public:
+    animation(void)
+    {
+        savedLedCount = LedCount;
+        LedCount = GetParam();
+    };
+
+    ~animation(void)
+    {
+        LedCount = savedLedCount;
+    }
+
+private:
+    int savedLedCount;
+};
+
+//******************************************************************************
+/**
+ * @brief   Test Fixture for 'animation' group of tests. These tests
+ *          are now run with a variety of LED counts (versus the fixed
+ *          value previously used).
+ */
+INSTANTIATE_TEST_CASE_P(
+        base,
+        animation,
+        ::testing::Values(
+                20, 31, 32, 33, 50, 99, 100, 101, 150, 200
+        ));
+
 //******************************************************************************
 /**
  * @brief Test initial display of charge at all levels from 0 to 100
  *
  * Get/Set charge levels. Validate bounds checking
  */
-TEST(animation, chargeLevelGetSet)
+TEST_P(animation, chargeLevelGetSet)
 {
     ChargingAnimation testAnimate;
 
@@ -165,7 +204,7 @@ TEST(animation, chargeLevelGetSet)
  *        charge indicator.
  */
 
-TEST(animation, chargeLevelLedsStatic)
+TEST_P(animation, chargeLevelLedsStatic)
 {
     ChargingAnimation testAnimate;
 
@@ -200,7 +239,12 @@ TEST(animation, chargeLevelLedsStatic)
         ASSERT_TRUE (topBlue >= lastTopBlue);
 
         // Never one more than last (for this test; real life could go backwards)
-        ASSERT_TRUE (topBlue - lastTopBlue <= 1);
+        // Also, does not apply for LED bars with more than 100 pixels. Similar
+        // test for > 100 needs to be done.
+        if (LedCount <= 100)
+        {
+            ASSERT_TRUE (topBlue - lastTopBlue <= 1);
+        }
 
         // Save for next iteration
         lastTopBlue = topBlue;
@@ -225,7 +269,7 @@ TEST(animation, chargeLevelLedsStatic)
  *        but still effective and easy to implement.
  *
  */
-TEST(animation, chargeLevelLedsDynamic)
+TEST_P(animation, chargeLevelLedsDynamic)
 {
     ChargingAnimation testAnimate;
     ASSERT_FALSE (testAnimate.get_charge_simulation());
@@ -275,7 +319,7 @@ TEST(animation, chargeLevelLedsDynamic)
  *                     from ChargingAnimation::refresh(). 
  * 
  */
-TEST(animation, reduceToZero)
+TEST_P(animation, reduceToZero)
 {
     ChargingAnimation testAnimate;
     ASSERT_FALSE (testAnimate.get_charge_simulation());
@@ -317,7 +361,7 @@ TEST(animation, reduceToZero)
  * @brief  Check pixel fill levels for charge level (static)
  * 
  */
-TEST(animation, chargeLevelPixels)
+TEST_P(animation, chargeLevelPixels)
 {
     ChargingAnimation testAnimate;
     ASSERT_FALSE (testAnimate.get_charge_simulation());
@@ -361,7 +405,7 @@ TEST(animation, chargeLevelPixels)
  * @brief  Test Progress Animation object 
  *         
  */
-TEST (progress_animation, base)
+TEST_P (animation, base)
 {
     ProgressAnimation pa;  
 
@@ -397,7 +441,7 @@ TEST (progress_animation, base)
 
 //******************************************************************************
 /**
- * @brief  Test Charge Indicator animation object 
+ * @brief  Test Charge Indicator animation object get/set values
  *         
  */
 TEST (charge_indicator, base)
@@ -438,6 +482,8 @@ TEST (charge_indicator, base)
     ASSERT_TRUE (ci.refresh (led_pixels, 0, 13) == 12);  // Ask for 13, but 12 is still animating
 
 }
+
+
 
 //******************************************************************************
 /**
@@ -673,11 +719,11 @@ void interactive_mode (void)
                 "  +<num> to bump charge level %d during animation\n"
                 "  -<num> to cut charge level %d during animation\n"
                 " 'q' or 'x' to quit\n"
-                " 'l' to change LED count\n"
+                " 'l' to change LED count (currently %d\n"
                 " 'd' to toggle day/night mode\n"
                 " 'c' to change charge 'bump' value\n"
                 " 's' to run charge simulation (long!)\n"
-                "led_test> ", chargeBump, chargeBump);
+                "led_test> ", chargeBump, chargeBump, LedCount);
 
         chars_read = getline(&string, &size, stdin);
 
