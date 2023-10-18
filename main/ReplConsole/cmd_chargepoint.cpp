@@ -11,7 +11,7 @@
  */
 //*****************************************************************************
 
-#include "cmd_provision_iot.h"
+#include "cmd_chargepoint.h"
 
 #include "Utils/FuseMacAddress.h"
 #include "App/Configuration/ChargePointConfig.h"
@@ -46,16 +46,18 @@
 
 #define MAX_HTTP_OUTPUT_BUFFER 8192
 static const char *TAG = "provision_charge_point_info";
+#define STR_IS_EQUAL(str1, str2) (strncasecmp(str1, str2, strlen(str2)) == 0)
 
 extern MQTTContext_t *pmqttContext;
 
 extern "C" int publishToTopic( MQTTContext_t * pMqttContext, char* topic, char* payload );
 
 static struct {
+    struct arg_str *command;
     struct arg_str *site_name;
     struct arg_str *station_id;
     struct arg_end *end;
-} provision_charge_point_info_args;
+} chargepoint_command_args;
 
 char payload[256] = {0};
 
@@ -93,51 +95,62 @@ static int provision_charge_point_info(const char* station_id, const char* site_
     return 0;
 }
 
-//*****************************************************************************
-/**
- * @brief Pair this iot device with the chargepoint station
- * 
- * This will publish a mqtt message to register the station.  The info is then
- * stored in a database and paired with this esp32 board.
- */
-static int do_provision_charge_point_info(int argc, char **argv)
-{
-    int nerrors = arg_parse(argc, argv, (void **)&provision_charge_point_info_args);
+static int unprovision_charge_point_info(void) {
+    return 0;
+}
+
+static int do_chargepoint_command(int argc, char **argv) {
+    int nerrors = arg_parse(argc, argv, (void **)&chargepoint_command_args);
     if (nerrors != 0) {
-        arg_print_errors(stderr, provision_charge_point_info_args.end, argv[0]);
+        arg_print_errors(stderr, chargepoint_command_args.end, argv[0]);
         return 1;
     }
 
-    const char* station_id = provision_charge_point_info_args.station_id->sval[0];
-    const char* site_name = provision_charge_point_info_args.site_name->sval[0];
+    const char* command = chargepoint_command_args.command->sval[0];
+    const char* station_id = chargepoint_command_args.station_id->sval[0];
+    const char* site_name = chargepoint_command_args.site_name->sval[0];
 
-    if (station_id == NULL || strlen(station_id) == 0 || site_name == NULL || strlen(site_name) == 0) {
-        ESP_LOGI(TAG, "station_id or site_name not specified");
-        ESP_LOGI(TAG, "printing current info");
+    if (command == nullptr || strlen(command) == 0) {
+        command = "dump";
+    }
 
+    ESP_LOGI(TAG, "command %s", command);
+    if (STR_IS_EQUAL(command, "dump")) {
+        ESP_LOGI(TAG, "Dumping thing configuration");
         ChargePointConfig cpConfig;
         cpConfig.load();
         printf("    station_id: %s\n", cpConfig.get_station_id() ? cpConfig.get_station_id() : "<none>");
         printf("    site_name: %s\n", cpConfig.get_group_id() ? cpConfig.get_group_id() : "<none>");
         return 0;
-    } else  {
-        ESP_LOGI(TAG, "    new station_id: %s", station_id);
-        ESP_LOGI(TAG, "    new site_name: %s", site_name);
+    }
+
+    if (STR_IS_EQUAL(command, "provision")) {
+        printf("    new station_id: %s\n", station_id);
+        printf("    new site_name: %s\n", site_name);
         return provision_charge_point_info(station_id, site_name);
     }
+
+    if (STR_IS_EQUAL(command, "unprovision")) {
+        ESP_LOGI(TAG, "Unprovisioning charge point info");
+        return unprovision_charge_point_info();
+    }
+
+    ESP_LOGE(TAG, "Unknown command %s", command);
+    return 1;
 }
 
-void register_provision_charge_point_info(void) {
-    provision_charge_point_info_args.site_name = arg_str1(NULL, NULL, "<group or site name>", "Site name where this station is located");
-    provision_charge_point_info_args.station_id = arg_str1(NULL, NULL, "<station id>", "Charge point station id");
-    provision_charge_point_info_args.end = arg_end(0);
+void register_chargepoint_command(void) {
+    chargepoint_command_args.command = arg_str0(NULL, NULL, "<command>", "provision or unprovision");
+    chargepoint_command_args.site_name = arg_str0(NULL, NULL, "<group or site name>", "Site name where this station is located");
+    chargepoint_command_args.station_id = arg_str0(NULL, NULL, "<station id>", "Charge point station id");
+    chargepoint_command_args.end = arg_end(0);
 
     const esp_console_cmd_t provision_charge_point_info_cmd = {
-        .command = "provision_cp",
-        .help = "provision cp info",
+        .command = "chargepoint",
+        .help = "chargepoint provision/unprovision",
         .hint = NULL,
-        .func = &do_provision_charge_point_info,
-        .argtable = &provision_charge_point_info_args
+        .func = &do_chargepoint_command,
+        .argtable = &chargepoint_command_args
     };
     ESP_ERROR_CHECK(esp_console_cmd_register(&provision_charge_point_info_cmd));
 }

@@ -118,3 +118,50 @@ esp_err_t ChargePointConfig::save(void) {
 
     return store.commit();
 }
+
+//******************************************************************************
+/**
+ * @brief Dump the chargepoint config to the log
+ * 
+ * @return esp_err_t 
+ */
+esp_err_t ChargePointConfig::dump(void) {
+    ESP_LOGD(TAG, "ChargePointConfig::Dump()");
+    esp_err_t res = ESP_OK;
+
+    KeyStore store;
+    if (store.openKeyStore("chargepoint", e_ro) != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to open chargepoint config store");
+        return false;
+    }
+
+    ESP_LOGI(TAG, "Dumping chargepoint config");
+    ESP_LOGD(TAG, "groupId: %s", this->group_id ? this->group_id : "none");
+    ESP_LOGD(TAG, "stationId: %s", this->station_id ? this->station_id : "none");
+
+    return ESP_OK;
+}
+
+//******************************************************************************
+/**
+ * @brief Reset the chargepoint config
+ * 
+ * @return esp_err_t 
+ */
+esp_err_t ChargePointConfig::reset(void) {
+    ESP_LOGD(TAG, "ChargePointConfig::Reset()");
+    esp_err_t res = ESP_OK;
+
+    KeyStore store;
+    if (store.openKeyStore("chargepoint", e_rw) != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to open chargepoint config store");
+        return false;
+    }
+
+    ESP_LOGI(TAG, "Resetting chargepoint config");
+
+    ESP_SET_VALUE("groupId", "", false);
+    ESP_SET_VALUE("stationId", "", false);
+
+    return store.commit();
+}

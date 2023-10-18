@@ -46,8 +46,8 @@ set(COMPONENT_SRCS
     ReplConsole/cmd_ifconfig.cpp
     ReplConsole/cmd_reboot.cpp
     ReplConsole/cmd_ping.cpp
-    ReplConsole/cmd_provision_iot.cpp
-    ReplConsole/cmd_provision_charge_point_info.cpp
+    ReplConsole/cmd_iot.cpp
+    ReplConsole/cmd_chargepoint.cpp
     ReplConsole/cmd_led.cpp
     Network/NetworkInterface.cpp
     Network/Utils/ethernet_init.cpp

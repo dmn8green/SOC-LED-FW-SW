@@ -1,6 +1,6 @@
 //*****************************************************************************
 /**
- * @file cmd_provision_iot.cpp
+ * @file cmd_iot.cpp
  * @author pat laplante (plaplante@appliedlogix.com)
  * @brief REPL command to provision this device as an AWS iot thing
  * @version 0.1
@@ -22,7 +22,7 @@
  */
 //*****************************************************************************
 
-#include "cmd_provision_iot.h"
+#include "cmd_iot.h"
 
 #include "Utils/FuseMacAddress.h"
 #include "App/Configuration/ThingConfig.h"
@@ -53,11 +53,15 @@
 
 #define MAX_HTTP_OUTPUT_BUFFER 8192
 static const char *TAG = "provision_iot";
+#define PROVISION_URL "https://ir5q3elml3.execute-api.us-east-1.amazonaws.com/dev/provision"
+#define UNPROVISION_URL "https://ir5q3elml3.execute-api.us-east-1.amazonaws.com/dev/unprovision"
+#define STR_IS_EQUAL(str1, str2) (strncasecmp(str1, str2, strlen(str2)) == 0)
 
 static struct {
-    struct arg_str *url;
+    struct arg_str *command;
     struct arg_str *username;
     struct arg_str *password;
+    struct arg_str *url;
     struct arg_end *end;
 } provision_iot_args;
 
@@ -210,44 +214,20 @@ static bool process_api_response(const char* response_buffer)
     return true;
 }
 
-//*****************************************************************************
-/**
- * @brief Provision this device as an AWS iot thing
- * 
- * This function is registered as a REPL command. 
- * It takes the following arguments:
- *  - url: url to the provisioning server
- *  - username: username for the provisioning server
- *  - password: password for the provisioning server
- * 
- * The function will send a POST request to the provisioning server with the
- * following JSON payload:
- * {
- *  "thingId": "mac_address of this device"
- * }
- * 
- * The mac address is obtained from the esp-idf API esp_efuse_mac_get_default()
- * This is the same mac address returned when calling esptool.py chip_id
- * 
- * @param argc 
- * @param argv 
- * @return int 
- */
-static int do_provision_iot_cmd(int argc, char **argv)
-{
-    int nerrors = arg_parse(argc, argv, (void **)&provision_iot_args);
-    if (nerrors != 0) {
-        arg_print_errors(stderr, provision_iot_args.end, argv[0]);
-        return 1;
-    }
+typedef enum {
+    e_dump_cmd,
+    e_provision_cmd,
+    e_unprovision_cmd
+} iot_command_t;
 
+static int make_http_call(const char* url, const char* username, const char* password) {
     char *local_response_buffer = (char*) malloc(MAX_HTTP_OUTPUT_BUFFER + 1);
     memset(local_response_buffer, 0, MAX_HTTP_OUTPUT_BUFFER + 1);
 
     #pragma GCC diagnostic pop "-Wmissing-field-initializers" 
     #pragma GCC diagnostic ignored "-Wmissing-field-initializers" 
     esp_http_client_config_t config = {
-        .url = provision_iot_args.url->sval[0],
+        .url = url,
         .method = HTTP_METHOD_POST,
         .disable_auto_redirect = true,
         .event_handler = _http_event_handler,
@@ -259,7 +239,7 @@ static int do_provision_iot_cmd(int argc, char **argv)
     esp_http_client_handle_t client = esp_http_client_init(&config);
 
     char auth_raw[64] = {0};
-    snprintf(auth_raw, 64, "%s:%s", provision_iot_args.username->sval[0], provision_iot_args.password->sval[0]);
+    snprintf(auth_raw, 64, "%s:%s", username, password);
 
     size_t outlen;
     char auth_base64[64] = {0};
@@ -291,7 +271,142 @@ static int do_provision_iot_cmd(int argc, char **argv)
         ESP_LOGE(TAG, "Error perform http request %s", esp_err_to_name(err));
     }
     esp_http_client_cleanup(client);
-    return 0;
+    return 0;   
+}
+
+//*****************************************************************************
+/**
+ * @brief Provision this device as an AWS iot thing
+ * 
+ * This function is registered as a REPL command. 
+ * It takes the following arguments:
+ *  - url: url to the provisioning server (optional)
+ *  - username: username for the provisioning server
+ *  - password: password for the provisioning server
+ * 
+ * The function will send a POST request to the provisioning server with the
+ * following JSON payload:
+ * {
+ *  "thingId": "mac_address of this device"
+ * }
+ * 
+ * The mac address is obtained from the esp-idf API esp_efuse_mac_get_default()
+ * This is the same mac address returned when calling esptool.py chip_id
+ * 
+ * @param url
+ * @param username
+ * @param password
+ * @return int 
+ */
+static int provision_device(const char* url, const char* username, const char* password) {
+    ESP_LOGI(TAG, "url %s", url);
+    ESP_LOGI(TAG, "username %s", username);
+    ESP_LOGI(TAG, "password %s", password);
+
+    return make_http_call(strlen(url) == 0 ? PROVISION_URL : url, username, password);
+}
+
+//*****************************************************************************
+/**
+ * @brief Unprovision this device as an AWS iot thing
+ * 
+ * This function is registered as a REPL command. 
+ * It takes the following arguments:
+ *  - command: dump/provision/unprovision
+ *  - url: url to the provisioning server (optional)
+ *  - username: username for the provisioning server
+ *  - password: password for the provisioning server
+ * 
+ * The function will send a POST request to the unprovisioning server with the
+ * following JSON payload:
+ * {
+ *  "thingId": "mac_address of this device"
+ * }
+ * 
+ * The mac address is obtained from the esp-idf API esp_efuse_mac_get_default()
+ * This is the same mac address returned when calling esptool.py chip_id
+ * 
+ * @param argc 
+ * @param argv 
+ * @return int 
+ */
+static int unprovision_device(const char* url, const char* username, const char* password) {
+    ESP_LOGI(TAG, "url %s", url);
+    ESP_LOGI(TAG, "username %s", username);
+    ESP_LOGI(TAG, "password %s", password);
+
+    if (make_http_call(strlen(url) == 0 ? UNPROVISION_URL : url, username, password) == 0) {
+        ThingConfig thingConfig;
+        thingConfig.reset();
+        return 0;
+    }
+
+    return 1;
+}
+
+//*****************************************************************************
+/**
+ * @brief Provision/unprovision this device as an AWS iot thing
+ * 
+ * This function is registered as a REPL command. 
+ * It takes the following arguments:
+ *  - command: dump/provision/unprovision
+ *  - url: url to the provisioning server (optional)
+ *  - username: username for the provisioning server
+ *  - password: password for the provisioning server
+ * 
+ * The function will send a POST request to the provisioning server with the
+ * following JSON payload:
+ * {
+ *  "thingId": "mac_address of this device"
+ * }
+ * 
+ * The mac address is obtained from the esp-idf API esp_efuse_mac_get_default()
+ * This is the same mac address returned when calling esptool.py chip_id
+ * 
+ * @param argc 
+ * @param argv 
+ * @return int 
+ */
+static int do_iot_command(int argc, char **argv)
+{
+    int nerrors = arg_parse(argc, argv, (void **)&provision_iot_args);
+    if (nerrors != 0) {
+        arg_print_errors(stderr, provision_iot_args.end, argv[0]);
+        return 1;
+    }
+
+    const char * command = provision_iot_args.command->sval[0];
+    const char * username = provision_iot_args.username->sval[0];
+    const char * password = provision_iot_args.password->sval[0];
+    const char * url = provision_iot_args.url->sval[0];
+
+    if (command == nullptr || strlen(command) == 0) {
+        command = "dump";
+    }
+
+    ESP_LOGI(TAG, "command %s", command);
+
+    if (STR_IS_EQUAL(command, "dump")) {
+        ESP_LOGI(TAG, "Dumping thing configuration");
+        ThingConfig thingConfig;
+        thingConfig.load();
+        thingConfig.dump();
+        return 0;
+    }
+
+    if (STR_IS_EQUAL(command, "unprovision")) {
+        ESP_LOGI(TAG, "Unprovisioning device");
+        return unprovision_device(url, username, password);
+    }
+
+    if (STR_IS_EQUAL(command, "provision")) {
+        ESP_LOGI(TAG, "Provisioning device");
+        return provision_device(url, username, password);
+    }
+
+    ESP_LOGE(TAG, "Invalid command");
+    return 1;
 }
 
 //*****************************************************************************
@@ -309,19 +424,21 @@ static int do_provision_iot_cmd(int argc, char **argv)
  * 
  * This is a temporary solution.
  */
-void register_provision_iot(void)
+void register_iot_command(void)
 {
-    provision_iot_args.url = arg_str1(NULL, NULL, "<url>", "Url to provisionign server");
+    provision_iot_args.command = arg_str0(NULL, NULL, "<command>", "provision or unprovision");
     provision_iot_args.username = arg_str1(NULL, NULL, "<username>", "API username");
     provision_iot_args.password = arg_str1(NULL, NULL, "<password>", "API password");
-    provision_iot_args.end = arg_end(4);
+    provision_iot_args.url = arg_str0(NULL, NULL, "<url>", "Url to provisionign server");
+    provision_iot_args.end = arg_end(5);
 
     const esp_console_cmd_t provision_iot_cmd = {
-        .command = "provision_iot",
-        .help = "provision device as an iot thing",
+        .command = "iot",
+        .help = "provision/unprovision device as an iot thing",
         .hint = NULL,
-        .func = &do_provision_iot_cmd,
+        .func = &do_iot_command,
         .argtable = &provision_iot_args
     };
+    
     ESP_ERROR_CHECK(esp_console_cmd_register(&provision_iot_cmd));
 }
