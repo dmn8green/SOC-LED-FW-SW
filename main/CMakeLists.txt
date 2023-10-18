@@ -40,14 +40,16 @@ set(COMPONENT_SRCS
     LED/Animations/StaticAnimation.cpp
     LED/Animations/SmoothRatePulseCurve.cpp
     LED/Animations/ChargingAnimation.cpp
+    ReplConsole/Utils/iot.cpp
     ReplConsole/repl_console.cpp
+    ReplConsole/cmd_factory_reset.cpp
     ReplConsole/cmd_tasks.cpp
     ReplConsole/cmd_wifi.cpp
     ReplConsole/cmd_ifconfig.cpp
     ReplConsole/cmd_reboot.cpp
     ReplConsole/cmd_ping.cpp
-    ReplConsole/cmd_provision_iot.cpp
-    ReplConsole/cmd_provision_charge_point_info.cpp
+    ReplConsole/cmd_iot.cpp
+    ReplConsole/cmd_chargepoint.cpp
     ReplConsole/cmd_led.cpp
     Network/NetworkInterface.cpp
     Network/Utils/ethernet_init.cpp

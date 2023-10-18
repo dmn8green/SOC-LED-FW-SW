@@ -5,9 +5,10 @@
 #include "cmd_ifconfig.h"
 #include "cmd_reboot.h"
 #include "cmd_ping.h"
-#include "cmd_provision_iot.h"
+#include "cmd_iot.h"
 #include "cmd_led.h"
-#include "cmd_provision_charge_point_info.h"
+#include "cmd_chargepoint.h"
+#include "cmd_factory_reset.h"
 
 #include "App/MN8App.h"
 
@@ -51,10 +52,10 @@ void repl_configure(uint16_t txPin, uint16_t rxPin, uint16_t channel, uint32_t b
     register_reboot();
     register_ping();
     register_led();
-    register_provision_charge_point_info();
-    if (!app.is_iot_thing_provisioned()) {
-        register_provision_iot();
-    }
+    register_factory_reset_command();
+
+    register_chargepoint_command();
+    register_iot_command();
 }
 
 void repl_start(void)

@@ -1,65 +1,178 @@
 //*****************************************************************************
 /**
- * @file cmd_provision_iot.cpp
+ * @file iot.c
  * @author pat laplante (plaplante@appliedlogix.com)
- * @brief REPL command to provision this device as an AWS iot thing
+ * @brief iot helper, methods to provision/unprovision a device, implementation
  * @version 0.1
- * @date 2023-09-04
+ * @date 2023-10-18
  * 
- * @copyright Copyright (c) 2023
- * 
- * The code from this file was adapted from the 
- * esp-idf/examples/protocols/https_request/main/https_request_example.c
- * 
- * The original code is licensed as follows:
- *   BEGIN LICENSE BLOCK
- *   This example code is in the Public Domain (or CC0 licensed, at your option.)
- *   
- *   Unless required by applicable law or agreed to in writing, this
- *   software is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- *   CONDITIONS OF ANY KIND, either express or implied.
- *   END LICENSE BLOCK
+ * @copyright Copyright MN8 (c) 2023
  */
 //*****************************************************************************
 
-#include "cmd_provision_iot.h"
+#include "iot.h"
 
 #include "Utils/FuseMacAddress.h"
 #include "App/Configuration/ThingConfig.h"
 
-#include <string.h>
-#include <sys/param.h>
-#include <stdlib.h>
-#include <ctype.h>
+#include "ArduinoJson.h"
 
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
+#include "esp_log.h"
+#include "esp_http_client.h"
+#include "esp_crt_bundle.h"
+#include "esp_system.h"
+#include "esp_tls.h"
 
 #include "mbedtls/base64.h"
 
-#include "nvs_flash.h"
-#include "esp_event.h"
-#include "esp_netif.h"
-#include "esp_tls.h"
-#include "esp_crt_bundle.h"
-#include "esp_system.h"
-#include "esp_log.h"
+#include <sys/param.h>
 
-#include "esp_http_client.h"
-#include "esp_console.h"
-#include "argtable3/argtable3.h"
 
-#include "ArduinoJson.h"
+//*****************************************************************************
+// Local defines
 
+/**
+ * @brief Size of buffer to receive http response payload
+ * 
+ * The provisioning service returns a json payload with the following format:
+ * {
+ *      "thingId": "string",
+ *      "thingName": "string",
+ *      "thingArn": "string",
+ *      "thingCertArn": "string",
+ *      "thingCertId": "string",
+ *      "thingCertPem": "string",
+ *      "thingPrivateKey": "string",
+ *      "thingRootCa": "string",
+ *      "iotEndpoint": "string"
+ * }
+ * 
+ * The Certs and private key are fairly big.  The biggest one is the 
+ * thingCertPem which is around 2,048 bytes.  The other ones are around 1,024
+ * bytes. The total size of the payload is around 7,000 bytes.  We will use
+ * a buffer of 8,192 bytes to be safe.
+ */
 #define MAX_HTTP_OUTPUT_BUFFER 8192
-static const char *TAG = "provision_iot";
+#define PROVISION_URL "https://ir5q3elml3.execute-api.us-east-1.amazonaws.com/dev/provision"
+#define UNPROVISION_URL "https://ir5q3elml3.execute-api.us-east-1.amazonaws.com/dev/unprovision"
+#define STR_IS_EQUAL(str1, str2) (strncasecmp(str1, str2, strlen(str2)) == 0)
+#define STR_IS_EMPTY(str) (strlen(str) == 0)
 
-static struct {
-    struct arg_str *url;
-    struct arg_str *username;
-    struct arg_str *password;
-    struct arg_end *end;
-} provision_iot_args;
+static const char * TAG = "iot";
+
+//*****************************************************************************
+// Local function prototypes
+
+static int make_http_call(const char* url, const char* username, const char* password, char* response_buffer);
+static bool register_thing_from_http_response(const char* response_buffer);
+
+//*****************************************************************************
+// Public functions implementation
+
+//*****************************************************************************
+int provision_device(const char* url, const char* username, const char* password) {
+    ESP_LOGI(TAG, "url %s", url);
+    ESP_LOGI(TAG, "username %s", username);
+    ESP_LOGI(TAG, "password %s", password);
+
+    char *response_buffer = (char*) malloc(MAX_HTTP_OUTPUT_BUFFER + 1);
+    memset(response_buffer, 0, MAX_HTTP_OUTPUT_BUFFER + 1);
+
+    int ret = make_http_call(
+        STR_IS_EMPTY(url) ? PROVISION_URL : url, 
+        username, password,
+        response_buffer
+    );
+    if (ret == 0) {
+        // provisioned successfully, save the config
+        if (!register_thing_from_http_response(response_buffer)) {
+            ESP_LOGE(TAG, "Failed to process api response");
+            ret = 1;
+        }
+    }
+
+    free (response_buffer);
+    return ret;
+}
+
+//*****************************************************************************
+int unprovision_device(const char* url, const char* username, const char* password) {
+    ESP_LOGI(TAG, "url %s", url);
+    ESP_LOGI(TAG, "username %s", username);
+    ESP_LOGI(TAG, "password %s", password);
+
+    char *response_buffer = (char*) malloc(MAX_HTTP_OUTPUT_BUFFER + 1);
+    memset(response_buffer, 0, MAX_HTTP_OUTPUT_BUFFER + 1);
+
+    int ret = make_http_call(
+        STR_IS_EMPTY(url) ? UNPROVISION_URL : url, 
+        username, password,
+        response_buffer
+    );
+    if (ret == 0) {
+        ThingConfig thingConfig;
+        thingConfig.reset();
+    }
+
+    free (response_buffer);
+    return ret;
+}
+
+//*****************************************************************************
+// Local functions implementation
+
+//*****************************************************************************
+/**
+ * @brief Process the response from the provisioning service
+ * 
+ * @param response_buffer 
+ * @return true 
+ * @return false 
+ */
+static bool register_thing_from_http_response(const char* response_buffer)
+{
+    DynamicJsonDocument doc(MAX_HTTP_OUTPUT_BUFFER + 1);
+    DeserializationError error = deserializeJson(doc, response_buffer);
+    if (error) {
+        ESP_LOGE(TAG, "deserializeJson() failed: %s", error.c_str());
+        return false;
+    }
+
+    JsonObject root = doc.as<JsonObject>();
+    auto thing = root["thing"];
+    if (thing.isNull()) {
+        ESP_LOGE(TAG, "thing is null");
+        return false;
+    }
+    
+    auto certs = root["certs"];
+    if (certs.isNull()) {
+        ESP_LOGE(TAG, "certs is null");
+        return false;
+    }
+    
+    auto endpoint = root["endpoint"];
+    if (endpoint.isNull()) {
+        ESP_LOGE(TAG, "endpoint is null");
+        return false;
+    }
+
+
+    // Populate the IOT configuration in flash.
+    ThingConfig thingConfig;
+    
+    thingConfig.set_thing_name(thing["thingName"]);
+    thingConfig.set_certificate_arn(certs["certificateArn"]);
+    thingConfig.set_certificate_id(certs["certificateId"]);
+    thingConfig.set_certificate_pem(certs["certificatePem"]);
+    thingConfig.set_private_key(certs["keyPair"]["PrivateKey"]);
+    thingConfig.set_public_key(certs["keyPair"]["PublicKey"]);
+    thingConfig.set_endpoint_address(endpoint["endpointAddress"]);
+    
+    thingConfig.save();
+
+    return true;
+}
 
 //*****************************************************************************
 /**
@@ -157,101 +270,34 @@ esp_err_t _http_event_handler(esp_http_client_event_t *evt)
     return ESP_OK;
 }
 
-//*****************************************************************************
-/**
- * @brief Process the response from the provisioning server
- * 
- * @param response_buffer   JSON string response from the provisioning server
- * @return true             The response was successfully processed
- * @return false            The response could not be processed
- */
-static bool process_api_response(const char* response_buffer)
-{
-    DynamicJsonDocument doc(MAX_HTTP_OUTPUT_BUFFER + 1);
-    DeserializationError error = deserializeJson(doc, response_buffer);
-    if (error) {
-        ESP_LOGE(TAG, "deserializeJson() failed: %s", error.c_str());
-        return false;
-    }
-
-    JsonObject root = doc.as<JsonObject>();
-    auto thing = root["thing"];
-    if (thing.isNull()) {
-        ESP_LOGE(TAG, "thing is null");
-        return false;
-    }
-    
-    auto certs = root["certs"];
-    if (certs.isNull()) {
-        ESP_LOGE(TAG, "certs is null");
-        return false;
-    }
-    
-    auto endpoint = root["endpoint"];
-    if (endpoint.isNull()) {
-        ESP_LOGE(TAG, "endpoint is null");
-        return false;
-    }
-
-
-    // Populate the IOT configuration in flash.
-    ThingConfig thingConfig;
-    
-    thingConfig.set_thing_name(thing["thingName"]);
-    thingConfig.set_certificate_arn(certs["certificateArn"]);
-    thingConfig.set_certificate_id(certs["certificateId"]);
-    thingConfig.set_certificate_pem(certs["certificatePem"]);
-    thingConfig.set_private_key(certs["keyPair"]["PrivateKey"]);
-    thingConfig.set_public_key(certs["keyPair"]["PublicKey"]);
-    thingConfig.set_endpoint_address(endpoint["endpointAddress"]);
-    
-    thingConfig.save();
-
-    return true;
-}
 
 //*****************************************************************************
 /**
- * @brief Provision this device as an AWS iot thing
+ * @brief 
  * 
- * This function is registered as a REPL command. 
- * It takes the following arguments:
- *  - url: url to the provisioning server
- *  - username: username for the provisioning server
- *  - password: password for the provisioning server
+ * This code is lifted from the esp-idf example https_request
  * 
- * The function will send a POST request to the provisioning server with the
- * following JSON payload:
- * {
- *  "thingId": "mac_address of this device"
- * }
- * 
- * The mac address is obtained from the esp-idf API esp_efuse_mac_get_default()
- * This is the same mac address returned when calling esptool.py chip_id
- * 
- * @param argc 
- * @param argv 
+ * @param url 
+ * @param username 
+ * @param password 
  * @return int 
  */
-static int do_provision_iot_cmd(int argc, char **argv)
-{
-    int nerrors = arg_parse(argc, argv, (void **)&provision_iot_args);
-    if (nerrors != 0) {
-        arg_print_errors(stderr, provision_iot_args.end, argv[0]);
-        return 1;
-    }
-
-    char *local_response_buffer = (char*) malloc(MAX_HTTP_OUTPUT_BUFFER + 1);
-    memset(local_response_buffer, 0, MAX_HTTP_OUTPUT_BUFFER + 1);
-
+int make_http_call(
+    const char* url, 
+    const char* username, 
+    const char* password,
+    char* response_buffer
+) {
+    int ret = 0;
+    
     #pragma GCC diagnostic pop "-Wmissing-field-initializers" 
     #pragma GCC diagnostic ignored "-Wmissing-field-initializers" 
     esp_http_client_config_t config = {
-        .url = provision_iot_args.url->sval[0],
+        .url = url,
         .method = HTTP_METHOD_POST,
         .disable_auto_redirect = true,
         .event_handler = _http_event_handler,
-        .user_data = local_response_buffer,
+        .user_data = response_buffer,
         .crt_bundle_attach = esp_crt_bundle_attach,
     };
     #pragma GCC diagnostic push "-Wmissing-field-initializers" 
@@ -259,7 +305,7 @@ static int do_provision_iot_cmd(int argc, char **argv)
     esp_http_client_handle_t client = esp_http_client_init(&config);
 
     char auth_raw[64] = {0};
-    snprintf(auth_raw, 64, "%s:%s", provision_iot_args.username->sval[0], provision_iot_args.password->sval[0]);
+    snprintf(auth_raw, 64, "%s:%s", username, password);
 
     size_t outlen;
     char auth_base64[64] = {0};
@@ -281,47 +327,12 @@ static int do_provision_iot_cmd(int argc, char **argv)
     esp_err_t err = esp_http_client_perform(client);
 
     if (err == ESP_OK && esp_http_client_get_status_code(client) == 200) {
-        // ESP_LOGI(TAG, "HTTPS Status = %d, content_length = %" PRIu64,
-        //         esp_http_client_get_status_code(client),
-        //         esp_http_client_get_content_length(client));
-        
-        ESP_LOGI(TAG, "HTTPS Status = %s", local_response_buffer);
-        return process_api_response(local_response_buffer) == true;
+        ESP_LOGI(TAG, "HTTPS Status = %s", response_buffer);
     } else {
         ESP_LOGE(TAG, "Error perform http request %s", esp_err_to_name(err));
+        ret = 1;
     }
+
     esp_http_client_cleanup(client);
-    return 0;
-}
-
-//*****************************************************************************
-/**
- * @brief Register the provision_iot REPL command
- * 
- * This REPL command is only available if the device hasn't been provisioned
- * yet in the AWS IOT cloud.  Once provisioned, the device will have a
- * certificate and private key that will be used to authenticate with the
- * AWS IOT cloud.
- * 
- * This command shall only be used by users who have access to the provisioning
- * server. (AppliedLogix employees)  Eventually, this will be updated for
- * factory production, either via an external PC script, or something else.
- * 
- * This is a temporary solution.
- */
-void register_provision_iot(void)
-{
-    provision_iot_args.url = arg_str1(NULL, NULL, "<url>", "Url to provisionign server");
-    provision_iot_args.username = arg_str1(NULL, NULL, "<username>", "API username");
-    provision_iot_args.password = arg_str1(NULL, NULL, "<password>", "API password");
-    provision_iot_args.end = arg_end(4);
-
-    const esp_console_cmd_t provision_iot_cmd = {
-        .command = "provision_iot",
-        .help = "provision device as an iot thing",
-        .hint = NULL,
-        .func = &do_provision_iot_cmd,
-        .argtable = &provision_iot_args
-    };
-    ESP_ERROR_CHECK(esp_console_cmd_register(&provision_iot_cmd));
+    return ret;
 }
