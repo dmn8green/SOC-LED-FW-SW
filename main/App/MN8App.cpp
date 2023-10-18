@@ -104,8 +104,6 @@ esp_err_t MN8App::setup(void) {
     // network events or any other events.
     ESP_GOTO_ON_ERROR(esp_event_loop_create_default(), err, TAG, "Failed to create event loop");
 
-    // sleep 5 seconds
-    vTaskDelay(5000 / portTICK_PERIOD_MS);
     configure_gpio_for_demo();
 
     this->context.get_network_connection_agent().register_event_callback(this->sOn_network_event, this);
