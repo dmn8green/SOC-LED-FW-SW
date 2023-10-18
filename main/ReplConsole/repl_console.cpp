@@ -5,9 +5,10 @@
 #include "cmd_ifconfig.h"
 #include "cmd_reboot.h"
 #include "cmd_ping.h"
-#include "cmd_provision_iot.h"
+#include "cmd_iot.h"
 #include "cmd_led.h"
-#include "cmd_provision_charge_point_info.h"
+#include "cmd_chargepoint.h"
+#include "cmd_factory_reset.h"
 
 #include "App/MN8App.h"
 
@@ -36,8 +37,10 @@ static int enter_config_cmd(int argc, char **argv) {
     register_led();
     register_wifi();
     register_ifconfig();
-    register_provision_charge_point_info();
-    register_provision_iot();
+    register_led();
+    register_factory_reset_command();
+    register_chargepoint_command();
+    register_iot_command();
 
     return 0;
 }

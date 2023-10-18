@@ -227,3 +227,33 @@ esp_err_t ThingConfig::save(void) {
 const char* ThingConfig::get_root_ca(void) {
     return root_ca;
 }
+
+esp_err_t ThingConfig::dump(void) {
+    if (nullptr != thingName) { printf("thingName: %s\n", thingName); }
+    if (nullptr != certificateArn) { printf("certificateArn: %s\n", certificateArn); }
+    if (nullptr != certificateId) { printf("certificateId: %s\n", certificateId); }
+    if (nullptr != certificatePem) { printf("certificatePem: %s\n", certificatePem); }
+    if (nullptr != privateKey) { printf("privateKey: %s\n", privateKey); }
+    if (nullptr != publicKey) { printf("publicKey: %s\n", publicKey); }
+    if (nullptr != endpointAddress) { printf("endpointAddress: %s\n", endpointAddress); }
+    
+    return ESP_OK;
+}
+
+esp_err_t ThingConfig::reset(void) {
+    KeyStore store;
+    if (store.openKeyStore("iot", e_rw) != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to open iot config store");
+        return false;
+    }
+
+    store.eraseKey("thingName", false);
+    store.eraseKey("certificateArn");
+    store.eraseKey("certificateId");
+    store.eraseKey("certificatePem");
+    store.eraseKey("privateKey");
+    store.eraseKey("publicKey");
+    store.eraseKey("endpointAddress");
+
+    return ESP_OK;
+}

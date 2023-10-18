@@ -2,6 +2,7 @@
 /**
  * @file ChargingAnimation.cpp
  * @author pat laplante (plaplante@appliedlogix.com)
+ *         bill mcguinness (bmcguinness@appliedlogix.com)
  * @brief ChargingAnimation class implementation
  * @version 0.1
  * @date 2023-09-19
@@ -11,8 +12,7 @@
  * The top-level class for an LED bar displaying an active charging
  * status.
  *
- * TODO:  Object hierarchy. Everything eventually is a static
- *        animation class.
+ *      Object hierarchy. Everything eventually resolved to a static pattern class
  *
  *        CA: Charge Animation (this class)
  *            B: Base (static)
@@ -22,6 +22,24 @@
  *                   H: High (static)
  *                CL: Charge Level Indicator (static)
  *            T: Top (static)
+ *
+ *       Diagram of these objects as they appear on a LED strip in mid-charge. Note
+ *       the Progress Animation object is "moving" blue pixels up the bar to indicate
+ *       charge in progress. Animations like these can be seen using the unit test
+ *       in the main/gtest directory (run the program in Interactive mode with the
+ *       -i option)
+ *
+ *            0                   1                   2                   3
+ *            0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+ *           |B|B|B|B|B|B|.|.|.|.|.|.|.|.|.|.|B|B|.|.|.|.|.|.|.|.|.|.|.|.|.|.|
+ *           |B|B|B|B|B|B|B|.|.|.|.|.|.|.|.|.|B|B|.|.|.|.|.|.|.|.|.|.|.|.|.|.|
+ *           |B|B|B|B|B|B|B|B|.|.|.|.|.|.|.|.|B|B|.|.|.|.|.|.|.|.|.|.|.|.|.|.|
+ *           |B|B|B|B|B|B|B|B|B|.|.|.|.|.|.|.|B|B|.|.|.|.|.|.|.|.|.|.|.|.|.|.|
+ *            │ ├─── L: Low ──┘ └─ H: High ───┤ │ │                         │
+ *            │ ├─── PA: Progress Animation ──┤ │ └──────── T: Top ─────────┤
+ *            │ └──  CI: Charge Indicator  ───┴┬┘                           │
+ *            ├─ B (Charge 'base')             └── CL: Charge Level         │
+ *            └─────────────────── CA: (Charge Animation) ──────────────────┘
  *
  */
 
@@ -90,10 +108,6 @@ void ChargingAnimation::reset(
  *                  0                   1                   2                   3
  *                  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
  *        LED BAR: |B|>|>|>|>|>|>|>|>|>|>|>|>|>|>|>|B|B|.|.|.|.|.|.|.|.|.|.|.|.|.|.|
- *                  │                               │ │
- *                  │                               │ ├─ Charge Level (top of indicator)
- *                  └─ CHARGE_BASE_LED_CNT          │ │
- *                                                  └─┴─ CHARGE_LEVEL_LED_CNT
  *
  *      2) Below threshold at which any animation will happen:
  *
@@ -103,7 +117,8 @@ void ChargingAnimation::reset(
  *        LED BAR: |B|B|.|.|.|.|.|.|.|.|.|.|.|.|.|.|.|.|.|.|.|.|.|.|.|.|.|.|.|.|.|.|
  *        LED BAR: |B|B|B|.|.|.|.|.|.|.|.|.|.|.|.|.|.|.|.|.|.|.|.|.|.|.|.|.|.|.|.|.|
  *
- *      3) Minimum animation level:
+ *      3) Minimum animation level. Note that this appears as a single "blinking" LED
+ *         between the Base and Charge Level Indicator.
  *
  *                  0                   1                   2                   3
  *                  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
@@ -111,7 +126,19 @@ void ChargingAnimation::reset(
  */
 int ChargingAnimation::refresh(uint8_t* led_pixels, int start_pixel, int led_count) {
 
-    int adjusted_charge_pct = MIN ((charge_percent + CHARGE_PERCENT_BUMP), 100);
+    int adjusted_charge_pct = 0;
+
+    // TODO: Should probably use a sliding value of charge bump based on LED bar
+    //       length; for now using our fixed value from 31/32 LED live tests if
+    //       we have a similar length.
+    if (led_count < 40)
+    {
+        adjusted_charge_pct = MIN ((charge_percent + CHARGE_PERCENT_BUMP), 100);
+    }
+    else
+    {
+        adjusted_charge_pct = charge_percent;
+    }
 
     // At full animation (or without animation), number of LEDs lit for this charge level
     // this is the top of our second segment
@@ -121,7 +148,8 @@ int ChargingAnimation::refresh(uint8_t* led_pixels, int start_pixel, int led_cou
     int filled_leds = base.refresh (led_pixels, 0, CHARGE_BASE_LED_CNT);
 
     // The charge indicator, including "short" versions at low charge levels (no animation)
-    filled_leds += charge_indicator.refresh (led_pixels, filled_leds, (std::max (0, (charged_led_count - CHARGE_BASE_LED_CNT))));
+    filled_leds += charge_indicator.refresh (led_pixels, filled_leds,
+            (std::max (0, (charged_led_count - CHARGE_BASE_LED_CNT))));
 
     // Everything left over
     top.refresh (led_pixels, filled_leds, (led_count - filled_leds));

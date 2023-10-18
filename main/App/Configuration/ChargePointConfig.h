@@ -41,6 +41,8 @@ public:
     // Load/Save from NVS
     esp_err_t load(void);
     esp_err_t save(void);
+    esp_err_t dump(void);
+    esp_err_t reset(void);
 
     // Setter
     void set_group_id(const char* group_id);

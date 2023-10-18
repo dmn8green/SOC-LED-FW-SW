@@ -169,6 +169,8 @@ AWS Lambda functions allow for single-shot event handling without need for a ded
 
 ### Station Controller Software
 
+#### General
+
 * This is an embedded C++ application using the ESP32 IDF development tools
 
 * FreeRTOS is commonly incorporated into ESP32 designs, and is used here as an operating system. FreeRTOS Threads: 
@@ -185,9 +187,9 @@ AWS Lambda functions allow for single-shot event handling without need for a ded
 
   The default operational mode will be using wired Ethernet. The WiFi interface is used as a backup in the event of connection or other failure detected on the Ethernet interface. 
 
-* CLI 
+#### Command Line Interface
 
-​	A command-line interface is available via Serial port.  Debug messages will be logged to this port, and it will accept user commands.  
+A command-line interface is available via Serial port.  Debug messages will be logged to this port, and it will accept user commands.
 
 ​	Input is done at this command prompt: 
 
@@ -269,9 +271,7 @@ AWS Lambda functions allow for single-shot event handling without need for a ded
 
 ​	*-s, --strip=<1/2>*  Which strip to control. If no value is given, both strips will be controlled 
 
- 
-
-* LED Driver 
+#### LED Driver
 
 The LED strips use the WS8215 protocol. Each LED strip has multiple controllers wired in series along the length of the strip. Depending on the LED strip model, each LED controller may control multiple LEDs (in our case, three LEDs per controller). The LED controllers are not aware of their physical position in the strip; this allows for easy cutting, resizing, and joining of strips.
 
@@ -279,7 +279,7 @@ Each LED controller has a DIN pin for input signaling and a DO for cascading the
 
 The bit sequence will be truncated and propagated along the LED strip until signal is exhausted or no more LEDs are present. Each LED controller maintains current color and forwards signals until a RESET is seen. 
 
-Our LED strip uses 33 controllers to drive 99 LEDs.  Each 24-bit sequence is interpreted as GRB (Green, Red, Blue) as follows: 
+Our LED strip uses 31 controllers to drive 93 LEDs.  Each 24-bit sequence is interpreted as GRB (Green, Red, Blue) as follows:
 
 
 
@@ -287,8 +287,6 @@ Our LED strip uses 33 controllers to drive 99 LEDs.  Each 24-bit sequence is int
 | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- |
 
 **Figure 4:  GRB Bit Sequencing**
-
-
 
 Because there is only a single data line to the LED strip (no clock signal), the line must be driven high/low for reach GRB bit transmitted. The duration of the high signal during each cycle indicates whether the bit should be interpreted as 0 or 1. 
 
@@ -333,21 +331,92 @@ Note that transmission of a single bit to the LED strip requires eight SPI CLK c
 
 The time required to address all LEDs is minimal and not visible. With 33 LED controllers using 24 bits each, and 1.2us required for each LED bit, we can update the entire LED strip in less than 0.1 milliseconds. 
 
-* LED Colors, Animations, and Patterns
+#### LED Animation Colors/Patterns
 
-Requirements here are evolving as testing and customer evaluation progresses.
+Several colors and patterns are used to indicate station state.
 
-Most Charging Port states are represented using solid colors defined in header file "Colors.h".
+| Station State     | LED Color      | Pattern  |
+| ----------------- | -------------- | -------- |
+| Station Available | Green          | Solid    |
+| Waiting for Power | Cyan           | Solid    |
+| Charging Complete | Blue           | Solid    |
+| Charging          | Blue/White     | Charging |
+| Offline           | White          | Solid    |
+| Reserved          | Orange         | Solid    |
+| Unknown           | Purple/Magenta | Solid    |
+| Out of Service    | Red            | Solid    |
+| Booting Up        | Yellow         | Pulsing  |
 
-The design currently supports two types of LED "animation" which are subject to change.
+**Figure 7: Station State Color Indicators**
 
-1) A "pulsing" theme, driving a single color from low to high intensity and back.
-2) A "chase" theme, where an indicator moves up the LED bar towards a target. This is currently used for Charging status; a blue indicator climbs from the base of the LED strip to the current charge level against a white background.
-3) Dedicated LED control threads and an abstraction of the colors mean changes to animations are straightforward 
 
-* Day/Night sensor
 
-The Day/Night sensor will be wired to a GPIO pin on the ESP32 board. The sensor will drive one of two LED thresholds for brightness across all supported patterns and animations.
+##### Charging Animation
+
+The Charging animation is a blue on white pattern, with an animated "chase" of blue LEDs appearing to "move up" the LED bar from a base level towards the current charge level.
+
+The charging animation was designed to be flexible and changeable if a different pattern is desired. The pattern consists of multiple components (each represented as  C++ objects). Depending on the number of LEDs used and the current charge levels, some objects may not be shown due to overlap.
+
+- B (Base):  Fixed LED indicator at bottom of LED bar. Always on
+- CI (Charge Indicator):  Composite object consisting of PA and CL
+- PA (Progress Animation):  "Chase" effect implemented with a PA and CL object. LEDs appear to move up the LED bar from B to CL.  Implemented with two static segments, H and L
+- CL (Charge Level): Fixed-length (currently 2) indicating current charge level
+- H (High):  Part of PA, the yet-to-be-illuminated LEDs in a "chase" pattern
+- L (Low):  Part of PA, the already-illuminated LEDs in a "chase" pattern
+- T (Top):  Extends beyond CL to the top of the LED bar
+
+```
+            0                   1                   2                   3
+            0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+           |B|B|B|B|B|B|.|.|.|.|.|.|.|.|.|.|B|B|.|.|.|.|.|.|.|.|.|.|.|.|.|.|
+           |B|B|B|B|B|B|B|.|.|.|.|.|.|.|.|.|B|B|.|.|.|.|.|.|.|.|.|.|.|.|.|.|
+           |B|B|B|B|B|B|B|B|.|.|.|.|.|.|.|.|B|B|.|.|.|.|.|.|.|.|.|.|.|.|.|.|
+           |B|B|B|B|B|B|B|B|B|.|.|.|.|.|.|.|B|B|.|.|.|.|.|.|.|.|.|.|.|.|.|.|
+            │ ├─── L: Low ──┘ └─ H: High ───┤ │ │                         │
+            │ ├─── PA: Progress Animation ──┤ │ └──────── T: Top ─────────┤
+            │ └──  CI: Charge Indicator  ───┴┬┘                           │
+            ├─ B (Charge 'base')             └── CL: Charge Level         │
+            └─────────────────── CA: (Charge Animation) ──────────────────┘
+
+```
+
+**Figure 8: Example of Charging Animation (32 LEDs, Charge level ~55%)**
+
+One requirement based on feedback from MN8 is for the CL indicator to remain in place until the PA has reached the CL.  This is subtle, but visually more pleasing as the charge increases.
+
+##### Pulsing Animation
+
+Pulsing Animations encompass the entire LED strip and are less complex than the Charging Animation. Each LED can be set to a level between 0 and 255. The non-linear response of the LED is handled by one or more "Pulse Curves" that control the rate of attack/decay of the pulse animation. Currently a "smooth" curve is implemented, and this can be expanded or changed.
+
+##### Colors
+
+Colors are designed to be as bright as possible while being visually distinct from each other. RGB are straightforward; composite colors were modified slightly during development based on visual observation of the LED bar in both indoor and outdoor settings.
+
+|                | R    | G    | B    |
+| -------------- | ---- | ---- | ---- |
+| Red            | 0xFF | 0x00 | 0x00 |
+| Green          | 0x00 | 0xFF | 0x00 |
+| Blue           | 0x00 | 0x00 | 0xFF |
+| White          | 0x80 | 0x80 | 0x80 |
+| Orange         | 0xFF | 0x70 | 0x00 |
+| Cyan           | 0x00 | 0xFF | 0x80 |
+| Yellow         | 0xFF | 0xFF | 0x00 |
+| Purple/Magenta | 0xFF | 0x6D | 0xC5 |
+|                |      |      |      |
+
+**Figure 9: Daytime colors in RGB format**
+
+#### Day/Night Mode
+
+In full daylight, we run the LED bar at or close to its maximum brightness. The system includes a binary day/night sensor to lower the LED intensity during nighttime.  A second set of colors is available via a "Colors" object that knows the day/night status. Color values for "night" mode are currently approximately half of the values shown in Figure 9; final values are TBD after some field testing.
+
+#### Unit Testing
+
+Unit tests using the publicly available Google Test (gtest) framework. The tests reside in directory "main/gtest".
+
+- Tests low level color conversion functions
+- Test animation patterns against various charge levels and varying number of LEDs
+- Includes interactive mode (-i option) that allows users to visualize the LED bar using animations with different parameters
 
 ### Proxy Broker Software
 
@@ -452,6 +521,7 @@ Examples:
 | MOSI   | SPI line driving output                                      |
 | MQTT   | Lightweight publish/subscribe network protocol; used to manage IOT devices |
 | PoE    | Power over Ethernet                                          |
+| RGB    | Red/Green/Blue color model                                   |
 | SOAP   | Simple Object Access Protocol                                |
 | SOC    | State of Charge                                              |
 | SPI    | Serial Peripheral Interface                                  |
