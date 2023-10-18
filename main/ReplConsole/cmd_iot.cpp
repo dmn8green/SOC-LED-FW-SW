@@ -24,38 +24,42 @@
 
 #include "cmd_iot.h"
 
-#include "Utils/FuseMacAddress.h"
+#include "ReplConsole/Utils/iot.h"
 #include "App/Configuration/ThingConfig.h"
 
+// #include "Utils/FuseMacAddress.h"
+// #include "App/Configuration/ThingConfig.h"
+
 #include <string.h>
-#include <sys/param.h>
-#include <stdlib.h>
-#include <ctype.h>
+// #include <sys/param.h>
+// #include <stdlib.h>
+// #include <ctype.h>
 
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
+// #include "freertos/FreeRTOS.h"
+// #include "freertos/task.h"
 
-#include "mbedtls/base64.h"
+// #include "mbedtls/base64.h"
 
-#include "nvs_flash.h"
-#include "esp_event.h"
-#include "esp_netif.h"
-#include "esp_tls.h"
-#include "esp_crt_bundle.h"
-#include "esp_system.h"
+// #include "nvs_flash.h"
+// #include "esp_event.h"
+// #include "esp_netif.h"
+// #include "esp_tls.h"
+// #include "esp_crt_bundle.h"
+// #include "esp_system.h"
 #include "esp_log.h"
 
-#include "esp_http_client.h"
+// #include "esp_http_client.h"
 #include "esp_console.h"
 #include "argtable3/argtable3.h"
 
-#include "ArduinoJson.h"
+// #include "ArduinoJson.h"
 
-#define MAX_HTTP_OUTPUT_BUFFER 8192
+// #define MAX_HTTP_OUTPUT_BUFFER 8192
 static const char *TAG = "provision_iot";
-#define PROVISION_URL "https://ir5q3elml3.execute-api.us-east-1.amazonaws.com/dev/provision"
-#define UNPROVISION_URL "https://ir5q3elml3.execute-api.us-east-1.amazonaws.com/dev/unprovision"
+// #define PROVISION_URL "https://ir5q3elml3.execute-api.us-east-1.amazonaws.com/dev/provision"
+// #define UNPROVISION_URL "https://ir5q3elml3.execute-api.us-east-1.amazonaws.com/dev/unprovision"
 #define STR_IS_EQUAL(str1, str2) (strncasecmp(str1, str2, strlen(str2)) == 0)
+#define STR_IS_EMPTY(str) (strlen(str) == 0)
 
 static struct {
     struct arg_str *command;
@@ -65,154 +69,154 @@ static struct {
     struct arg_end *end;
 } provision_iot_args;
 
-//*****************************************************************************
-/**
- * @brief Event handler for http client
- * 
- * Function lifted from 
- * esp-idf/examples/protocols/https_request/main/https_request_example.c
- * 
- * @param evt 
- * @return esp_err_t 
- */
-esp_err_t _http_event_handler(esp_http_client_event_t *evt)
-{
-    static char *output_buffer;  // Buffer to store response of http request from event handler
-    static int output_len;       // Stores number of bytes read
-    esp_err_t err;
-    int mbedtls_err = 0;
+// //*****************************************************************************
+// /**
+//  * @brief Event handler for http client
+//  * 
+//  * Function lifted from 
+//  * esp-idf/examples/protocols/https_request/main/https_request_example.c
+//  * 
+//  * @param evt 
+//  * @return esp_err_t 
+//  */
+// esp_err_t _http_event_handler(esp_http_client_event_t *evt)
+// {
+//     static char *output_buffer;  // Buffer to store response of http request from event handler
+//     static int output_len;       // Stores number of bytes read
+//     esp_err_t err;
+//     int mbedtls_err = 0;
 
-    switch(evt->event_id) {
-        case HTTP_EVENT_ERROR:
-            ESP_LOGI(TAG, "HTTP_EVENT_ERROR");
-            break;
-        case HTTP_EVENT_ON_CONNECTED:
-            ESP_LOGI(TAG, "HTTP_EVENT_ON_CONNECTED");
-            break;
-        case HTTP_EVENT_HEADER_SENT:
-            ESP_LOGI(TAG, "HTTP_EVENT_HEADER_SENT");
-            break;
-        case HTTP_EVENT_ON_HEADER:
-            ESP_LOGI(TAG, "HTTP_EVENT_ON_HEADER, key=%s, value=%s", evt->header_key, evt->header_value);
-            break;
-        case HTTP_EVENT_ON_DATA:
-            ESP_LOGI(TAG, "HTTP_EVENT_ON_DATA, len=%d", evt->data_len);
-            /*
-             *  Check for chunked encoding is added as the URL for chunked encoding used in this example returns binary data.
-             *  However, event handler can also be used in case chunked encoding is used.
-             */
-            if (!esp_http_client_is_chunked_response(evt->client)) {
-                // If user_data buffer is configured, copy the response into the buffer
-                int copy_len = 0;
-                if (evt->user_data) {
-                    copy_len = MIN(evt->data_len, (MAX_HTTP_OUTPUT_BUFFER - output_len));
-                    if (copy_len) {
-                        memcpy((void *)((char *)evt->user_data + output_len), evt->data, copy_len);
-                    }
-                } else {
-                    const int buffer_len = esp_http_client_get_content_length(evt->client);
-                    if (output_buffer == NULL) {
-                        output_buffer = (char *) malloc(buffer_len);
-                        output_len = 0;
-                        if (output_buffer == NULL) {
-                            ESP_LOGE(TAG, "Failed to allocate memory for output buffer");
-                            return ESP_FAIL;
-                        }
-                    }
-                    copy_len = MIN(evt->data_len, (buffer_len - output_len));
-                    if (copy_len) {
-                        memcpy(output_buffer + output_len, evt->data, copy_len);
-                    }
-                }
-                output_len += copy_len;
-            }
+//     switch(evt->event_id) {
+//         case HTTP_EVENT_ERROR:
+//             ESP_LOGI(TAG, "HTTP_EVENT_ERROR");
+//             break;
+//         case HTTP_EVENT_ON_CONNECTED:
+//             ESP_LOGI(TAG, "HTTP_EVENT_ON_CONNECTED");
+//             break;
+//         case HTTP_EVENT_HEADER_SENT:
+//             ESP_LOGI(TAG, "HTTP_EVENT_HEADER_SENT");
+//             break;
+//         case HTTP_EVENT_ON_HEADER:
+//             ESP_LOGI(TAG, "HTTP_EVENT_ON_HEADER, key=%s, value=%s", evt->header_key, evt->header_value);
+//             break;
+//         case HTTP_EVENT_ON_DATA:
+//             ESP_LOGI(TAG, "HTTP_EVENT_ON_DATA, len=%d", evt->data_len);
+//             /*
+//              *  Check for chunked encoding is added as the URL for chunked encoding used in this example returns binary data.
+//              *  However, event handler can also be used in case chunked encoding is used.
+//              */
+//             if (!esp_http_client_is_chunked_response(evt->client)) {
+//                 // If user_data buffer is configured, copy the response into the buffer
+//                 int copy_len = 0;
+//                 if (evt->user_data) {
+//                     copy_len = MIN(evt->data_len, (MAX_HTTP_OUTPUT_BUFFER - output_len));
+//                     if (copy_len) {
+//                         memcpy((void *)((char *)evt->user_data + output_len), evt->data, copy_len);
+//                     }
+//                 } else {
+//                     const int buffer_len = esp_http_client_get_content_length(evt->client);
+//                     if (output_buffer == NULL) {
+//                         output_buffer = (char *) malloc(buffer_len);
+//                         output_len = 0;
+//                         if (output_buffer == NULL) {
+//                             ESP_LOGE(TAG, "Failed to allocate memory for output buffer");
+//                             return ESP_FAIL;
+//                         }
+//                     }
+//                     copy_len = MIN(evt->data_len, (buffer_len - output_len));
+//                     if (copy_len) {
+//                         memcpy(output_buffer + output_len, evt->data, copy_len);
+//                     }
+//                 }
+//                 output_len += copy_len;
+//             }
 
-            break;
-        case HTTP_EVENT_ON_FINISH:
-            ESP_LOGI(TAG, "HTTP_EVENT_ON_FINISH");
-            if (output_buffer != NULL) {
-                // Response is accumulated in output_buffer. Uncomment the below line to print the accumulated response
-                // ESP_LOG_BUFFER_HEX(TAG, output_buffer, output_len);
-                free(output_buffer);
-                output_buffer = NULL;
-            }
-            output_len = 0;
-            break;
-        case HTTP_EVENT_DISCONNECTED:
-            ESP_LOGI(TAG, "HTTP_EVENT_DISCONNECTED");
-            err = esp_tls_get_and_clear_last_error((esp_tls_error_handle_t)evt->data, &mbedtls_err, NULL);
-            if (err != 0) {
-                ESP_LOGI(TAG, "Last esp error code: 0x%x", err);
-                ESP_LOGI(TAG, "Last mbedtls failure: 0x%x", mbedtls_err);
-            }
-            if (output_buffer != NULL) {
-                free(output_buffer);
-                output_buffer = NULL;
-            }
-            output_len = 0;
-            break;
-        case HTTP_EVENT_REDIRECT:
-            ESP_LOGI(TAG, "HTTP_EVENT_REDIRECT");
-            esp_http_client_set_header(evt->client, "From", "user@example.com");
-            esp_http_client_set_header(evt->client, "Accept", "text/html");
-            esp_http_client_set_redirection(evt->client);
-            break;
-    }
-    return ESP_OK;
-}
+//             break;
+//         case HTTP_EVENT_ON_FINISH:
+//             ESP_LOGI(TAG, "HTTP_EVENT_ON_FINISH");
+//             if (output_buffer != NULL) {
+//                 // Response is accumulated in output_buffer. Uncomment the below line to print the accumulated response
+//                 // ESP_LOG_BUFFER_HEX(TAG, output_buffer, output_len);
+//                 free(output_buffer);
+//                 output_buffer = NULL;
+//             }
+//             output_len = 0;
+//             break;
+//         case HTTP_EVENT_DISCONNECTED:
+//             ESP_LOGI(TAG, "HTTP_EVENT_DISCONNECTED");
+//             err = esp_tls_get_and_clear_last_error((esp_tls_error_handle_t)evt->data, &mbedtls_err, NULL);
+//             if (err != 0) {
+//                 ESP_LOGI(TAG, "Last esp error code: 0x%x", err);
+//                 ESP_LOGI(TAG, "Last mbedtls failure: 0x%x", mbedtls_err);
+//             }
+//             if (output_buffer != NULL) {
+//                 free(output_buffer);
+//                 output_buffer = NULL;
+//             }
+//             output_len = 0;
+//             break;
+//         case HTTP_EVENT_REDIRECT:
+//             ESP_LOGI(TAG, "HTTP_EVENT_REDIRECT");
+//             esp_http_client_set_header(evt->client, "From", "user@example.com");
+//             esp_http_client_set_header(evt->client, "Accept", "text/html");
+//             esp_http_client_set_redirection(evt->client);
+//             break;
+//     }
+//     return ESP_OK;
+// }
 
-//*****************************************************************************
-/**
- * @brief Process the response from the provisioning server
- * 
- * @param response_buffer   JSON string response from the provisioning server
- * @return true             The response was successfully processed
- * @return false            The response could not be processed
- */
-static bool process_api_response(const char* response_buffer)
-{
-    DynamicJsonDocument doc(MAX_HTTP_OUTPUT_BUFFER + 1);
-    DeserializationError error = deserializeJson(doc, response_buffer);
-    if (error) {
-        ESP_LOGE(TAG, "deserializeJson() failed: %s", error.c_str());
-        return false;
-    }
+// //*****************************************************************************
+// /**
+//  * @brief Process the response from the provisioning server
+//  * 
+//  * @param response_buffer   JSON string response from the provisioning server
+//  * @return true             The response was successfully processed
+//  * @return false            The response could not be processed
+//  */
+// static bool process_api_response(const char* response_buffer)
+// {
+//     DynamicJsonDocument doc(MAX_HTTP_OUTPUT_BUFFER + 1);
+//     DeserializationError error = deserializeJson(doc, response_buffer);
+//     if (error) {
+//         ESP_LOGE(TAG, "deserializeJson() failed: %s", error.c_str());
+//         return false;
+//     }
 
-    JsonObject root = doc.as<JsonObject>();
-    auto thing = root["thing"];
-    if (thing.isNull()) {
-        ESP_LOGE(TAG, "thing is null");
-        return false;
-    }
+//     JsonObject root = doc.as<JsonObject>();
+//     auto thing = root["thing"];
+//     if (thing.isNull()) {
+//         ESP_LOGE(TAG, "thing is null");
+//         return false;
+//     }
     
-    auto certs = root["certs"];
-    if (certs.isNull()) {
-        ESP_LOGE(TAG, "certs is null");
-        return false;
-    }
+//     auto certs = root["certs"];
+//     if (certs.isNull()) {
+//         ESP_LOGE(TAG, "certs is null");
+//         return false;
+//     }
     
-    auto endpoint = root["endpoint"];
-    if (endpoint.isNull()) {
-        ESP_LOGE(TAG, "endpoint is null");
-        return false;
-    }
+//     auto endpoint = root["endpoint"];
+//     if (endpoint.isNull()) {
+//         ESP_LOGE(TAG, "endpoint is null");
+//         return false;
+//     }
 
 
-    // Populate the IOT configuration in flash.
-    ThingConfig thingConfig;
+//     // Populate the IOT configuration in flash.
+//     ThingConfig thingConfig;
     
-    thingConfig.set_thing_name(thing["thingName"]);
-    thingConfig.set_certificate_arn(certs["certificateArn"]);
-    thingConfig.set_certificate_id(certs["certificateId"]);
-    thingConfig.set_certificate_pem(certs["certificatePem"]);
-    thingConfig.set_private_key(certs["keyPair"]["PrivateKey"]);
-    thingConfig.set_public_key(certs["keyPair"]["PublicKey"]);
-    thingConfig.set_endpoint_address(endpoint["endpointAddress"]);
+//     thingConfig.set_thing_name(thing["thingName"]);
+//     thingConfig.set_certificate_arn(certs["certificateArn"]);
+//     thingConfig.set_certificate_id(certs["certificateId"]);
+//     thingConfig.set_certificate_pem(certs["certificatePem"]);
+//     thingConfig.set_private_key(certs["keyPair"]["PrivateKey"]);
+//     thingConfig.set_public_key(certs["keyPair"]["PublicKey"]);
+//     thingConfig.set_endpoint_address(endpoint["endpointAddress"]);
     
-    thingConfig.save();
+//     thingConfig.save();
 
-    return true;
-}
+//     return true;
+// }
 
 typedef enum {
     e_dump_cmd,
@@ -220,129 +224,129 @@ typedef enum {
     e_unprovision_cmd
 } iot_command_t;
 
-static int make_http_call(const char* url, const char* username, const char* password) {
-    char *local_response_buffer = (char*) malloc(MAX_HTTP_OUTPUT_BUFFER + 1);
-    memset(local_response_buffer, 0, MAX_HTTP_OUTPUT_BUFFER + 1);
+// static int make_http_call(const char* url, const char* username, const char* password) {
+//     char *local_response_buffer = (char*) malloc(MAX_HTTP_OUTPUT_BUFFER + 1);
+//     memset(local_response_buffer, 0, MAX_HTTP_OUTPUT_BUFFER + 1);
 
-    #pragma GCC diagnostic pop "-Wmissing-field-initializers" 
-    #pragma GCC diagnostic ignored "-Wmissing-field-initializers" 
-    esp_http_client_config_t config = {
-        .url = url,
-        .method = HTTP_METHOD_POST,
-        .disable_auto_redirect = true,
-        .event_handler = _http_event_handler,
-        .user_data = local_response_buffer,
-        .crt_bundle_attach = esp_crt_bundle_attach,
-    };
-    #pragma GCC diagnostic push "-Wmissing-field-initializers" 
+//     #pragma GCC diagnostic pop "-Wmissing-field-initializers" 
+//     #pragma GCC diagnostic ignored "-Wmissing-field-initializers" 
+//     esp_http_client_config_t config = {
+//         .url = url,
+//         .method = HTTP_METHOD_POST,
+//         .disable_auto_redirect = true,
+//         .event_handler = _http_event_handler,
+//         .user_data = local_response_buffer,
+//         .crt_bundle_attach = esp_crt_bundle_attach,
+//     };
+//     #pragma GCC diagnostic push "-Wmissing-field-initializers" 
 
-    esp_http_client_handle_t client = esp_http_client_init(&config);
+//     esp_http_client_handle_t client = esp_http_client_init(&config);
 
-    char auth_raw[64] = {0};
-    snprintf(auth_raw, 64, "%s:%s", username, password);
+//     char auth_raw[64] = {0};
+//     snprintf(auth_raw, 64, "%s:%s", username, password);
 
-    size_t outlen;
-    char auth_base64[64] = {0};
-    strcpy(auth_base64, "Basic ");
-    char* base64_ptr = auth_base64+strlen("Basic ");
-    mbedtls_base64_encode((unsigned char*) base64_ptr, 64, &outlen, (unsigned char*) auth_raw, strlen(auth_raw));
-    ESP_LOGI(TAG, "auth_base64 %s", auth_base64);
+//     size_t outlen;
+//     char auth_base64[64] = {0};
+//     strcpy(auth_base64, "Basic ");
+//     char* base64_ptr = auth_base64+strlen("Basic ");
+//     mbedtls_base64_encode((unsigned char*) base64_ptr, 64, &outlen, (unsigned char*) auth_raw, strlen(auth_raw));
+//     ESP_LOGI(TAG, "auth_base64 %s", auth_base64);
 
-    char mac_address[13] = {0};
-    get_fuse_mac_address_string(mac_address);
-    char post_data[32] = {0};
-    snprintf((char*) post_data, 32, "{\"thingId\":\"%s\"}", mac_address);
-    ESP_LOGI(TAG, "post_data %s len %d", post_data, strlen(post_data));
+//     char mac_address[13] = {0};
+//     get_fuse_mac_address_string(mac_address);
+//     char post_data[32] = {0};
+//     snprintf((char*) post_data, 32, "{\"thingId\":\"%s\"}", mac_address);
+//     ESP_LOGI(TAG, "post_data %s len %d", post_data, strlen(post_data));
 
-    esp_http_client_set_header(client, "Authorization", auth_base64);
-    esp_http_client_set_header(client, "Content-Type", "application/json; charset=utf-8");
-    esp_http_client_set_post_field(client, post_data, strlen(post_data));
+//     esp_http_client_set_header(client, "Authorization", auth_base64);
+//     esp_http_client_set_header(client, "Content-Type", "application/json; charset=utf-8");
+//     esp_http_client_set_post_field(client, post_data, strlen(post_data));
 
-    esp_err_t err = esp_http_client_perform(client);
+//     esp_err_t err = esp_http_client_perform(client);
 
-    if (err == ESP_OK && esp_http_client_get_status_code(client) == 200) {
-        // ESP_LOGI(TAG, "HTTPS Status = %d, content_length = %" PRIu64,
-        //         esp_http_client_get_status_code(client),
-        //         esp_http_client_get_content_length(client));
+//     if (err == ESP_OK && esp_http_client_get_status_code(client) == 200) {
+//         // ESP_LOGI(TAG, "HTTPS Status = %d, content_length = %" PRIu64,
+//         //         esp_http_client_get_status_code(client),
+//         //         esp_http_client_get_content_length(client));
         
-        ESP_LOGI(TAG, "HTTPS Status = %s", local_response_buffer);
-        return process_api_response(local_response_buffer) == true;
-    } else {
-        ESP_LOGE(TAG, "Error perform http request %s", esp_err_to_name(err));
-    }
-    esp_http_client_cleanup(client);
-    return 0;   
-}
+//         ESP_LOGI(TAG, "HTTPS Status = %s", local_response_buffer);
+//         return process_api_response(local_response_buffer) == true;
+//     } else {
+//         ESP_LOGE(TAG, "Error perform http request %s", esp_err_to_name(err));
+//     }
+//     esp_http_client_cleanup(client);
+//     return 0;   
+// }
 
-//*****************************************************************************
-/**
- * @brief Provision this device as an AWS iot thing
- * 
- * This function is registered as a REPL command. 
- * It takes the following arguments:
- *  - url: url to the provisioning server (optional)
- *  - username: username for the provisioning server
- *  - password: password for the provisioning server
- * 
- * The function will send a POST request to the provisioning server with the
- * following JSON payload:
- * {
- *  "thingId": "mac_address of this device"
- * }
- * 
- * The mac address is obtained from the esp-idf API esp_efuse_mac_get_default()
- * This is the same mac address returned when calling esptool.py chip_id
- * 
- * @param url
- * @param username
- * @param password
- * @return int 
- */
-static int provision_device(const char* url, const char* username, const char* password) {
-    ESP_LOGI(TAG, "url %s", url);
-    ESP_LOGI(TAG, "username %s", username);
-    ESP_LOGI(TAG, "password %s", password);
+// //*****************************************************************************
+// /**
+//  * @brief Provision this device as an AWS iot thing
+//  * 
+//  * This function is registered as a REPL command. 
+//  * It takes the following arguments:
+//  *  - url: url to the provisioning server (optional)
+//  *  - username: username for the provisioning server
+//  *  - password: password for the provisioning server
+//  * 
+//  * The function will send a POST request to the provisioning server with the
+//  * following JSON payload:
+//  * {
+//  *  "thingId": "mac_address of this device"
+//  * }
+//  * 
+//  * The mac address is obtained from the esp-idf API esp_efuse_mac_get_default()
+//  * This is the same mac address returned when calling esptool.py chip_id
+//  * 
+//  * @param url
+//  * @param username
+//  * @param password
+//  * @return int 
+//  */
+// static int provision_device(const char* url, const char* username, const char* password) {
+//     ESP_LOGI(TAG, "url %s", url);
+//     ESP_LOGI(TAG, "username %s", username);
+//     ESP_LOGI(TAG, "password %s", password);
 
-    return make_http_call(strlen(url) == 0 ? PROVISION_URL : url, username, password);
-}
+//     return make_http_call(strlen(url) == 0 ? PROVISION_URL : url, username, password);
+// }
 
-//*****************************************************************************
-/**
- * @brief Unprovision this device as an AWS iot thing
- * 
- * This function is registered as a REPL command. 
- * It takes the following arguments:
- *  - command: dump/provision/unprovision
- *  - url: url to the provisioning server (optional)
- *  - username: username for the provisioning server
- *  - password: password for the provisioning server
- * 
- * The function will send a POST request to the unprovisioning server with the
- * following JSON payload:
- * {
- *  "thingId": "mac_address of this device"
- * }
- * 
- * The mac address is obtained from the esp-idf API esp_efuse_mac_get_default()
- * This is the same mac address returned when calling esptool.py chip_id
- * 
- * @param argc 
- * @param argv 
- * @return int 
- */
-static int unprovision_device(const char* url, const char* username, const char* password) {
-    ESP_LOGI(TAG, "url %s", url);
-    ESP_LOGI(TAG, "username %s", username);
-    ESP_LOGI(TAG, "password %s", password);
+// //*****************************************************************************
+// /**
+//  * @brief Unprovision this device as an AWS iot thing
+//  * 
+//  * This function is registered as a REPL command. 
+//  * It takes the following arguments:
+//  *  - command: dump/provision/unprovision
+//  *  - url: url to the provisioning server (optional)
+//  *  - username: username for the provisioning server
+//  *  - password: password for the provisioning server
+//  * 
+//  * The function will send a POST request to the unprovisioning server with the
+//  * following JSON payload:
+//  * {
+//  *  "thingId": "mac_address of this device"
+//  * }
+//  * 
+//  * The mac address is obtained from the esp-idf API esp_efuse_mac_get_default()
+//  * This is the same mac address returned when calling esptool.py chip_id
+//  * 
+//  * @param argc 
+//  * @param argv 
+//  * @return int 
+//  */
+// static int unprovision_device(const char* url, const char* username, const char* password) {
+//     ESP_LOGI(TAG, "url %s", url);
+//     ESP_LOGI(TAG, "username %s", username);
+//     ESP_LOGI(TAG, "password %s", password);
 
-    if (make_http_call(strlen(url) == 0 ? UNPROVISION_URL : url, username, password) == 0) {
-        ThingConfig thingConfig;
-        thingConfig.reset();
-        return 0;
-    }
+//     if (make_http_call(strlen(url) == 0 ? UNPROVISION_URL : url, username, password) == 0) {
+//         ThingConfig thingConfig;
+//         thingConfig.reset();
+//         return 0;
+//     }
 
-    return 1;
-}
+//     return 1;
+// }
 
 //*****************************************************************************
 /**
