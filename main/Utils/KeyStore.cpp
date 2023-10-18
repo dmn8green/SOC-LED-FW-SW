@@ -28,6 +28,11 @@ KeyStore::~KeyStore()
 }
 
 //******************************************************************************
+esp_err_t KeyStore::erasePartition(void) {
+    return nvs_flash_erase_partition(KEYSTORE_NAME);
+}
+
+//******************************************************************************
 esp_err_t KeyStore::openKeyStore(const char *sectionName, e_keyStoreMode ksMode)
 {
     esp_err_t err = ESP_OK;

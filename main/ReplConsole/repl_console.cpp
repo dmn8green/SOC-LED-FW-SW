@@ -8,6 +8,7 @@
 #include "cmd_iot.h"
 #include "cmd_led.h"
 #include "cmd_chargepoint.h"
+#include "cmd_factory_reset.h"
 
 #include "App/MN8App.h"
 
@@ -51,6 +52,7 @@ void repl_configure(uint16_t txPin, uint16_t rxPin, uint16_t channel, uint32_t b
     register_reboot();
     register_ping();
     register_led();
+    register_factory_reset_command();
 
     register_chargepoint_command();
     register_iot_command();

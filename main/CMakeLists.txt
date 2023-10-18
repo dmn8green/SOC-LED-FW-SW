@@ -42,6 +42,7 @@ set(COMPONENT_SRCS
     LED/Animations/ChargingAnimation.cpp
     ReplConsole/Utils/iot.cpp
     ReplConsole/repl_console.cpp
+    ReplConsole/cmd_factory_reset.cpp
     ReplConsole/cmd_tasks.cpp
     ReplConsole/cmd_wifi.cpp
     ReplConsole/cmd_ifconfig.cpp
