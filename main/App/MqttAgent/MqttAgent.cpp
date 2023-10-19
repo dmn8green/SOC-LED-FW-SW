@@ -177,6 +177,7 @@ void MqttAgent::on_mqtt_pubsub_event(
     ESP_LOGI(TAG, "Got publish event will call agent %p, mn8app %p", this, this->handle_incoming_mqtt_context);
 
     if ((packet_info->type & 0xF0U) == MQTT_PACKET_TYPE_PUBLISH) {
+        ESP_LOGI(TAG, "Got publish event");
         assert( deserialized_info->pPublishInfo != NULL );
         MQTTPublishInfo_t * pPublishInfo = deserialized_info->pPublishInfo;
         handle_incoming_mqtt(
@@ -231,7 +232,6 @@ esp_err_t MqttAgent::process_mqtt_loop(void) {
 //******************************************************************************
 void MqttAgent::taskFunction(void) {
     esp_err_t ret = ESP_OK;
-    bool connected = false;
 
     // Init mqtt
 
@@ -258,7 +258,6 @@ void MqttAgent::taskFunction(void) {
             }
             
             ESP_LOGI(TAG, "Connected to mqtt broker");
-            connected = true;
             if (this->mqtt_connection.is_broker_session_present()) {
                 ESP_LOGI(TAG, 
                     "An MQTT session with the broker is re-esablished. "
@@ -291,6 +290,7 @@ void MqttAgent::taskFunction(void) {
             this->publish_message(topic, "{}", 0);
 
             // xEventGroupSetBits( this->event_group, MQTT_AGENT_CONNECTED_BIT );
+            connected = true;
             
         }
 

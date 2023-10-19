@@ -44,6 +44,8 @@ public:
     esp_err_t setup(void);
     void connect(void);
     void disconnect(void);
+    inline bool is_connected(void) { return this->connection.check_connectivity(false); }
+    void restart(void);
     void try_connecting(const char* interface = nullptr);
 
     // Accessors

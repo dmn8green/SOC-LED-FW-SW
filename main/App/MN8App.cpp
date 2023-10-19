@@ -156,6 +156,7 @@ err:
     return ret;
 }
 
+//*****************************************************************************
 void MN8App::on_incoming_mqtt( 
     const char* pTopicName,
     uint16_t topicNameLength,
@@ -163,6 +164,7 @@ void MN8App::on_incoming_mqtt(
     size_t payloadLength,
     uint16_t packetIdentifier
 ) {
+    ESP_LOGI(TAG, "Incoming publish received : %.*s", payloadLength, pPayload);
     StaticJsonDocument<200> doc;
     DeserializationError error = deserializeJson(doc, pPayload, payloadLength);
     if (error) {

@@ -49,6 +49,7 @@ public:
     esp_err_t setup(ThingConfig* thing_config);
     void connect(void);
     void disconnect(void);
+    inline bool is_connected(void) { return this->connected; }
 
     esp_err_t subscribe(const char *topic, mqttCallbackFn callback, void* context);
     esp_err_t unsubscribe(const char *topic);
@@ -120,5 +121,6 @@ private:
     handle_incoming_mqtt_fn handle_incoming_mqtt;
     void* handle_incoming_mqtt_context;
 
+    bool connected = false;
     SemaphoreHandle_t mqtt_mutex;
 };

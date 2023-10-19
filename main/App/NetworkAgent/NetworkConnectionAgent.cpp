@@ -70,6 +70,15 @@ void NetworkConnectionAgent::disconnect(void) {
 }
 
 //*****************************************************************************
+void NetworkConnectionAgent::restart(void) {
+    this->disconnect();
+    // sleep 2 seconds
+    vTaskDelay(2000 / portTICK_PERIOD_MS);
+    
+    this->connect();
+}
+
+//*****************************************************************************
 void NetworkConnectionAgent::onIPEvent(esp_event_base_t event_base, int32_t event_id, void *event_data) {
     ESP_LOGI(TAG, "Got IPEvent");
     ip_event_t event = (ip_event_t) event_id;

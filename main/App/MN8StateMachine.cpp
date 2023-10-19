@@ -165,10 +165,11 @@ mn8_state_t MN8StateMachine::connecting_state(mn8_event_t event) {
     switch (event) {
         case e_mn8_event_net_connected:
         case e_mn8_event_mqtt_connected:
-            // if (this->context->get_network_connection_agent().is_connected() &&
-            //     this->context->get_mqtt_agent().is_connected())
-            // {
-            next_state = e_mn8_connected;
+            if (this->context->get_network_connection_agent().is_connected() &&
+                this->context->get_mqtt_agent().is_connected())
+            {
+                next_state = e_mn8_connected;
+            }
             
             break;
         default:
@@ -205,7 +206,7 @@ mn8_state_t MN8StateMachine::connected_state(mn8_event_t event) {
         case e_mn8_event_lost_mqtt_connection:
             // Maybe something is wrong with the network/wifi. 
             // Force a reconnect?
-            // this->context->get_network_agent().restart();
+            this->context->get_network_connection_agent().restart();
             next_state = e_mn8_connecting;
             break;
         case e_mn8_event_lost_network_connection:
@@ -265,6 +266,9 @@ mn8_state_t MN8StateMachine::disconnecting_state(mn8_event_t event) {
     }
 
     switch (event) {
+        case e_mn8_event_mqtt_disconnected:
+            next_state = e_mn8_disconnected;
+            break;
         default:
             next_state = e_mn8_disconnecting;
     }
@@ -286,8 +290,8 @@ mn8_state_t MN8StateMachine::disconnected_state(mn8_event_t event) {
     }
 
     switch (event) {
-        case e_mn8_event_net_connect:
-            next_state = e_mn8_connecting;
+        case e_mn8_event_net_connected:
+            next_state = e_mn8_connected;
             break;
         default:
             next_state = e_mn8_disconnected;
