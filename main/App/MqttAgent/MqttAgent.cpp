@@ -285,6 +285,10 @@ void MqttAgent::taskFunction(void) {
             snprintf(topic, 32, "%s/ledstate", this->thing_config->get_thing_name());
             this->subscribe(topic, NULL, NULL);
 
+            // todo this should be more stateful. use a delay for now to make
+            // sure the subscribe happened before we publish we need data.
+            vTaskDelay(2000 / portTICK_PERIOD_MS);
+
             memset(topic, 0x00, 32);
             snprintf(topic, 32, "%s/%s", this->thing_config->get_thing_name(), "latest");
             this->publish_message(topic, "{}", 0);
