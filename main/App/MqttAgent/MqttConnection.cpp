@@ -31,7 +31,7 @@ esp_err_t MqttConnection::initialize(ThingConfig* thing_config) {
 }
 
 //*****************************************************************************
-esp_err_t MqttConnection::connect_with_retries(MqttContext* mqtt_context, uint16_t retry_count) {
+esp_err_t MqttConnection::connect_with_retries(MQTTContext_t* mqtt_context, uint16_t retry_count) {
     esp_err_t ret = ESP_OK;
     BackoffAlgorithmStatus_t backoff_alg_status = BackoffAlgorithmSuccess;
     BackoffAlgorithmContext_t reconnect_params;
@@ -79,7 +79,7 @@ esp_err_t MqttConnection::connect_with_retries(MqttContext* mqtt_context, uint16
 }
 
 //*****************************************************************************
-esp_err_t MqttConnection::disconnect(MqttContext* mqtt_context) {
+esp_err_t MqttConnection::disconnect(MQTTContext_t* mqtt_context) {
     esp_err_t ret = ESP_OK;
     MQTTStatus_t mqtt_status;
 
@@ -108,7 +108,7 @@ esp_err_t MqttConnection::disconnect(MqttContext* mqtt_context) {
 }
 
 //*****************************************************************************
-esp_err_t MqttConnection::connect_mqtt_socket(MqttContext* mqtt_context) {
+esp_err_t MqttConnection::connect_mqtt_socket(MQTTContext_t* mqtt_context) {
     esp_err_t ret = ESP_OK;
     MQTTStatus_t mqtt_status;
     MQTTConnectInfo_t connect_info;

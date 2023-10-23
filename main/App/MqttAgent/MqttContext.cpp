@@ -1,4 +1,5 @@
 #include "MqttContext.h"
+#include "App/MqttAgent/MqttConfig.h"
 
 #include "network_transport.h"
 
@@ -11,10 +12,16 @@ MqttContext::MqttContext(void) {
     memset( &this->outgoing_records, 0x00, sizeof( MQTTPubAckInfo_t ) * OUTGOING_PUBLISH_RECORD_LEN );
     memset( &this->incoming_records, 0x00, sizeof( MQTTPubAckInfo_t ) * INCOMING_PUBLISH_RECORD_LEN );
     this->buffer = (uint8_t*)malloc( NETWORK_BUFFER_SIZE );
+    memset( this->buffer, 0x00, NETWORK_BUFFER_SIZE );
+    
+    // memset( (void*) &this->mqtt_context, 0x00, sizeof( MQTTContext_t ) );
+
+    // ESP_LOGI(TAG, "!!!!!!!! mn8context: %p", this);
+    // this->mqtt_context.mn8_context = this;
 }
 
 //******************************************************************************
-esp_err_t MqttContext::initialize(NetworkContext_t * network_context, EventCallback_t callback, void * pCallbackContext) {
+esp_err_t MqttContext::initialize(NetworkContext_t * network_context, EventCallback_t callback, void * callback_context) {
     esp_err_t return_status = ESP_OK;
     MQTTStatus_t mqtt_status;
     MQTTFixedBuffer_t network_buffer;
@@ -23,7 +30,8 @@ esp_err_t MqttContext::initialize(NetworkContext_t * network_context, EventCallb
 
     assert( network_context != NULL );
     this->callback = callback;
-    this->pCallbackContext = pCallbackContext;
+    this->callback_context = callback_context;
+    ESP_LOGI(TAG, "!!!!!!!! Callback is mn8 %p and this is %p", this->callback_context, this);
 
     // Fill in TransportInterface send and receive function pointers.
     // For this demo, TCP sockets are used to send and receive data
@@ -48,17 +56,17 @@ esp_err_t MqttContext::initialize(NetworkContext_t * network_context, EventCallb
         return return_status;
     }
 
-    mqtt_status = MQTT_InitStatefulQoS( this,
-                                        outgoing_records,
-                                        OUTGOING_PUBLISH_RECORD_LEN,
-                                        incoming_records,
-                                        INCOMING_PUBLISH_RECORD_LEN );
+    // mqtt_status = MQTT_InitStatefulQoS( &this->mqtt_context,
+    //                                     outgoing_records,
+    //                                     OUTGOING_PUBLISH_RECORD_LEN,
+    //                                     incoming_records,
+    //                                     INCOMING_PUBLISH_RECORD_LEN );
 
-    if( mqtt_status != MQTTSuccess )
-    {
-        return_status = ESP_FAIL;
-        ESP_LOGE( TAG, "MQTT_InitStatefulQoS failed: Status = %s.", MQTT_Status_strerror( mqtt_status ) );
-    }
+    // if( mqtt_status != MQTTSuccess )
+    // {
+    //     return_status = ESP_FAIL;
+    //     ESP_LOGE( TAG, "MQTT_InitStatefulQoS failed: Status = %s.", MQTT_Status_strerror( mqtt_status ) );
+    // }
 
     return return_status;
 }
@@ -86,14 +94,9 @@ void MqttContext::event_callback(
     assert( packet_info != NULL );
     assert( deserialized_info != NULL );
 
-    if (this->callback != nullptr) {
-        this->callback( mqtt_context, packet_info, deserialized_info, mqtt_context );
-    }
+    ESP_LOGI(TAG, "!!!!!!!! Callback is %p with", this);
 
-    // if ((packet_info->type & 0xF0U) == MQTT_PACKET_TYPE_PUBLISH) {
-    //     assert( deserialized_info->pPublishInfo != NULL );
-    //     // subscription_handler->handle_publish( packet_info, deserialized_info );
-    // } else {
-    //     // pubsub_handler->handle_packet( packet_info, deserialized_info );
-    // }
+    if (this->callback != nullptr) {
+        this->callback( mqtt_context, packet_info, deserialized_info, this->callback_context );
+    }
 }

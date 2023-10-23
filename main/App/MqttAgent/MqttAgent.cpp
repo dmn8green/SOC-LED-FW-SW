@@ -25,6 +25,7 @@ static const char *TAG = "mqtt_agent";
 esp_err_t MqttAgent::setup(ThingConfig* thing_config) {
     struct timespec tp;
 
+    ESP_LOGI(TAG, "Setting this %p", this);
     this->thing_config = thing_config;
     this->event_group = xEventGroupCreate();
 
@@ -54,7 +55,10 @@ esp_err_t MqttAgent::setup(ThingConfig* thing_config) {
     
     // ESP_LOGI(TAG, "%s\n%s\n%s\n", client_cert, client_key, root_ca);
     this->mqtt_connection.initialize(this->thing_config);
-    this->mqtt_context.initialize(this->mqtt_connection.get_network_context(), &MqttAgent::sOn_mqtt_pubsub_event, (void*)this);
+    ESP_LOGI(TAG, "MqttConnection initialized with mn8app %p", this);
+    this->mqtt_context.initialize(this->mqtt_connection.get_network_context(), &MqttAgent::sOn_mqtt_pubsub_event, this);
+
+    this->mqtt_mutex = xSemaphoreCreateMutex();
 
     ( void ) clock_gettime( CLOCK_REALTIME, &tp );
     srand( tp.tv_nsec );
@@ -78,15 +82,21 @@ esp_err_t MqttAgent::subscribe(const char *topic, mqttCallbackFn callback, void*
     // ( void ) memset( ( void * ) pGlobalSubscriptionList, 0x00, sizeof( pGlobalSubscriptionList ) );
 
     /* This example subscribes to only one topic and uses QOS1. */
-    sub_info[0].qos = MQTTQoS1;
+    sub_info[0].qos = MQTTQoS0;
     sub_info[0].pTopicFilter = topic;
     sub_info[0].topicFilterLength = strlen(topic);
 
+    // take mutex
+    if (!xSemaphoreTake(this->mqtt_mutex, portMAX_DELAY)) {
+        ESP_LOGE(TAG, "Failed to take mqtt mutex");
+        return ESP_FAIL;
+    }
+
     /* Generate packet identifier for the SUBSCRIBE packet. */
-    packet_id = MQTT_GetPacketId( &this->mqtt_context );
+    packet_id = MQTT_GetPacketId( this->mqtt_context.get_mqtt_context() );
 
     /* Send SUBSCRIBE packet. */
-    mqtt_status = MQTT_Subscribe( &this->mqtt_context,
+    mqtt_status = MQTT_Subscribe( this->mqtt_context.get_mqtt_context(),
                                  sub_info,
                                  1,
                                  packet_id );
@@ -104,6 +114,9 @@ esp_err_t MqttAgent::subscribe(const char *topic, mqttCallbackFn callback, void*
 
     // TODO wait for the acknowledgement.
 
+    // give the mutex back
+    xSemaphoreGive(this->mqtt_mutex);
+
     return ret;
 }
 
@@ -119,14 +132,19 @@ esp_err_t MqttAgent::publish_message(const char *topic, const char *payload, uin
     MQTTPublishInfo_t packet;
     memset(&packet, 0x00, sizeof(MQTTPublishInfo_t));
 
-    packet.qos = MQTTQoS1;
+    packet.qos = MQTTQoS0;
     packet.pTopicName = topic;
     packet.topicNameLength = strlen(topic);
     packet.pPayload = (uint8_t*)payload;
     packet.payloadLength = strlen(payload);
-    packet_id = MQTT_GetPacketId( &this->mqtt_context );
+    packet_id = MQTT_GetPacketId( this->mqtt_context.get_mqtt_context() );
 
-    mqtt_status = MQTT_Publish( &this->mqtt_context, &packet, packet_id );
+    if (!xSemaphoreTake(this->mqtt_mutex, portMAX_DELAY)) {
+        ESP_LOGE(TAG, "Failed to take mqtt mutex");
+        return ESP_FAIL;
+    }
+
+    mqtt_status = MQTT_Publish( this->mqtt_context.get_mqtt_context(), &packet, packet_id );
     if( mqtt_status != MQTTSuccess )
     {
         ESP_LOGE( TAG, "Failed to send PUBLISH packet to broker with error = %s.",
@@ -138,7 +156,16 @@ esp_err_t MqttAgent::publish_message(const char *topic, const char *payload, uin
         ESP_LOGI( TAG, "PUBLISH sent for topic %s to broker.\n\n", topic );
     }
 
+    // give mutex back
+    xSemaphoreGive(this->mqtt_mutex);
+
     return ret;
+}
+
+void MqttAgent::register_handle_incoming_mqtt(handle_incoming_mqtt_fn callback, void* context) {
+    this->handle_incoming_mqtt = callback;
+    this->handle_incoming_mqtt_context = context;
+    ESP_LOGI(TAG, "<<<<<<<<<<<<< Registered handle_incoming_mqtt callback mn8app %p", this->handle_incoming_mqtt_context);
 }
 
 //******************************************************************************
@@ -147,10 +174,20 @@ void MqttAgent::on_mqtt_pubsub_event(
     struct MQTTPacketInfo * packet_info,
     struct MQTTDeserializedInfo * deserialized_info
 ) {
+    ESP_LOGI(TAG, "Got publish event will call agent %p, mn8app %p", this, this->handle_incoming_mqtt_context);
+
     if ((packet_info->type & 0xF0U) == MQTT_PACKET_TYPE_PUBLISH) {
-        assert( deserialized_info->pPublishInfo != NULL );
         ESP_LOGI(TAG, "Got publish event");
-        // subscription_handler->handle_publish( packet_info, deserialized_info );
+        assert( deserialized_info->pPublishInfo != NULL );
+        MQTTPublishInfo_t * pPublishInfo = deserialized_info->pPublishInfo;
+        handle_incoming_mqtt(
+            pPublishInfo->pTopicName,
+            pPublishInfo->topicNameLength,
+            (const char*)pPublishInfo->pPayload,
+            pPublishInfo->payloadLength,
+            deserialized_info->packetIdentifier,
+            this->handle_incoming_mqtt_context
+        );
     } else {
         ESP_LOGI(TAG, "Got other event");
         // pubsub_handler->handle_packet( packet_info, deserialized_info );
@@ -160,11 +197,17 @@ void MqttAgent::on_mqtt_pubsub_event(
 //******************************************************************************
 esp_err_t MqttAgent::process_mqtt_loop(void) {
     MQTTStatus_t mqtt_status = MQTTSuccess;
+    esp_err_t ret = ESP_OK;
+
+    if (!xSemaphoreTake(this->mqtt_mutex, portMAX_DELAY)) {
+        ESP_LOGE(TAG, "Failed to take mqtt mutex");
+        return ESP_FAIL;
+    }
 
     // Only stay in the loop if there is more incoming data.  This under the hood
     // ends up calling our subscribe callback.
     do {
-        mqtt_status = MQTT_ProcessLoop( &this->mqtt_context );
+        mqtt_status = MQTT_ProcessLoop( this->mqtt_context.get_mqtt_context() );
 
         if (mqtt_status == MQTTNeedMoreBytes) {
             // Need to wait a bit between calls to MQTT_ProcessLoop().
@@ -177,16 +220,18 @@ esp_err_t MqttAgent::process_mqtt_loop(void) {
     if (mqtt_status != MQTTSuccess) {
         ESP_LOGE(TAG, "MQTT_ProcessLoop() failed with status %s.",
                  MQTT_Status_strerror(mqtt_status));
-        return ESP_FAIL;
+        ret = ESP_FAIL;
     }
 
-    return ESP_OK;
+    // give back mutex
+    xSemaphoreGive(this->mqtt_mutex);
+
+    return ret;
 }
 
 //******************************************************************************
 void MqttAgent::taskFunction(void) {
     esp_err_t ret = ESP_OK;
-    bool connected = false;
 
     // Init mqtt
 
@@ -200,15 +245,19 @@ void MqttAgent::taskFunction(void) {
                              portMAX_DELAY );
 
         // Connect to the broker
+        ESP_LOGD(TAG, "Connected flag is %s", connected ? "true" : "false");
         if (!connected) {
-            ret = this->mqtt_connection.connect_with_retries(&this->mqtt_context, 10);
+            // sleep for a second to ensure the connection is fully up.
+            vTaskDelay(1000 / portTICK_PERIOD_MS);
+
+
+            ret = this->mqtt_connection.connect_with_retries(this->mqtt_context.get_mqtt_context(), 10);
             if (ret != ESP_OK) {
                 ESP_LOGE(TAG, "Failed to connect to MQTT broker");
                 continue;
             }
             
             ESP_LOGI(TAG, "Connected to mqtt broker");
-            connected = true;
             if (this->mqtt_connection.is_broker_session_present()) {
                 ESP_LOGI(TAG, 
                     "An MQTT session with the broker is re-esablished. "
@@ -223,18 +272,25 @@ void MqttAgent::taskFunction(void) {
                 // pubsub.cleanup_outgoing_publishes();
             }
 
+
+            // sleep for a second to ensure the connection is fully up.
+            vTaskDelay(1000 / portTICK_PERIOD_MS);
+
+            this->event_callback(e_mqtt_agent_connected, this->event_callback_context);
+
+            // This should be in the main app state machine logic.
+            // but for testing right now.
             char topic[32];
             memset(topic, 0x00, 32);
             snprintf(topic, 32, "%s/ledstate", this->thing_config->get_thing_name());
             this->subscribe(topic, NULL, NULL);
 
-            // This should be in the main app state machine logic.
-            // but for testing right now.
             memset(topic, 0x00, 32);
             snprintf(topic, 32, "%s/%s", this->thing_config->get_thing_name(), "latest");
             this->publish_message(topic, "{}", 0);
 
             // xEventGroupSetBits( this->event_group, MQTT_AGENT_CONNECTED_BIT );
+            connected = true;
             
         }
 
@@ -243,41 +299,10 @@ void MqttAgent::taskFunction(void) {
         ret = this->process_mqtt_loop();
         if (ret != ESP_OK) {
             ESP_LOGE(TAG, "Failed to process mqtt loop");
-            this->mqtt_connection.disconnect(&this->mqtt_context);
+            this->event_callback(e_mqtt_agent_disconnected, this->event_callback_context);
+            this->mqtt_connection.disconnect(this->mqtt_context.get_mqtt_context());
             connected = false;
         }
-
-        // handle incoming publish requests.
-        
-
-        // delay 5 seconds
-        vTaskDelay(5000 / portTICK_PERIOD_MS);
-
-        
-
-        // // If a connection was previously established, close it to free memory.
-        
-            // Connect to ssl
-
-            // On success get socket fd to poll. and connect to the broker.
-
-            // Connect to the mqtt broker.
-
-            // On error disconnect tls, and backoff for retry.
-            
-        // } while (no good connection or timed out)
-
-        // // if connected
-        // while (mqtt is connected) {
-        //     // Wait on the socket fd for data to be received.
-        //     // If data avail
-        //     //     MQTT process loop
-        //     //     ukTaskNotifyTake??? No clue what that is
-        //     // If error bit is set
-        //     //    Disconnect from the broker
-        //     //    Post disconnect event. (using esp_event_post???)
-        //     // Delay for 1 
-        // }
     }
 
     vTaskDelete(NULL);
@@ -386,12 +411,3 @@ void MqttAgent::onWifiEvent(esp_event_base_t event_base, int32_t event_id, void 
     }
 }
 
-
-// There is also a MQTTAgent task and an AgentConnectionTask
-// The AgentConnectionTask is responsible for connecting to the broker.
-
-// The agent task stays in a while loop 
-// Calls the mqtt loop
-// until mqttstatus is no longer successful. 
-//      Not sure this make sense. what if the connection is lost?
-//      The agentconnectiontask will retry the connection.

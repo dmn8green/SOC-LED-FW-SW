@@ -54,7 +54,6 @@ err:
 
 esp_err_t EthernetConnection::on_down(void) {
     ESP_LOGI(TAG, "Turning off ethernet");
-    this->isConnected = false;
     return esp_eth_stop(eth_handle);
 }
 
@@ -62,13 +61,13 @@ void EthernetConnection::onGotIp(esp_event_base_t event_base, int32_t event_id, 
     ip_event_got_ip_t *event = (ip_event_got_ip_t *) event_data;
     const esp_netif_ip_info_t *ip_info = &event->ip_info;
 
-    if (event->ip_changed) {
+    this->isConnected = true;
+
+    // if (event->ip_changed) {
         this->ipAddress = ip_info->ip;
         this->netmask = ip_info->netmask;
         this->gateway = ip_info->gw;
         this->interface->get_dns_info(this->dns);
-
-        this->isConnected = true;
 
         ESP_LOGI(TAG, "Ethernet Got IP Address");
         ESP_LOGI(TAG, "~~~~~~~~~~~");
@@ -77,7 +76,7 @@ void EthernetConnection::onGotIp(esp_event_base_t event_base, int32_t event_id, 
         ESP_LOGI(TAG, "ETHGW:" IPSTR, IP2STR(&ip_info->gw));
         ESP_LOGI(TAG, "ETHDNS:" IPSTR, IP2STR(&this->dns));
         ESP_LOGI(TAG, "~~~~~~~~~~~");
-    }
+    // }
 }
 
 void EthernetConnection::onEthEvent(esp_event_base_t event_base, int32_t event_id, void *event_data)
@@ -88,6 +87,7 @@ void EthernetConnection::onEthEvent(esp_event_base_t event_base, int32_t event_i
             ESP_LOGI(TAG, "Ethernet Link Up");
             break;
         case ETHERNET_EVENT_DISCONNECTED:
+            this->isConnected = false;
             ESP_LOGI(TAG, "Ethernet Link Down");
             break;
         case ETHERNET_EVENT_START:

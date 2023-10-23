@@ -12,13 +12,13 @@
 
 #pragma once
 
-#include "App/NetworkAgent/NetworkConnectionAgent.h"
-#include "Network/MQTT/MqttAgent.h"
+#include "App/MN8Context.h"
+#include "App/MN8StateMachine.h"
 
 #include "Utils/Singleton.h"
 #include "Utils/NoCopy.h"
-#include "App/Configuration/ThingConfig.h"
-#include "LED/LedTaskSpi.h"
+
+#include "freertos/queue.h"
 
 /**
  * @brief MN8App class.
@@ -27,6 +27,9 @@
  * It is a singleton class.
  * It holds the overall system logic along with the interfaces to the different
  * peripherals such as the (wifi/ethernet) connection, the led strip, etc.
+ * 
+ * It is really a singleton so that the repl interface don't have to
+ * carry the app instance around.
  * 
  * It is responsible for the setup and the main loop.
  */
@@ -39,22 +42,43 @@ public:
     esp_err_t setup(void);
     void loop(void);
 
-    // Accessors
-    inline bool is_iot_thing_provisioned(void) { return thing_config.is_configured(); } 
-    inline NetworkConnectionAgent& get_network_connection_agent(void) { return this->network_connection_agent; }
+    inline MN8Context & get_context(void) { return context; }
 
-    inline LedTaskSpi& get_led_task_0(void) { return this->led_task_0; }
-    inline LedTaskSpi& get_led_task_1(void) { return this->led_task_1; }
+    // To be backward compatible for now.
+    inline bool is_iot_thing_provisioned(void) { return context.is_iot_thing_provisioned(); } 
+    inline NetworkConnectionAgent& get_network_connection_agent(void) { return this->context.get_network_connection_agent(); }
+    inline MqttAgent& get_mqtt_agent(void) { return this->context.get_mqtt_agent(); }
+    inline LedTaskSpi& get_led_task_0(void) { return this->context.get_led_task_0(); }
+    inline LedTaskSpi& get_led_task_1(void) { return this->context.get_led_task_1(); }
+
+protected:
+    void on_network_event(NetworkConnectionAgent::event_t event);
+    void on_mqtt_event(MqttAgent::event_t event);
+
+    static void sOn_network_event(NetworkConnectionAgent::event_t event, void* context) { ((MN8App*)context)->on_network_event(event); }
+    static void sOn_mqtt_event(MqttAgent::event_t event, void* context) { ((MN8App*)context)->on_mqtt_event(event); }
+
+    void on_incoming_mqtt( 
+        const char* pTopicName, uint16_t topicNameLength,
+        const char* pPayload, size_t payloadLength,
+        uint16_t packetIdentifier
+    );
+
+    static void sOn_incoming_mqtt( 
+        const char* pTopicName, uint16_t topicNameLength,
+        const char* pPayload, size_t payloadLength,
+        uint16_t packetIdentifier,
+        void* context
+    ) {
+        ((MN8App*)context)->on_incoming_mqtt(pTopicName, topicNameLength, pPayload, payloadLength, packetIdentifier);
+    }
+
 
 private:
     esp_err_t setup_and_start_led_tasks(void);
 
 private:
-    NetworkConnectionAgent network_connection_agent;
-    MqttAgent mqtt_agent;
-
-    ThingConfig thing_config;
-
-    LedTaskSpi led_task_0;
-    LedTaskSpi led_task_1;
+    MN8Context context;
+    MN8StateMachine state_machine;
+    QueueHandle_t message_queue;
 };  // class MN8App

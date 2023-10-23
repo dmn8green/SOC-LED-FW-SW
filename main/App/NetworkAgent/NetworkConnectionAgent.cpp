@@ -31,8 +31,7 @@ static const char *TAG = CONNECTION_STATE_MACHINE_TASK_NAME;
  * 
  * @return esp_err_t 
  */
-esp_err_t NetworkConnectionAgent::setup(void)
-{
+esp_err_t NetworkConnectionAgent::setup(void) {
     esp_err_t ret = ESP_OK;
 
     this->update_queue = xQueueCreate(10, sizeof(net_conn_agent_event_t));
@@ -56,6 +55,27 @@ esp_err_t NetworkConnectionAgent::setup(void)
 
 err:
     return ret;
+}
+
+//*****************************************************************************
+void NetworkConnectionAgent::connect(void) {
+    net_conn_agent_event_t next_event = e_nc_event_net_connect;
+    xQueueSend(this->update_queue, &next_event, portMAX_DELAY);
+}
+
+//*****************************************************************************
+void NetworkConnectionAgent::disconnect(void) {
+    net_conn_agent_event_t next_event = e_nc_event_net_disconnect;
+    xQueueSend(this->update_queue, &next_event, portMAX_DELAY);
+}
+
+//*****************************************************************************
+void NetworkConnectionAgent::restart(void) {
+    this->disconnect();
+    // sleep 2 seconds
+    vTaskDelay(2000 / portTICK_PERIOD_MS);
+    
+    this->connect();
 }
 
 //*****************************************************************************
@@ -141,6 +161,13 @@ void NetworkConnectionAgent::onWifiEvent(esp_event_base_t event_base, int32_t ev
             break;
     }
 }
+
+//******************************************************************************
+void NetworkConnectionAgent::try_connecting(const char* interface) {
+    net_conn_agent_event_t next_event = e_nc_event_net_connecting;
+    xQueueSend(this->update_queue, &next_event, portMAX_DELAY);
+}
+
 
 //******************************************************************************
 // We threat both connection as one.  We will have a single connection state

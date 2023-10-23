@@ -14,6 +14,7 @@
 
 #include "Utils/FuseMacAddress.h"
 #include "App/Configuration/ChargePointConfig.h"
+#include "App/MN8App.h"
 
 #include <string.h>
 #include <sys/param.h>
@@ -49,8 +50,6 @@ static const char *TAG = "provision_charge_point_info";
 
 extern MQTTContext_t *pmqttContext;
 
-extern "C" int publishToTopic( MQTTContext_t * pMqttContext, char* topic, char* payload );
-
 static struct {
     struct arg_str *command;
     struct arg_str *site_name;
@@ -59,6 +58,7 @@ static struct {
 } chargepoint_command_args;
 
 char payload[256] = {0};
+char topic[64] = {0};
 
 //*****************************************************************************
 /**
@@ -77,21 +77,25 @@ static int provision_charge_point_info(const char* station_id, const char* site_
     // TODO This should ask the app to register the station.
     char mac_address[13] = {0};
     get_fuse_mac_address_string(mac_address);
-    char topic[64] = {0};
     snprintf((char*) topic, 64, "%s/register_station", mac_address);
-
     snprintf(payload, 256, "{\"stationId\":\"%s\",\"groupId\":\"%s\",\"description\":\"%s\"}", 
         station_id, site_name, ""
     );
 
     ESP_LOGI(TAG, "Publishing to topic: %s", topic);
+    auto& mn8_app = MN8App::instance();
+    esp_err_t ret = mn8_app.get_mqtt_agent().publish_message(topic, payload, 1);
 
-    if (publishToTopic(pmqttContext, topic,  payload) != 0) {
-        ESP_LOGE(TAG, "Failed to publish to topic");
-        return -1;
-    }
-    ESP_LOGI(TAG, "Published to topic");
-    return 0;
+    memset(payload, 0, 256);
+    memset(topic, 0, 64);
+    snprintf((char*) topic, 64, "%s/refresh", site_name);
+    snprintf(payload, 256, "{\"stationId\":\"%s\",\"groupId\":\"%s\",\"description\":\"%s\"}", 
+        station_id, site_name, ""
+    );
+    ESP_LOGI(TAG, "Publishing to topic: %s", topic);
+    ret = mn8_app.get_mqtt_agent().publish_message(topic, payload, 1);
+
+    return ret == ESP_OK ? 0 : 1;
 }
 
 static int unprovision_charge_point_info(void) {

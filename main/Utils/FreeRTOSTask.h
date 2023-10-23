@@ -1,3 +1,4 @@
+#pragma once
 
 #include "Utils/NoCopy.h"
 
@@ -27,7 +28,7 @@ protected:
     virtual esp_err_t on_suspend(void) { return ESP_OK; }
 
 private:
-    TaskHandle_t task_handle;
+    TaskHandle_t task_handle = nullptr;
     uint32_t stack_size;
     uint8_t priority;
     uint8_t core_num;

@@ -42,6 +42,11 @@ public:
 
 public:
     esp_err_t setup(void);
+    void connect(void);
+    void disconnect(void);
+    inline bool is_connected(void) { return this->connection.check_connectivity(false); }
+    void restart(void);
+    void try_connecting(const char* interface = nullptr);
 
     // Accessors
     inline NetworkInterface*   get_wifi_interface(void) { return this->connection.get_wifi_interface(); }
@@ -51,6 +56,22 @@ public:
     inline EthernetConnection* get_ethernet_connection(void) { return this->connection.get_ethernet_connection(); }
 
     inline Connection* get_connection(const char* interface) { return this->connection.get_connection(interface); };
+
+    bool is_configured(void) { return this->connection.is_configured(); }
+
+    typedef enum {
+        e_net_agent_connection_error,
+        e_net_agent_connecting,
+        e_net_agent_connected,
+        e_net_agent_disconnecting,
+        e_net_agent_disconnected,
+    } event_t;
+
+    typedef void(*event_callback_t)(event_t event, void* context);
+    inline void register_event_callback(event_callback_t callback, void* context) {
+        this->event_callback = callback;
+        this->event_callback_context = context;
+    }
 
 protected:
     virtual void taskFunction(void) override;
@@ -68,4 +89,7 @@ private:
     QueueHandle_t update_queue;
     NetworkConnection connection;
     NetworkConnectionStateMachine state_machine;
+
+    event_callback_t event_callback;
+    void* event_callback_context;
 };

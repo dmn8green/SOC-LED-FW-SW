@@ -2,7 +2,14 @@
 
 #pragma once
 
-#define AWS_MQTT_PORT       ( 8883 )
+#define NETWORK_BUFFER_SIZE     ( 1024U )
+#define OS_NAME                 "FreeRTOS"
+#define OS_VERSION              tskKERNEL_VERSION_NUMBER
+#define HARDWARE_PLATFORM_NAME  "ESP32"
+#define AWS_MQTT_PORT           ( 8883 )
+
+#include "core_mqtt.h"
+#define MQTT_LIB    "core-mqtt@" MQTT_LIBRARY_VERSION
 
 /**
  * @brief The maximum back-off delay (in milliseconds) for retrying connection to server.

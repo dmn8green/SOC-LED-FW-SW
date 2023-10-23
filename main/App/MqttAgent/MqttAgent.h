@@ -45,12 +45,36 @@ public:
     ) {};
     ~MqttAgent(void) = default;
 
-    esp_err_t setup(ThingConfig* thing_config);
-
 public:
+    esp_err_t setup(ThingConfig* thing_config);
+    void connect(void);
+    void disconnect(void);
+    inline bool is_connected(void) { return this->connected; }
+
     esp_err_t subscribe(const char *topic, mqttCallbackFn callback, void* context);
     esp_err_t unsubscribe(const char *topic);
     esp_err_t publish_message(const char *topic, const char *payload, uint8_t retry_count = 0);
+
+    typedef enum {
+        e_mqtt_agent_connected,
+        e_mqtt_agent_disconnected,
+    } event_t;
+
+    typedef void(*event_callback_t)(event_t event, void* context);
+    inline void register_event_callback(event_callback_t callback, void* context) {
+        this->event_callback = callback;
+        this->event_callback_context = context;
+    }
+
+    typedef void (*handle_incoming_mqtt_fn)(
+        const char* pTopicName,
+        uint16_t topicNameLength,
+        const char* pPayload,
+        size_t payloadLength,
+        uint16_t packetIdentifier,
+        void* context
+    );
+    void register_handle_incoming_mqtt(handle_incoming_mqtt_fn callback, void* context);
 
 protected:
     virtual void taskFunction(void) override;
@@ -75,6 +99,7 @@ protected:
         struct MQTTDeserializedInfo * pDeserializedInfo,
         void* context
     ) {
+        ESP_LOGI("MqttAgent", "sOn_mqtt_pubsub_event agent is %p mn8 %p", context, ((MqttAgent*)context)->handle_incoming_mqtt_context);
         ((MqttAgent*)context)->on_mqtt_pubsub_event(pContext, pPacketInfo, pDeserializedInfo);
     }
 
@@ -89,4 +114,13 @@ private:
 
     MqttConnection mqtt_connection;
     MqttContext mqtt_context;
+
+    event_callback_t event_callback;
+    void* event_callback_context;
+
+    handle_incoming_mqtt_fn handle_incoming_mqtt;
+    void* handle_incoming_mqtt_context;
+
+    bool connected = false;
+    SemaphoreHandle_t mqtt_mutex;
 };
