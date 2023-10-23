@@ -9,6 +9,7 @@
 #include "cmd_led.h"
 #include "cmd_chargepoint.h"
 #include "cmd_factory_reset.h"
+#include "cmd_info.h"
 
 #include "App/MN8App.h"
 
@@ -66,6 +67,7 @@ void repl_configure(uint16_t txPin, uint16_t rxPin, uint16_t channel, uint32_t b
     register_tasks();
     register_reboot();
     register_ping();
+    register_info_command();
 
     const esp_console_cmd_t leave_app = {
         .command = "enter-config",
