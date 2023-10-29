@@ -36,6 +36,7 @@ public:
     esp_err_t getKeyValue(const char *keyName, char *value, size_t maxValueLength);
     esp_err_t getKeyValue(const char *keyName, esp_ip4_addr_t &value);
     esp_err_t getKeyValue(const char *keyName, uint16_t &value);
+    esp_err_t getKeyValue(const char *keyName, uint8_t &value);
     esp_err_t getKeyValue(const char *keyName, bool &value);
     esp_err_t getKeyValue(const char *keyName, wifi_mode_t &value);
     esp_err_t getKeyValue(const char *keyName, wifi_auth_mode_t &value);
@@ -43,6 +44,7 @@ public:
     esp_err_t setKeyValue(const char *keyName, const char *value, bool commit = true);
     esp_err_t setKeyValue(const char *keyName, esp_ip4_addr_t &value, bool commit = true);
     esp_err_t setKeyValue(const char *keyName, uint16_t value, bool commit = true);
+    esp_err_t setKeyValue(const char *keyName, uint8_t value, bool commit = true);
     esp_err_t setKeyValue(const char *keyName, bool value, bool commit = true);
     esp_err_t setKeyValue(const char *keyName, wifi_mode_t value, bool commit = true);
     esp_err_t setKeyValue(const char *keyName, wifi_auth_mode_t value, bool commit = true);
