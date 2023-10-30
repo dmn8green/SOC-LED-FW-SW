@@ -45,21 +45,16 @@ public:
     esp_err_t reset(void);
 
     // Setter
-    void set_group_id(const char* group_id);
-    inline void set_led_station_id_by_led_number(uint8_t led_number, const char* station_id, int port_number) {
-        if (led_number == 1) { this->set_led_1_station_id(station_id, port_number); } 
-        else if (led_number == 2) { this->set_led_2_station_id(station_id, port_number); }
-    }
-    void set_led_1_station_id(const char* station_id, uint8_t port_number);
-    void set_led_2_station_id(const char* station_id, uint8_t port_number);
+    void set_chargepoint_info(
+        const char* group_id,
+        const char* station_id_1, int port_number_1,
+        const char* station_id_2, int port_number_2
+    );
+
+    // Getter
 
     // inline getter
     inline const char* get_group_id(void) { return this->group_id; }
-    inline const char* get_led_station_id_by_led_number(uint8_t led_number, uint8_t& port_number) {
-        if (led_number == 1) { return get_led_1_station_id(port_number); } 
-        else if (led_number == 2) { return get_led_2_station_id(port_number); }
-        else { return nullptr; }
-    }
     inline const char* get_led_1_station_id(uint8_t& port_number) { port_number = led_1_chargepoint_port_number; return this->led_1_chargepoint_station_id; }
     inline const char* get_led_2_station_id(uint8_t& port_number) { port_number = led_2_chargepoint_port_number; return this->led_2_chargepoint_station_id; }
 

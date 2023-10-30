@@ -54,43 +54,31 @@ ChargePointConfig::~ChargePointConfig()
 
 //******************************************************************************
 /**
- * @brief set the group_id
- *
- * @note remember to call save when done setting all the station ids
+ * @brief Set the chargepoint info
+ * 
+ * This is a destructive operation, it will replace what was there before.
+ * The caller is responsible to ensure the proxy is aware of the change.
+ * 
+ * @param group_id          ID of the proxy used to communicate with the cp API
+ * @param station_id_1      ID of the chargepoint that will be mapped to LED 1
+ * @param port_number_1     Station port that will be mapped to LED 1
+ * @param station_id_2      ID of the chargepoint that will be mapped to LED 2
+ * @param port_number_2     Station port that will be mapped to LED 2
  */
-void ChargePointConfig::set_group_id(const char *group_id)
-{
-    ESP_LOGD(TAG, "ChargePointConfig::set_group_id()");
+void ChargePointConfig::set_chargepoint_info(
+    const char* group_id,
+    const char* station_id_1, int port_number_1,
+    const char* station_id_2, int port_number_2
+) {
     FREE_MEMBER(this->group_id);
-    this->group_id = strdup(group_id);
-}
-
-//******************************************************************************
-/**
- * @brief set the station id for led 1
- *
- * @note remember to call save when done setting all the station ids
- */
-void ChargePointConfig::set_led_1_station_id(const char *station_id, uint8_t port_number)
-{
-    ESP_LOGD(TAG, "ChargePointConfig::set_station_id()");
     FREE_MEMBER(this->led_1_chargepoint_station_id);
-    this->led_1_chargepoint_station_id = strdup(station_id);
-    this->led_1_chargepoint_port_number = port_number;
-}
-
-//******************************************************************************
-/**
- * @brief set the station id for led 2
- *
- * @note remember to call save when done setting all the station ids
- */
-void ChargePointConfig::set_led_2_station_id(const char *station_id, uint8_t port_number)
-{
-    ESP_LOGD(TAG, "ChargePointConfig::set_station_id()");
     FREE_MEMBER(this->led_2_chargepoint_station_id);
-    this->led_2_chargepoint_station_id = strdup(station_id);
-    this->led_2_chargepoint_port_number = port_number;
+
+    this->group_id = strdup(group_id);
+    this->led_1_chargepoint_station_id = (nullptr != station_id_1) ? strdup(station_id_1) : nullptr;
+    this->led_1_chargepoint_port_number = port_number_1;
+    this->led_2_chargepoint_station_id = (nullptr != station_id_2) ? strdup(station_id_2) : nullptr;
+    this->led_2_chargepoint_port_number = port_number_2;
 }
 
 //******************************************************************************
@@ -126,7 +114,7 @@ esp_err_t ChargePointConfig::load(void)
     ESP_LOGD(TAG, "led_1_port_number: %d", this->led_1_chargepoint_port_number);
     ESP_LOGD(TAG, "led_2_port_number: %d", this->led_2_chargepoint_port_number);
 
-    this->isConfigured = true;
+    this->isConfigured = this->group_id != nullptr && strlen(this->group_id) > 0;
 err:
     return res;
 }
@@ -170,6 +158,7 @@ esp_err_t ChargePointConfig::save(void)
     }
 
     res = store.commit();
+    this->isConfigured = true;
 err:
     return res;
 }
@@ -227,6 +216,7 @@ esp_err_t ChargePointConfig::reset(void)
     ESP_SET_VALUE("l2_port_number", (uint8_t)0, false);
 
     res =  store.commit();
+    this->isConfigured = false;
 err:
     return res;
 }
