@@ -66,17 +66,7 @@ esp_err_t MN8StateMachine::setup(MN8Context* context)
 
 //*****************************************************************************
 esp_err_t MN8StateMachine::turn_on(void) {
-    bool is_provisioned = 
-        context->is_iot_thing_provisioned() &&
-        //!context->is_cp_provisioned() ||
-        context->get_network_connection_agent().is_configured();
-
-    // figure out the initial state.
-    ESP_LOGI(TAG, "is_provisioned = %d", is_provisioned);
-    if (is_provisioned) {
-        this->handle_event(e_mn8_event_turn_on);
-    }
-
+    this->handle_event(e_mn8_event_turn_on);
     return ESP_OK;
 }
 

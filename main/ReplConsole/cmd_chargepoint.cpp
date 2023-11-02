@@ -218,7 +218,7 @@ static int provision_charge_point_info(
     }
 
     // Give sometimes for the lambda to run.
-    printf("associating leds with chargers...\n");
+    printf("Associating leds with chargers...\n");
     vTaskDelay(5000 / portTICK_PERIOD_MS);
     return publish_reset_proxy_message(group_name);
 }
@@ -267,7 +267,7 @@ static int unprovision_charge_point_info()
     }
 
     if (cpConfig.is_configured()) {
-        printf("dissassociating leds with chargers...\n");
+        printf("Disassociating leds with chargers...\n");
         vTaskDelay(5000 / portTICK_PERIOD_MS);
         if (publish_reset_proxy_message(cpConfig.get_group_id()) != 0) {
             ESP_LOGE(TAG, "Failed to refresh the proxy %s, it may need to be manually restarted", cpConfig.get_group_id());

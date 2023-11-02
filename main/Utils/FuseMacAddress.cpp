@@ -34,9 +34,9 @@
 esp_err_t get_fuse_mac_address(uint8_t* mac_address) {
     uint64_t _chipmacid = 0LL;
     esp_efuse_mac_get_default((uint8_t*) (&_chipmacid));
-    ESP_LOGI(__func__, "ESP32 Chip ID = %04X",(uint16_t)(_chipmacid>>32));
-    ESP_LOGI(__func__, "ESP32 Chip ID = %04X",(uint16_t)(_chipmacid>>16));
-    ESP_LOGI(__func__, "ESP32 Chip ID = %04X",(uint16_t)(_chipmacid));
+    ESP_LOGD(__func__, "ESP32 Chip ID = %04X",(uint16_t)(_chipmacid>>32));
+    ESP_LOGD(__func__, "ESP32 Chip ID = %04X",(uint16_t)(_chipmacid>>16));
+    ESP_LOGD(__func__, "ESP32 Chip ID = %04X",(uint16_t)(_chipmacid));
 
     mac_address[0] = (_chipmacid >> 40) & 0xFF;
     mac_address[1] = (_chipmacid >> 32) & 0xFF;

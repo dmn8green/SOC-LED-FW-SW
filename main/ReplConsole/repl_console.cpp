@@ -12,40 +12,10 @@
 #include "cmd_info.h"
 
 #include "App/MN8App.h"
+#include "App/Configuration/ThingConfig.h"
 
-// Path: main/configuration_interface/configuration_interface.cpp
-
-// ifconfig (no arg prints all interfaces with info)
-// ifconfig eth/wifi dhcp on/off
-// ifconfig eth/wifi ipadress netmask gateway
-// ifconfig eth/wifi macaddress
-// ifconfig eth/wifi status
-// ifconfig eth/wifi up/down
-//
-// join-wifi SSID password
-//
-// chp: Chargepoint config
-// dev: Device specific config (number of leds)
-// test: ledpattern/network/eth/wifi/brightness...
-// 
 
 static esp_console_repl_t *repl = nullptr;
-
-static int enter_config_cmd(int argc, char **argv) {
-
-    MN8App& app = MN8App::instance();
-
-    register_led();
-    register_wifi();
-    register_ifconfig();
-    register_led();
-    register_factory_reset_command();
-    register_chargepoint_command();
-    register_iot_command();
-
-    return 0;
-}
-
 
 void repl_configure(uint16_t txPin, uint16_t rxPin, uint16_t channel, uint32_t baudRate)
 {
@@ -64,19 +34,26 @@ void repl_configure(uint16_t txPin, uint16_t rxPin, uint16_t channel, uint32_t b
 
     MN8App& app = MN8App::instance();
 
+    // System commands
     register_tasks();
     register_reboot();
     register_ping();
     register_info_command();
+    register_factory_reset_command();
 
-    const esp_console_cmd_t leave_app = {
-        .command = "enter-config",
-        .help = "enter config mode",
-        .hint = NULL,
-        .func = &enter_config_cmd,
-        .argtable = nullptr
-    };
-    ESP_ERROR_CHECK(esp_console_cmd_register(&leave_app));
+    // LED testing commands
+    register_led();
+
+    // App commands
+    register_wifi();
+    register_ifconfig();
+    register_iot_command();
+
+    ThingConfig thingConfig;
+    thingConfig.load();
+    if (thingConfig.is_configured()) {
+        register_chargepoint_command();
+    }
 
 }
 
