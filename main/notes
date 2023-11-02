@@ -1,47 +1,8 @@
-wifi join Tabarnak hide39!bangs
-provision_iot https://ir5q3elml3.execute-api.us-east-1.amazonaws.com/dev/provision admin secret
-//provision_iot https://ir5q3elml3.execute-api.us-east-1.amazonaws.com/dev/provision admin secret
 
 wifi join AppliedLogix-Guest alwelcome
 
 
-502B838D3A08/example/topic
-{
-	"port1": {
-		"state": "charging_pulse"
-	},
-	"port2": {
-		"state": "test_charging",
-"charge_percent": 5
-	}
-}
-
-502B838D3A08/register_station
-{
-"stationId": "AAB",
-"groupId": "AL_Lab"
-}
-
-network_interface wifi
-network_interface eth
-
-wifi_network_config
-eth_network_config
-
-connectionø
-  provides callback to listener on network event
-    got ip
-    disconnected...
-  wifi_connection
-    -> wifi_interface
-  eth_connection
-    -> eth_interface
-
-network
-  -> wifi_connection
-  -> eth_connection
-  activate_eth_interface
-  activate_wifi_interface
-  
-on boot, activate both network
-
+chargepoint provision pat-house 1:13862161 2 1:119837 2
+chargepoint unprovision
+chargepoint refresh
+chargepoint latest

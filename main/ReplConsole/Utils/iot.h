@@ -34,9 +34,9 @@
  * @param url
  * @param username
  * @param password
- * @return int 0 on success, 1 on error
+ * @return true if successful
  */
-int provision_device(const char* url, const char* username, const char* password);
+bool provision_device(const char* url, const char* username, const char* password);
 
 //*****************************************************************************
 /**
@@ -59,6 +59,6 @@ int provision_device(const char* url, const char* username, const char* password
  * 
  * @param argc 
  * @param argv 
- * @return int 
+ * @return true if successful 
  */
-int unprovision_device(const char* url, const char* username, const char* password);
+bool unprovision_device(const char* url, const char* username, const char* password);

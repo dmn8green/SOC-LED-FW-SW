@@ -134,10 +134,27 @@ esp_err_t KeyStore::getKeyValue(const char *keyName, uint16_t &value)
 }
 
 //******************************************************************************
+esp_err_t KeyStore::getKeyValue(const char *keyName, uint8_t &value)
+{
+    esp_err_t err = ESP_OK;
+    NVS_CALL_WITH_ERROR_CHECK(nvs_get_u8(handle, keyName, &value));
+    return ESP_OK;
+}
+
+//******************************************************************************
 esp_err_t KeyStore::setKeyValue(const char *keyName, uint16_t value, bool commit)
 {
     esp_err_t err = ESP_OK;
     NVS_CALL_WITH_ERROR_CHECK(nvs_set_u16(this->handle, keyName, value));
+    if (commit) { this->commit(); }
+    return ESP_OK;
+}
+
+//******************************************************************************
+esp_err_t KeyStore::setKeyValue(const char *keyName, uint8_t value, bool commit)
+{
+    esp_err_t err = ESP_OK;
+    NVS_CALL_WITH_ERROR_CHECK(nvs_set_u8(this->handle, keyName, value));
     if (commit) { this->commit(); }
     return ESP_OK;
 }

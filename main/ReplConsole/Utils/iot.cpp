@@ -53,12 +53,14 @@
  * a buffer of 8,192 bytes to be safe.
  */
 #define MAX_HTTP_OUTPUT_BUFFER 8192
-#define PROVISION_URL "https://ir5q3elml3.execute-api.us-east-1.amazonaws.com/dev/provision"
-#define UNPROVISION_URL "https://ir5q3elml3.execute-api.us-east-1.amazonaws.com/dev/unprovision"
+#define PROVISION_URL "https://b98kqoy2h3.execute-api.us-east-1.amazonaws.com/dev/provision"
+#define UNPROVISION_URL "https://b98kqoy2h3.execute-api.us-east-1.amazonaws.com/dev/unprovision"
 #define STR_IS_EQUAL(str1, str2) (strncasecmp(str1, str2, strlen(str2)) == 0)
 #define STR_IS_EMPTY(str) (strlen(str) == 0)
 
 static const char * TAG = "iot";
+
+static char response_buffer[MAX_HTTP_OUTPUT_BUFFER + 1] = {0};
 
 //*****************************************************************************
 // Local function prototypes
@@ -70,51 +72,81 @@ static bool register_thing_from_http_response(const char* response_buffer);
 // Public functions implementation
 
 //*****************************************************************************
-int provision_device(const char* url, const char* username, const char* password) {
-    ESP_LOGI(TAG, "url %s", url);
-    ESP_LOGI(TAG, "username %s", username);
-    ESP_LOGI(TAG, "password %s", password);
+bool provision_device(const char* url, const char* username, const char* password) {
+    ESP_LOGD(TAG, "url %s", url ? url : PROVISION_URL);
+    ESP_LOGD(TAG, "username %s", username);
+    ESP_LOGD(TAG, "password %s", password);
 
-    char *response_buffer = (char*) malloc(MAX_HTTP_OUTPUT_BUFFER + 1);
     memset(response_buffer, 0, MAX_HTTP_OUTPUT_BUFFER + 1);
 
-    int ret = make_http_call(
+    bool ret = false; // assume failure
+    int status_code = make_http_call(
         STR_IS_EMPTY(url) ? PROVISION_URL : url, 
         username, password,
         response_buffer
     );
-    if (ret == 0) {
+    switch(status_code) {
+        case 200:
+            ESP_LOGI(TAG, "Provisioned successfully");
+            ret = true;
+            break;
+        case 409:
+            ESP_LOGI(TAG, "Looks like this board was previously provisioned");
+            ESP_LOGI(TAG, "Lets try to unprovision it!!!");
+            if (!unprovision_device(url, username, password)) {
+                ESP_LOGE(TAG, "Failed to unprovision");
+            } else {
+                ESP_LOGI(TAG, "Unprovisioned successfully");
+                ESP_LOGI(TAG, "Trying to provision again");
+                status_code = make_http_call(
+                    STR_IS_EMPTY(url) ? PROVISION_URL : url, 
+                    username, password,
+                    response_buffer
+                );
+                if (status_code == 200) {
+                    ESP_LOGI(TAG, "Provisioned successfully");
+                    ret = true;
+                } else {
+                    ESP_LOGE(TAG, "Failed to provision");
+                }
+            }
+            break;
+        default:
+            ESP_LOGE(TAG, "Failed to provision");
+            break;
+    }
+
+    // Was provisioning successful? Then save the config to nvs.
+    if (ret == true) {
         // provisioned successfully, save the config
         if (!register_thing_from_http_response(response_buffer)) {
             ESP_LOGE(TAG, "Failed to process api response");
-            ret = 1;
+            ret = false;
         }
     }
 
-    free (response_buffer);
     return ret;
 }
 
 //*****************************************************************************
-int unprovision_device(const char* url, const char* username, const char* password) {
-    ESP_LOGI(TAG, "url %s", url);
-    ESP_LOGI(TAG, "username %s", username);
-    ESP_LOGI(TAG, "password %s", password);
+bool unprovision_device(const char* url, const char* username, const char* password) {
+    ESP_LOGD(TAG, "username %s", username);
+    ESP_LOGD(TAG, "password %s", password);
 
-    char *response_buffer = (char*) malloc(MAX_HTTP_OUTPUT_BUFFER + 1);
     memset(response_buffer, 0, MAX_HTTP_OUTPUT_BUFFER + 1);
+    bool ret = false;
 
-    int ret = make_http_call(
+    int status_code = make_http_call(
         STR_IS_EMPTY(url) ? UNPROVISION_URL : url, 
         username, password,
         response_buffer
     );
-    if (ret == 0) {
+    if (status_code == 200) {
         ThingConfig thingConfig;
         thingConfig.reset();
+        ret = true;
     }
 
-    free (response_buffer);
     return ret;
 }
 
@@ -193,19 +225,19 @@ esp_err_t _http_event_handler(esp_http_client_event_t *evt)
 
     switch(evt->event_id) {
         case HTTP_EVENT_ERROR:
-            ESP_LOGI(TAG, "HTTP_EVENT_ERROR");
+            ESP_LOGD(TAG, "HTTP_EVENT_ERROR");
             break;
         case HTTP_EVENT_ON_CONNECTED:
             ESP_LOGI(TAG, "HTTP_EVENT_ON_CONNECTED");
             break;
         case HTTP_EVENT_HEADER_SENT:
-            ESP_LOGI(TAG, "HTTP_EVENT_HEADER_SENT");
+            ESP_LOGD(TAG, "HTTP_EVENT_HEADER_SENT");
             break;
         case HTTP_EVENT_ON_HEADER:
-            ESP_LOGI(TAG, "HTTP_EVENT_ON_HEADER, key=%s, value=%s", evt->header_key, evt->header_value);
+            ESP_LOGD(TAG, "HTTP_EVENT_ON_HEADER, key=%s, value=%s", evt->header_key, evt->header_value);
             break;
         case HTTP_EVENT_ON_DATA:
-            ESP_LOGI(TAG, "HTTP_EVENT_ON_DATA, len=%d", evt->data_len);
+            ESP_LOGD(TAG, "HTTP_EVENT_ON_DATA, len=%d", evt->data_len);
             /*
              *  Check for chunked encoding is added as the URL for chunked encoding used in this example returns binary data.
              *  However, event handler can also be used in case chunked encoding is used.
@@ -248,11 +280,11 @@ esp_err_t _http_event_handler(esp_http_client_event_t *evt)
             output_len = 0;
             break;
         case HTTP_EVENT_DISCONNECTED:
-            ESP_LOGI(TAG, "HTTP_EVENT_DISCONNECTED");
+            ESP_LOGD(TAG, "HTTP_EVENT_DISCONNECTED");
             err = esp_tls_get_and_clear_last_error((esp_tls_error_handle_t)evt->data, &mbedtls_err, NULL);
             if (err != 0) {
-                ESP_LOGI(TAG, "Last esp error code: 0x%x", err);
-                ESP_LOGI(TAG, "Last mbedtls failure: 0x%x", mbedtls_err);
+                ESP_LOGE(TAG, "Last esp error code: 0x%x", err);
+                ESP_LOGE(TAG, "Last mbedtls failure: 0x%x", mbedtls_err);
             }
             if (output_buffer != NULL) {
                 free(output_buffer);
@@ -261,7 +293,7 @@ esp_err_t _http_event_handler(esp_http_client_event_t *evt)
             output_len = 0;
             break;
         case HTTP_EVENT_REDIRECT:
-            ESP_LOGI(TAG, "HTTP_EVENT_REDIRECT");
+            ESP_LOGD(TAG, "HTTP_EVENT_REDIRECT");
             esp_http_client_set_header(evt->client, "From", "user@example.com");
             esp_http_client_set_header(evt->client, "Accept", "text/html");
             esp_http_client_set_redirection(evt->client);
@@ -288,8 +320,6 @@ int make_http_call(
     const char* password,
     char* response_buffer
 ) {
-    int ret = 0;
-    
     #pragma GCC diagnostic pop "-Wmissing-field-initializers" 
     #pragma GCC diagnostic ignored "-Wmissing-field-initializers" 
     esp_http_client_config_t config = {
@@ -312,7 +342,7 @@ int make_http_call(
     strcpy(auth_base64, "Basic ");
     char* base64_ptr = auth_base64+strlen("Basic ");
     mbedtls_base64_encode((unsigned char*) base64_ptr, 64, &outlen, (unsigned char*) auth_raw, strlen(auth_raw));
-    ESP_LOGI(TAG, "auth_base64 %s", auth_base64);
+    ESP_LOGD(TAG, "auth_base64 %s", auth_base64);
 
     char mac_address[13] = {0};
     get_fuse_mac_address_string(mac_address);
@@ -326,13 +356,12 @@ int make_http_call(
 
     esp_err_t err = esp_http_client_perform(client);
 
-    if (err == ESP_OK && esp_http_client_get_status_code(client) == 200) {
-        ESP_LOGI(TAG, "HTTPS Status = %s", response_buffer);
-    } else {
-        ESP_LOGE(TAG, "Error perform http request %s", esp_err_to_name(err));
-        ret = 1;
-    }
+    int response_status_code = esp_http_client_get_status_code(client);
+    ESP_LOGI(TAG, "HTTP POST Status = %d, content_length = %lld",
+        response_status_code,
+        esp_http_client_get_content_length(client)
+    );
 
     esp_http_client_cleanup(client);
-    return ret;
+    return err != ESP_OK ? 500 : response_status_code;
 }

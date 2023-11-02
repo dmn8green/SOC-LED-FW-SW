@@ -29,6 +29,8 @@
 
 #include <string.h>
 #include "esp_log.h"
+#include "esp_sleep.h"
+#include "esp_system.h"
 
 #include "esp_console.h"
 #include "argtable3/argtable3.h"
@@ -104,12 +106,18 @@ static int do_iot_command(int argc, char **argv)
 
     if (STR_IS_EQUAL(command, "unprovision")) {
         ESP_LOGI(TAG, "Unprovisioning device");
-        return unprovision_device(url, username, password);
+        if (unprovision_device(url, username, password)) {
+            printf("REBOOTING.....\n");
+            esp_restart();
+        }
     }
 
     if (STR_IS_EQUAL(command, "provision")) {
         ESP_LOGI(TAG, "Provisioning device");
-        return provision_device(url, username, password);
+        if (provision_device(url, username, password)) {
+            printf("REBOOTING.....\n");
+            esp_restart();
+        }
     }
 
     ESP_LOGE(TAG, "Invalid command");

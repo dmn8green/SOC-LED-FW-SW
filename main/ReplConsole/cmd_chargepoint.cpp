@@ -5,7 +5,7 @@
  * @brief REPL command to provision this device as an AWS iot thing
  * @version 0.1
  * @date 2023-09-04
- * 
+ *
  * @copyright Copyright (c) 2023
  */
 //*****************************************************************************
@@ -47,90 +47,320 @@
 #define MAX_HTTP_OUTPUT_BUFFER 8192
 static const char *TAG = "provision_charge_point_info";
 #define STR_IS_EQUAL(str1, str2) (strncasecmp(str1, str2, strlen(str2)) == 0)
+#define STR_IS_NULL_OR_EMPTY(str) (str == nullptr || strlen(str) == 0)
 
 extern MQTTContext_t *pmqttContext;
 
-static struct {
+static struct
+{
     struct arg_str *command;
-    struct arg_str *site_name;
-    struct arg_str *station_id;
+    struct arg_str *group_name;
+    struct arg_str *station_id_1;
+    struct arg_int *port_number_1;
+    struct arg_str *station_id_2;
+    struct arg_int *port_number_2;
     struct arg_end *end;
 } chargepoint_command_args;
 
-char payload[256] = {0};
+char payload[1024] = {0};
 char topic[64] = {0};
 
 //*****************************************************************************
 /**
- * @brief Pair this iot device with the chargepoint station
+ * @brief Sends the mqtt message to reset the proxy
+ * 
+ * When provisioning/unprovisioning the charge point info, we need to inform
+ * the associated proxy that the data was changed.  This is done by sending
+ * a message to the topic group_name/refresh where group_name is the name of
+ * the group where this station is located.
+ * 
+ * The proxy will then reload the data from the database.
+ * 
+ * @param group_name 
+ * @return int 
  */
-static int provision_charge_point_info(const char* station_id, const char* site_name) {
-    ChargePointConfig cpConfig;
+static int publish_reset_proxy_message(const char* group_name) {
+    esp_err_t ret = ESP_OK;
+    auto &mn8_app = MN8App::instance();
 
-    cpConfig.set_group_id(site_name);
-    cpConfig.set_station_id(station_id);
-    if (cpConfig.save() != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to save charge point config");
-        return 1;
-    }
+    memset(topic, 0, sizeof(topic));
+    memset(payload, 0, sizeof(payload));
+    snprintf((char *)topic, 64, "%s/refresh", group_name);
+    snprintf((char *) payload, sizeof(payload), "{}");
 
-    // TODO This should ask the app to register the station.
-    char mac_address[13] = {0};
-    get_fuse_mac_address_string(mac_address);
-    snprintf((char*) topic, 64, "%s/register_station", mac_address);
-    snprintf(payload, 256, "{\"stationId\":\"%s\",\"groupId\":\"%s\",\"description\":\"%s\"}", 
-        station_id, site_name, ""
-    );
-
-    ESP_LOGI(TAG, "Publishing to topic: %s", topic);
-    auto& mn8_app = MN8App::instance();
-    esp_err_t ret = mn8_app.get_mqtt_agent().publish_message(topic, payload, 1);
-
-    memset(payload, 0, 256);
-    memset(topic, 0, 64);
-    snprintf((char*) topic, 64, "%s/refresh", site_name);
-    snprintf(payload, 256, "{\"stationId\":\"%s\",\"groupId\":\"%s\",\"description\":\"%s\"}", 
-        station_id, site_name, ""
-    );
-    ESP_LOGI(TAG, "Publishing to topic: %s", topic);
+    ESP_LOGI(TAG, "Inform the associated proxy that the data was changed: %s", topic);
     ret = mn8_app.get_mqtt_agent().publish_message(topic, payload, 1);
-
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to refresh the proxy %s, it may need to be manually restarted", group_name);
+    }
     return ret == ESP_OK ? 0 : 1;
 }
 
-static int unprovision_charge_point_info(void) {
+static int publish_get_latest_message(void) {
+    esp_err_t ret = ESP_OK;
+    auto &mn8_app = MN8App::instance();
+
+    char mac_address[13] = {0};
+    get_fuse_mac_address_string(mac_address);
+
+    memset(topic, 0, sizeof(topic));
+    memset(payload, 0, sizeof(payload));
+    snprintf((char *) topic, 64, "%s/latest", mac_address);
+    snprintf((char *) payload, sizeof(payload), "{}");
+
+    ESP_LOGI(TAG, "Request latest from proxy: %s", topic);
+    ret = mn8_app.get_mqtt_agent().publish_message(topic, payload, 1);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to request latest for our thing %s", mac_address);
+    }
+    return ret == ESP_OK ? 0 : 1;
+}
+
+//*****************************************************************************
+/**
+ * @brief Persists the charge point info to the NVS
+ * 
+ * This function persists the charge point info to the NVS.  It is assumed that
+ * the info is valid and that the caller has validated the info.
+ * 
+ * @param group_name     Name of the group where this station is located
+ * @param station_id_1  Charge point station id associated with led 1
+ * @param port_number_1 Charge point station charger port number associated with led 1
+ * @param station_id_2  Charge point station id associated with led 2
+ * @param port_number_2 Charge point station charger port number associated with led 2
+ * 
+ * @return int        0 if successful, 1 otherwise
+ */
+static int persist_charge_point_info(
+    const char *group_name, 
+    const char *station_id_1, uint8_t port_number_1,
+    const char *station_id_2, uint8_t port_number_2
+) {
+
+    ESP_LOGI(TAG, "Provisioning charge point info");
+
+    ChargePointConfig cpConfig;
+    cpConfig.set_chargepoint_info(
+        group_name,
+        station_id_1, port_number_1,
+        station_id_2, port_number_2
+    );
+
+    if (cpConfig.save() != ESP_OK)
+    {
+        ESP_LOGE(TAG, "Failed to save charge point config, something is wrong with your board.");
+        return 1;
+    }
+
     return 0;
 }
 
-static int do_chargepoint_command(int argc, char **argv) {
+//*****************************************************************************
+/**
+ * @brief Sends the mqtt message to provision the charge point information
+ * 
+ * This function sends the mqtt message to provision the charge point
+ * information.  The message is sent to the topic group_id/register_station where
+ * group_id is the group name where this station is located (or any other grouping)
+ * 
+ * @param group_name    Name of the group where this station is located
+ * @param station_id_1  Charge point station id associated with led 1
+ * @param port_number_1 Charge point station charger port number associated with led 1
+ * @param station_id_2  Charge point station id associated with led 2
+ * @param port_number_2 Charge point station charger port number associated with led 2
+ * 
+ * @return int          0 if successful, 1 otherwise
+ */
+static int provision_charge_point_info(
+    const char *group_name, 
+    const char *station_id_1, uint8_t port_number_1,
+    const char *station_id_2, uint8_t port_number_2
+) {
+    auto &mn8_app = MN8App::instance();
+
+    char mac_address[13] = {0};
+    get_fuse_mac_address_string(mac_address);
+
+    memset(topic, 0, sizeof(topic));
+    memset(payload, 0, sizeof(payload));
+    snprintf((char *)topic, 64, "%s/register_station", group_name);
+    snprintf(
+        payload, sizeof(payload),
+        R"(
+            {
+                "thing_id":"%s",
+                "group_id":"%s",
+                "leds": [{
+                    "port": %d,
+                    "station": "%s",
+                    "led": 0,
+                    "last_state": "unknown",
+                    "last_charge": 0
+                },{
+                    "port": %d,
+                    "station": "%s",
+                    "led": 1,
+                    "last_state": "unknown",
+                    "last_charge": 0
+                }]
+            }
+        )",
+        mac_address, group_name,
+        port_number_1, station_id_1,
+        port_number_2, station_id_2
+    );
+
+    ESP_LOGI(TAG, "Send the register message to topic: %s", topic);
+    esp_err_t ret = mn8_app.get_mqtt_agent().publish_message(topic, payload, 1);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to pair led with charger%s\nMake sure you have a valid network connection", topic);
+        return 0;
+    }
+
+    // Give sometimes for the lambda to run.
+    printf("Associating leds with chargers...\n");
+    vTaskDelay(5000 / portTICK_PERIOD_MS);
+    return publish_reset_proxy_message(group_name);
+}
+
+//*****************************************************************************
+/**
+ * @brief Sends the mqtt message to unprovision the charge point information
+ * 
+ * This assume that the charge point info is already persisted in the NVS.
+ * If it isn't then this function will fail.
+ * 
+ * This unprovision both LEDs associated with this thing.
+ * 
+ * We try to clean as much as we can with what info we have.  In case this
+ * device was wiped clean before unprovisioning, we still try to send the
+ * mqtt message to get the element removed from the database.  But we will have
+ * no way to tell the proxy.
+ * 
+ * @return int 
+ */
+static int unprovision_charge_point_info()
+{
+    ChargePointConfig cpConfig;
+    cpConfig.load();
+
+    char mac_address[13] = {0};
+    get_fuse_mac_address_string(mac_address);
+    snprintf((char *)topic, 64, "%s/unregister_station", cpConfig.is_configured() ? cpConfig.get_group_id(): "unknown");
+    snprintf(payload, sizeof(payload), 
+        R"(
+            {
+                "thing_id":"%s"
+            }
+        )",
+        mac_address
+    );
+
+    ESP_LOGI(TAG, "Send the unregister message to topic: %s", topic);
+    auto &mn8_app = MN8App::instance();
+
+    // Unprovision the charge point info
+    esp_err_t ret = mn8_app.get_mqtt_agent().publish_message(topic, payload, 1);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to unpair led with charger%s\nMake sure you have a valid network connection", topic);
+        return 1;
+    }
+
+    if (cpConfig.is_configured()) {
+        printf("Disassociating leds with chargers...\n");
+        vTaskDelay(5000 / portTICK_PERIOD_MS);
+        if (publish_reset_proxy_message(cpConfig.get_group_id()) != 0) {
+            ESP_LOGE(TAG, "Failed to refresh the proxy %s, it may need to be manually restarted", cpConfig.get_group_id());
+            return 1;
+        }
+        return cpConfig.reset();
+    }
+    return 0;
+}
+
+//*****************************************************************************
+/**
+ * @brief REPL command to pair this device leds with a charge point station port
+ * 
+ * @param argc   Number of arguments
+ * @param argv   Array of arguments
+ * @return int   0 if successful, 1 otherwise
+ */
+static int do_chargepoint_command(int argc, char **argv)
+{
     int nerrors = arg_parse(argc, argv, (void **)&chargepoint_command_args);
-    if (nerrors != 0) {
+    if (nerrors != 0)
+    {
         arg_print_errors(stderr, chargepoint_command_args.end, argv[0]);
         return 1;
     }
 
-    const char* command = chargepoint_command_args.command->sval[0];
-    const char* station_id = chargepoint_command_args.station_id->sval[0];
-    const char* site_name = chargepoint_command_args.site_name->sval[0];
+    const char *command         = chargepoint_command_args.command->sval[0];
+    const char *group_name       = chargepoint_command_args.group_name->sval[0];
+    const char *station_id_1    = chargepoint_command_args.station_id_1->sval[0];
+    const uint8_t port_number_1 = chargepoint_command_args.port_number_1->ival[0];
+    const char *station_id_2    = chargepoint_command_args.station_id_2->sval[0];
+    const uint8_t port_number_2 = chargepoint_command_args.port_number_2->ival[0];
 
-    if (command == nullptr || strlen(command) == 0) {
-        command = "dump";
-    }
-
-    ESP_LOGI(TAG, "command %s", command);
+    ESP_LOGI(TAG, "executing command %s", command);
     if (STR_IS_EQUAL(command, "dump")) {
         ESP_LOGI(TAG, "Dumping thing configuration");
         ChargePointConfig cpConfig;
-        cpConfig.load();
-        printf("    station_id: %s\n", cpConfig.get_station_id() ? cpConfig.get_station_id() : "<none>");
-        printf("    site_name: %s\n", cpConfig.get_group_id() ? cpConfig.get_group_id() : "<none>");
+        if (cpConfig.load() == ESP_OK) {
+            cpConfig.dump();
+        } else {
+            printf("No charge point info found for this mn8 thing\n");
+        }
+        return 0;
+    }
+
+    if (STR_IS_EQUAL(command, "refresh")) {
+        ESP_LOGI(TAG, "Refresh associated proxy");
+        ChargePointConfig cpConfig;
+        if (cpConfig.load() == ESP_OK) {
+            publish_reset_proxy_message(cpConfig.get_group_id());
+        } else {
+            printf("No charge point info found for this mn8 thing\n");
+        }
+        return 0;
+    }
+
+    if (STR_IS_EQUAL(command, "latest")) {
+        ESP_LOGI(TAG, "Requesting latest charge point info");
+        ChargePointConfig cpConfig;
+        if (cpConfig.load() == ESP_OK) {
+            publish_get_latest_message();
+        } else {
+            printf("No charge point info found for this mn8 thing\n");
+        }
         return 0;
     }
 
     if (STR_IS_EQUAL(command, "provision")) {
-        printf("    new station_id: %s\n", station_id);
-        printf("    new site_name: %s\n", site_name);
-        return provision_charge_point_info(station_id, site_name);
+        // validate args
+        if (STR_IS_NULL_OR_EMPTY(group_name)) { ESP_LOGE(TAG, "Missing group name"); return 1; }
+        if (STR_IS_NULL_OR_EMPTY(station_id_1)) { ESP_LOGE(TAG, "Missing station id 1"); return 1; }
+        if (port_number_1 != 1 && port_number_1 != 2) { ESP_LOGE(TAG, "Invalid port number 1"); return 1; }
+        if (STR_IS_NULL_OR_EMPTY(station_id_2)) { ESP_LOGE(TAG, "Missing station id 2"); return 1; }
+        if (port_number_2 != 1 && port_number_2 != 2) { ESP_LOGE(TAG, "Invalid port number 2"); return 1; }
+
+        printf("Provisioning charge point info\n");
+        printf("    group_name: %s\n", group_name);
+        printf("    station_id_1: %s\n", station_id_1);
+        printf("    port_number_1: %d\n", port_number_1);
+        printf("    station_id_2: %s\n", station_id_2);
+        printf("    port_number_2: %d\n", port_number_2);
+
+        // First persists the info to the NVS
+        if (persist_charge_point_info(group_name, station_id_1, port_number_1, station_id_2, port_number_2) != 0) {
+            ESP_LOGE(TAG, "Failed to persist charge point info");
+            return 1;
+        }
+
+        // Then send the mqtt message to provision the charge point info.
+        // The recipient of the message is the charge point proxy and will
+        // take care of updating the database.
+        return provision_charge_point_info(group_name, station_id_1, port_number_1, station_id_2, port_number_2);
     }
 
     if (STR_IS_EQUAL(command, "unprovision")) {
@@ -142,18 +372,29 @@ static int do_chargepoint_command(int argc, char **argv) {
     return 1;
 }
 
-void register_chargepoint_command(void) {
-    chargepoint_command_args.command = arg_str0(NULL, NULL, "<command>", "provision or unprovision");
-    chargepoint_command_args.site_name = arg_str0(NULL, NULL, "<group or site name>", "Site name where this station is located");
-    chargepoint_command_args.station_id = arg_str0(NULL, NULL, "<station id>", "Charge point station id");
-    chargepoint_command_args.end = arg_end(0);
+//*****************************************************************************
+/**
+ * @brief Register the chargepoint command with the REPL
+ * 
+ * @return void
+ */
+void register_chargepoint_command(void)
+{
+    
+    chargepoint_command_args.command       = arg_str1(NULL, NULL, "<dump/provision/unprovision/refresh/latest>", "print current info, assign_led, provision or unprovision, refresh proxy, force proxy to send us latest");
+    chargepoint_command_args.group_name    = arg_str0(NULL, NULL, "<group or group name>", "Site name where this station is located");
+    chargepoint_command_args.station_id_1  = arg_str0(NULL, NULL, "<station id>", "Charge point station id associated with led 1");
+    chargepoint_command_args.port_number_1 = arg_int0(NULL, NULL, "<1 or 2>", "Charger port number associated with led 1");
+    chargepoint_command_args.station_id_2  = arg_str0(NULL, NULL, "<station id>", "Charge point station id associated with led 2");
+    chargepoint_command_args.port_number_2 = arg_int0(NULL, NULL, "<1 or 2>", "Charger port number associated with led 2");
+
+    chargepoint_command_args.end = arg_end(5);
 
     const esp_console_cmd_t provision_charge_point_info_cmd = {
         .command = "chargepoint",
         .help = "chargepoint provision/unprovision",
         .hint = NULL,
         .func = &do_chargepoint_command,
-        .argtable = &chargepoint_command_args
-    };
+        .argtable = &chargepoint_command_args};
     ESP_ERROR_CHECK(esp_console_cmd_register(&provision_charge_point_info_cmd));
 }
