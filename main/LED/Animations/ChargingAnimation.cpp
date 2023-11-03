@@ -12,7 +12,7 @@
  * The top-level class for an LED bar displaying an active charging
  * status.
  *
- *      Object hierarchy. Everything eventually resolved to a static pattern class
+ *      Object hierarchy. Everything eventually resolves to a static pattern class
  *
  *        CA: Charge Animation (this class)
  *            B: Base (static)
@@ -23,11 +23,9 @@
  *                CL: Charge Level Indicator (static)
  *            T: Top (static)
  *
- *       Diagram of these objects as they appear on a LED strip in mid-charge. Note
- *       the Progress Animation object is "moving" blue pixels up the bar to indicate
- *       charge in progress. Animations like these can be seen using the unit test
- *       in the main/gtest directory (run the program in Interactive mode with the
- *       -i option)
+ *       Diagram of these objects as they appear on a 32-controller LED strip in
+ *       mid-charge. Note the Progress Animation object is "moving" blue pixels
+ *       up the bar to indicate charge in progress.
  *
  *            0                   1                   2                   3
  *            0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
@@ -35,11 +33,14 @@
  *           |B|B|B|B|B|B|B|.|.|.|.|.|.|.|.|.|B|B|.|.|.|.|.|.|.|.|.|.|.|.|.|.|
  *           |B|B|B|B|B|B|B|B|.|.|.|.|.|.|.|.|B|B|.|.|.|.|.|.|.|.|.|.|.|.|.|.|
  *           |B|B|B|B|B|B|B|B|B|.|.|.|.|.|.|.|B|B|.|.|.|.|.|.|.|.|.|.|.|.|.|.|
- *            │ ├─── L: Low ──┘ └─ H: High ───┤ │ │                         │
- *            │ ├─── PA: Progress Animation ──┤ │ └──────── T: Top ─────────┤
+ *            │ ├─── L: Low ──┘ └─ H: High ─┤ │ │ │                         │
+ *            │ ├── PA: Progress Animation ─┘ │ │ └──────── T: Top ─────────┤
  *            │ └──  CI: Charge Indicator  ───┴┬┘                           │
  *            ├─ B (Charge 'base')             └── CL: Charge Level         │
  *            └─────────────────── CA: (Charge Animation) ──────────────────┘
+ *
+ *        Animations like the above can be seen using the 'led_test' unit test
+ *        in "interactive" mode (-1 option).
  *
  */
 

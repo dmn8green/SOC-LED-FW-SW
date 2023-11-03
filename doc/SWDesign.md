@@ -9,10 +9,10 @@ This document describes and provides supporting details for the software design 
 
 ## Version History
 
-| Version | Date        | Author     | Notes   |
-| ------- | ----------- | ---------- | ------- |
-| v0.1    | Oct-04-2023 | McGuinness | Initial |
-|         |             |            |         |
+| Version | Date        | Author     | Notes                 |
+| ------- | ----------- | ---------- | --------------------- |
+| v0.1    | Oct-04-2023 | McGuinness | Initial               |
+| v0.2    | Nov-02-2023 | McGuinness | Release 1.0.0 Updates |
 
 
 
@@ -314,8 +314,6 @@ Typical SPI signaling to send an 8-bit sequence (10100101) looks like this (CLK 
 
 ![](./images/MN8-SPI-Timing.png)
 
-​							
-
 **Figure 6:  SPI Timing (CLK/MOSI)**
 
 
@@ -416,7 +414,11 @@ Unit tests using the publicly available Google Test (gtest) framework. The tests
 
 - Tests low level color conversion functions
 - Test animation patterns against various charge levels and varying number of LEDs
-- Includes interactive mode (-i option) that allows users to visualize the LED bar using animations with different parameters
+- Includes interactive mode (-i option) that allows users to visualize the LED bar using animations with different parameters. Below is a 31 LED bar with a charge level of about 55% increasing to 60% during the chase animation:
+
+![](/home/wfm/AppliedLogix/Workspaces/MN8/light-controller-firmware/doc/images/Unit-Test-Animation.png)
+
+**Figure 10:  Unit test representation of Charge Animation in progress**
 
 ### Proxy Broker Software
 
@@ -517,7 +519,7 @@ Examples:
 | ESP    | Espressif Systems, a microcontroller manufacturer and SDK provider |
 | EV     | Electric Vehicle                                             |
 | GPIO   | General Purpose Input/Output                                 |
-| LED    | Light Emitting Diode (Strip of LEDs in this case)            |
+| LED    | Light Emitting Diode (may also refer to the strip of LEDs used for this project) |
 | MOSI   | SPI line driving output                                      |
 | MQTT   | Lightweight publish/subscribe network protocol; used to manage IOT devices |
 | PoE    | Power over Ethernet                                          |
