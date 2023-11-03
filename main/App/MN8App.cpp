@@ -178,22 +178,43 @@ void MN8App::on_incoming_mqtt(
         return;
     }
 
-    if (root.containsKey("leds")) {
-        JsonArray leds = root["leds"];
-        for (JsonObject led : leds) {
-            if (led.containsKey("led")) {
-                int led_number = led["led"];
-                const char* state = led["last_state"];
-                int charge_percent = led["last_charge"];
-                ESP_LOGI(TAG, "led %d new state : %s", led_number, state);
-                if (led_number == 0) {
+    if (root.containsKey("port0")) {
+        JsonObject port0 = root["port0"];
+        if (port0.containsKey("state")) {
+            const char* state = port0["state"];
+            int charge_percent = port0["charge_percent"];
+            ESP_LOGI(TAG, "port 0 new state : %s", state);
                     this->get_context().get_led_task_0().set_state(state, charge_percent);
-                } else if (led_number == 1) {
-                    this->get_context().get_led_task_1().set_state(state, charge_percent);
                 }
             }
+
+    if (root.containsKey("port1")) {
+        JsonObject port1 = root["port1"];
+        if (port1.containsKey("state")) {
+            const char* state = port1["state"];
+            int charge_percent = port1["charge_percent"];
+            ESP_LOGI(TAG, "port 2 new state : %s", state);
+            this->get_context().get_led_task_1().set_state(state, charge_percent);
         }
     }
+
+
+    // if (root.containsKey("leds")) {
+    //     JsonArray leds = root["leds"];
+    //     for (JsonObject led : leds) {
+    //         if (led.containsKey("led")) {
+    //             int led_number = led["led"];
+    //             const char* state = led["last_state"];
+    //             int charge_percent = led["last_charge"];
+    //             ESP_LOGI(TAG, "led %d new state : %s", led_number, state);
+    //             if (led_number == 0) {
+    //                 this->get_context().get_led_task_0().set_state(state, charge_percent);
+    //             } else if (led_number == 1) {
+    //                 this->get_context().get_led_task_1().set_state(state, charge_percent);
+    //             }
+    //         }
+    //     }
+    // }
 
     ESP_LOGI(TAG, "Incoming publish received : %.*s", payloadLength, pPayload);
 }
