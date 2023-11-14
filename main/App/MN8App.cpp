@@ -66,7 +66,7 @@ static esp_err_t initialize_nvs(void)
  * with the eth dev kit board.
 */
 static esp_err_t configure_gpio_for_demo(void) {
-    #define GPIO_BIT_MASK  ((1ULL<<GPIO_NUM_4)) 
+    #define GPIO_BIT_MASK  ((1ULL<<GPIO_NUM_33)) 
 
 	gpio_config_t io_conf;
 	io_conf.intr_type = GPIO_INTR_DISABLE;
@@ -76,7 +76,7 @@ static esp_err_t configure_gpio_for_demo(void) {
 	io_conf.pull_up_en = GPIO_PULLUP_DISABLE;
 	gpio_config(&io_conf);
 
-    gpio_set_level(GPIO_NUM_4, 1);
+    gpio_set_level(GPIO_NUM_33, 1);
 
     return ESP_OK;
 }

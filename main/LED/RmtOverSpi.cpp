@@ -88,8 +88,8 @@ esp_err_t RmtOverSpi::setup(spi_host_device_t spi_host, int gpio_num, int led_co
     );
 
     // We have to invert the signal so that it is high when idle.
-    esp_rom_gpio_connect_out_signal(gpio_num, spi_periph_signal[spi_host].spid_out, true, false);
-    esp_rom_gpio_connect_in_signal(gpio_num, spi_periph_signal[spi_host].spid_in, true);
+    // esp_rom_gpio_connect_out_signal(gpio_num, spi_periph_signal[spi_host].spid_out, true, false);
+    // esp_rom_gpio_connect_in_signal(gpio_num, spi_periph_signal[spi_host].spid_in, true);
 
 err_exit:
     return ret;
