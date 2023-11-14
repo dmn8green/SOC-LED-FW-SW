@@ -99,7 +99,6 @@ protected:
         struct MQTTDeserializedInfo * pDeserializedInfo,
         void* context
     ) {
-        ESP_LOGI("MqttAgent", "sOn_mqtt_pubsub_event agent is %p mn8 %p", context, ((MqttAgent*)context)->handle_incoming_mqtt_context);
         ((MqttAgent*)context)->on_mqtt_pubsub_event(pContext, pPacketInfo, pDeserializedInfo);
     }
 

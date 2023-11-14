@@ -14,6 +14,7 @@
 
 #include "App/MN8Context.h"
 #include "App/MN8StateMachine.h"
+#include "App/IotHeartbeat.h"
 
 #include "Utils/Singleton.h"
 #include "Utils/NoCopy.h"
@@ -81,4 +82,5 @@ private:
     MN8Context context;
     MN8StateMachine state_machine;
     QueueHandle_t message_queue;
+    IotHeartbeat iot_heartbeat;
 };  // class MN8App
