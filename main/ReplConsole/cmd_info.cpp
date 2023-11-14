@@ -23,7 +23,7 @@
 
 static int do_info_command(int argc, char **argv)
 {
-    printf("Version is:\n    Major: %d\n    Minor: %d\n    Patch: %d\n", 1, 0, 0);
+    printf("Version is:\n    Major: %d\n    Minor: %d\n    Patch: %d\n", 1, 1, 0);
     
     return 0;
 }
