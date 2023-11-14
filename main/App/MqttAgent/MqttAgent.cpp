@@ -109,7 +109,7 @@ esp_err_t MqttAgent::subscribe(const char *topic, mqttCallbackFn callback, void*
     }
     else
     {
-        ESP_LOGI( TAG, "SUBSCRIBE sent for topic %s to broker.\n\n", topic );
+        ESP_LOGI( TAG, "SUBSCRIBE sent for topic %s to broker.", topic );
     }
 
     // TODO wait for the acknowledgement.
@@ -128,6 +128,19 @@ esp_err_t MqttAgent::publish_message(const char *topic, const char *payload, uin
     esp_err_t ret = ESP_OK;
     MQTTStatus mqtt_status = MQTTSuccess;
     uint16_t packet_id;
+
+    // EventBits_t uxBits;
+    // uxBits = xEventGroupWaitBits(
+    //     this->event_group,
+    //     NET_CONNECTED_BIT, // | MQTT_AGENT_DISCONNECTED_BIT,
+    //     pdFALSE,
+    //     pdTRUE,
+    //     portMAX_DELAY );
+
+    // if ((uxBits & NET_CONNECTED_BIT) == 0) {
+    //     ESP_LOGE(TAG, "Not connected to network");
+    //     return ESP_FAIL;
+    // }
 
     MQTTPublishInfo_t packet;
     memset(&packet, 0x00, sizeof(MQTTPublishInfo_t));
@@ -174,11 +187,14 @@ void MqttAgent::on_mqtt_pubsub_event(
     struct MQTTPacketInfo * packet_info,
     struct MQTTDeserializedInfo * deserialized_info
 ) {
-    ESP_LOGI(TAG, "Got publish event will call agent %p, mn8app %p", this, this->handle_incoming_mqtt_context);
-
     if ((packet_info->type & 0xF0U) == MQTT_PACKET_TYPE_PUBLISH) {
         ESP_LOGI(TAG, "Got publish event");
         assert( deserialized_info->pPublishInfo != NULL );
+
+        // We have to give the mutex back in case the handler will try to 
+        // publish a message in the same task context.
+        xSemaphoreGive(this->mqtt_mutex);
+
         MQTTPublishInfo_t * pPublishInfo = deserialized_info->pPublishInfo;
         handle_incoming_mqtt(
             pPublishInfo->pTopicName,
@@ -207,7 +223,9 @@ esp_err_t MqttAgent::process_mqtt_loop(void) {
     // Only stay in the loop if there is more incoming data.  This under the hood
     // ends up calling our subscribe callback.
     do {
+        ESP_LOGD(TAG, "Calling MQTT_ProcessLoop");
         mqtt_status = MQTT_ProcessLoop( this->mqtt_context.get_mqtt_context() );
+        ESP_LOGD(TAG, "MQTT_ProcessLoop returned %d", mqtt_status);
 
         if (mqtt_status == MQTTNeedMoreBytes) {
             // Need to wait a bit between calls to MQTT_ProcessLoop().
@@ -285,17 +303,21 @@ void MqttAgent::taskFunction(void) {
             snprintf(topic, 32, "%s/ledstate", this->thing_config->get_thing_name());
             this->subscribe(topic, NULL, NULL);
 
+            snprintf(topic, 32, "%s/ping", this->thing_config->get_thing_name());
+            this->subscribe(topic, NULL, NULL);
+
             // todo this should be more stateful. use a delay for now to make
             // sure the subscribe happened before we publish we need data.
             vTaskDelay(2000 / portTICK_PERIOD_MS);
 
+            // Force refreshing the state in case it has changed since we
+            // last connected.
             memset(topic, 0x00, 32);
             snprintf(topic, 32, "%s/%s", this->thing_config->get_thing_name(), "latest");
             this->publish_message(topic, "{}", 0);
 
             // xEventGroupSetBits( this->event_group, MQTT_AGENT_CONNECTED_BIT );
             connected = true;
-            
         }
 
         // poll mqtt for data

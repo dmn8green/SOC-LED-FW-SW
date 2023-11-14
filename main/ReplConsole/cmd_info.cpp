@@ -1,3 +1,7 @@
+#include "rev.h"
+
+#include "Utils/FuseMacAddress.h"
+
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
@@ -23,8 +27,19 @@
 
 static int do_info_command(int argc, char **argv)
 {
-    printf("Version is:\n    Major: %d\n    Minor: %d\n    Patch: %d\n", 1, 0, 0);
-    
+    printf(
+        "Version is: %d.%d.%d\n", 
+        VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH
+    );
+
+    // print fuse mac address
+    uint8_t mac[6];
+    get_fuse_mac_address(mac);
+
+    printf("Fuse MAC address is: %02x:%02x:%02x:%02x:%02x:%02x\n", 
+        mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]
+    );
+
     return 0;
 }
 

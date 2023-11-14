@@ -13,11 +13,6 @@ MqttContext::MqttContext(void) {
     memset( &this->incoming_records, 0x00, sizeof( MQTTPubAckInfo_t ) * INCOMING_PUBLISH_RECORD_LEN );
     this->buffer = (uint8_t*)malloc( NETWORK_BUFFER_SIZE );
     memset( this->buffer, 0x00, NETWORK_BUFFER_SIZE );
-    
-    // memset( (void*) &this->mqtt_context, 0x00, sizeof( MQTTContext_t ) );
-
-    // ESP_LOGI(TAG, "!!!!!!!! mn8context: %p", this);
-    // this->mqtt_context.mn8_context = this;
 }
 
 //******************************************************************************
@@ -31,7 +26,6 @@ esp_err_t MqttContext::initialize(NetworkContext_t * network_context, EventCallb
     assert( network_context != NULL );
     this->callback = callback;
     this->callback_context = callback_context;
-    ESP_LOGI(TAG, "!!!!!!!! Callback is mn8 %p and this is %p", this->callback_context, this);
 
     // Fill in TransportInterface send and receive function pointers.
     // For this demo, TCP sockets are used to send and receive data
@@ -93,8 +87,6 @@ void MqttContext::event_callback(
     assert( mqtt_context != NULL );
     assert( packet_info != NULL );
     assert( deserialized_info != NULL );
-
-    ESP_LOGI(TAG, "!!!!!!!! Callback is %p with", this);
 
     if (this->callback != nullptr) {
         this->callback( mqtt_context, packet_info, deserialized_info, this->callback_context );
