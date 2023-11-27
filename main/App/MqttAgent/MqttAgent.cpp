@@ -152,9 +152,9 @@ esp_err_t MqttAgent::publish_message(const char *topic, const char *payload, uin
     packet.payloadLength = strlen(payload);
     packet_id = MQTT_GetPacketId( this->mqtt_context.get_mqtt_context() );
 
-    if (!xSemaphoreTake(this->mqtt_mutex, portMAX_DELAY)) {
+    if (!xSemaphoreTake(this->mqtt_mutex, 5000/portTICK_PERIOD_MS)) {
         ESP_LOGE(TAG, "Failed to take mqtt mutex");
-        return ESP_FAIL;
+        return ESP_ERR_TIMEOUT;
     }
 
     mqtt_status = MQTT_Publish( this->mqtt_context.get_mqtt_context(), &packet, packet_id );

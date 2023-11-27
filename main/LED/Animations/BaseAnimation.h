@@ -51,8 +51,10 @@ public:
     inline uint32_t get_rate(void) { return this->rate; }
     inline void set_rate(uint32_t rate) { this->rate = rate; }
 
-    virtual void reset(void) { this->rate = portMAX_DELAY; }
+    virtual void reset(void) { this->rate = 2000; }
 
 private:
-    uint32_t rate = portMAX_DELAY;
+    // changed from max to 2 seconds to force the led to update when plugged in.
+    // This way, no need to wait for a transition change.
+    uint32_t rate = 2000;// portMAX_DELAY;
 };

@@ -7,3 +7,5 @@
 
 #define RMT_LED_STRIP0_GPIO_NUM     4
 #define RMT_LED_STRIP1_GPIO_NUM     5
+
+#define LIGHT_SENSOR_GPIO_NUM       35

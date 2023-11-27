@@ -23,7 +23,11 @@
         "cwchar": "cpp",
         "new": "cpp",
         "stdexcept": "cpp",
-        "string_view": "cpp"
+        "string_view": "cpp",
+        "bitset": "cpp",
+        "memory": "cpp",
+        "random": "cpp",
+        "future": "cpp"
     },
     "peacock.remoteColor": "#007fff"
 }

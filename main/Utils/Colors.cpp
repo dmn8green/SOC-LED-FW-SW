@@ -15,6 +15,8 @@
 
 #include "Colors.h"
 
+#include "esp_log.h"
+
 #define COLOR_RED_HIGH    0xFF0000  // RGB
 #define COLOR_GREEN_HIGH  0x00FF00
 #define COLOR_BLUE_HIGH   0x0000FF
@@ -81,6 +83,8 @@ static std::map<uint32_t, uint32_t> NightColors = {
     { LED_COLOR_BLACK,  COLOR_BLACK_LOW}
 };
 
+static const char *TAG = "Colors";
+
 //******************************************************************************
 /**
  * @brief Get HSV color
@@ -129,6 +133,7 @@ uint32_t Colors::getRgb (LED_COLOR ledColor)
 {
     uint32_t rgbColor = 0;
 
+    ESP_LOGI(TAG, "getRgb: ledColor = %d intensity %d", ledColor, ledIntensity);
     if (ledIntensity == LED_INTENSITY_LOW)
     {
         rgbColor = NightColors[ledColor];
@@ -137,6 +142,7 @@ uint32_t Colors::getRgb (LED_COLOR ledColor)
     {
         rgbColor = DayColors[ledColor];
     }
+    ESP_LOGI(TAG, "getRgb: rgbColor = %ld", rgbColor);
 
     return rgbColor;
 }

@@ -81,6 +81,16 @@ static esp_err_t configure_gpio_for_demo(void) {
     return ESP_OK;
 }
 
+static void configure_gpio_for_light_sensor(void) {
+	gpio_config_t io_conf;
+	io_conf.intr_type = GPIO_INTR_DISABLE;
+	io_conf.mode = GPIO_MODE_INPUT;
+	io_conf.pin_bit_mask = 1ULL<<LIGHT_SENSOR_GPIO_NUM;
+	io_conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
+	io_conf.pull_up_en = GPIO_PULLUP_DISABLE;
+	gpio_config(&io_conf);
+}
+
 //*****************************************************************************
 /**
  * @brief Setup the MN8App.
@@ -94,6 +104,7 @@ esp_err_t MN8App::setup(void) {
     esp_err_t ret = ESP_OK;
 
     auto& thing_config = this->context.get_thing_config();
+    configure_gpio_for_light_sensor();
 
     // Do this as early as possible to have feedback.
     ESP_GOTO_ON_ERROR(this->setup_and_start_led_tasks(), err, TAG, "Failed to setup and start led tasks");;
@@ -273,7 +284,7 @@ void MN8App::on_mqtt_event(MqttAgent::event_t event) {
  */
 void MN8App::loop(void) {
     mn8_event_t event;
-    TickType_t xTicksToWait = portMAX_DELAY;
+    TickType_t xTicksToWait = 5000/portTICK_PERIOD_MS;
     
     this->state_machine.turn_on();
 
@@ -283,6 +294,10 @@ void MN8App::loop(void) {
             ESP_LOGI(TAG, "Event received : %d", event);
             this->state_machine.handle_event(event);
         }
+
+        int lightSensorState = gpio_get_level((gpio_num_t) LIGHT_SENSOR_GPIO_NUM);
+        ESP_LOGD(TAG, "Light sensor state : %d", lightSensorState);
+        Colors::instance().setMode(lightSensorState == 0 ? LED_INTENSITY_LOW : LED_INTENSITY_HIGH);
     }
 }
 
