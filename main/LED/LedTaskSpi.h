@@ -44,6 +44,7 @@ typedef enum {
     e_station_booting_up,          // 06 yellow  (p)  - Station booting up / Not ready yet
     e_station_offline,             // 07 white   (s)  - Station offline
     e_station_reserved,            // 08 orange  (s)  - Station reserved
+    e_station_iot_unprovisioned,   // 09 purple  (s)  - Station not provisioned with AWS
     e_station_unknown              // Error state
 } led_state_t;
 
@@ -100,6 +101,7 @@ private:
     int gpio_pin;
     uint8_t* led_pixels;
     led_state_info_t state_info;
+    LED_INTENSITY intensity = LED_INTENSITY_HIGH;
 
     TaskHandle_t task_handle;
     QueueHandle_t state_update_queue;

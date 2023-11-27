@@ -29,8 +29,10 @@ static const char *TAG = "LedTaskSpi";
 // Gotta love meta programming.
 #define STATIC_ANIM_CASE(x, colorRgb) \
     case x: \
-    ESP_LOGI(TAG, "%d: Switching to static anim state " #x " with the color " #colorRgb, this->led_number); \
-    this->static_animation.reset(colors.getRgb(colorRgb)); this->animation = &this->static_animation; break;
+        ESP_LOGI(TAG, "%d: Switching to static anim state " #x " with the color " #colorRgb, this->led_number); \
+        this->static_animation.reset(colors.getRgb(colorRgb)); \
+        this->animation = &this->static_animation; \
+        break;
 
 
 //******************************************************************************
@@ -46,9 +48,11 @@ void LedTaskSpi::vTaskCodeLed()
     bool state_changed = true;
 
     led_state_info_t updated_state;
+    LED_INTENSITY current_intensity = Colors::instance().getMode();
     esp_err_t ret = ESP_OK;
     
     ESP_LOGI(TAG, "Starting LED task %d", this->led_number);
+    this->intensity = current_intensity;
 
     do
     {
@@ -67,6 +71,7 @@ void LedTaskSpi::vTaskCodeLed()
             STATIC_ANIM_CASE(e_station_offline,             LED_COLOR_WHITE);
             STATIC_ANIM_CASE(e_station_reserved,            LED_COLOR_ORANGE);
             STATIC_ANIM_CASE(e_station_unknown,             LED_COLOR_PURPLE);
+            STATIC_ANIM_CASE(e_station_iot_unprovisioned,   LED_COLOR_PURPLE);
             case e_station_charging:
                 ESP_LOGI(TAG, "%d: Charging", this->led_number);
                 if (this->animation == &this->charging_animation) {
@@ -105,15 +110,28 @@ void LedTaskSpi::vTaskCodeLed()
             this->animation->refresh(this->led_pixels, 0, LED_STRIP_PIXEL_COUNT);
             this->rmt_over_spi.write_led_value_to_strip(this->led_pixels);
             queue_timeout = this->animation->get_rate() / portTICK_PERIOD_MS;
-            // ESP_LOGI(TAG, "%d: Queue timeout: %ld", this->led_number, queue_timeout);
+            ESP_LOGD(TAG, "%d: Queue timeout: %ld", this->led_number, queue_timeout);
         }
 
         // We use the queue to get the new state of the station.  We also use the queue to
         // to control the refresh rate of the LED strip.
         if (xQueueReceive(this->state_update_queue, &updated_state, queue_timeout) == pdTRUE) {
-            ESP_LOGI(TAG, "%d: Switching to state %d", this->led_number, updated_state.state);
-            if (state_info.state != updated_state.state || state_info.charge_percent != updated_state.charge_percent) {
+            ESP_LOGD(TAG, "%d: Switching to state %d", this->led_number, updated_state.state);
+            if (state_info.state != updated_state.state || 
+                state_info.charge_percent != updated_state.charge_percent
+            ) {
                 state_info = updated_state;
+                state_changed = true;
+            } else {
+                state_changed = false;
+            }
+        } else {
+            ESP_LOGD(TAG, "%d: Timeout", this->led_number);
+            current_intensity = Colors::instance().getMode();
+            ESP_LOGD(TAG, "%d: Current intensity %d prev intensity %d", this->led_number, current_intensity, this->intensity);
+
+            if (current_intensity != this->intensity) {
+                this->intensity = current_intensity;
                 state_changed = true;
             } else {
                 state_changed = false;
@@ -258,6 +276,7 @@ esp_err_t LedTaskSpi::set_state(const char *new_state, int charge_percent)
     MAP_TO_ENUM(booting_up);
     MAP_TO_ENUM(offline);
     MAP_TO_ENUM(reserved);
+    MAP_TO_ENUM(iot_unprovisioned);
     MAP_TO_ENUM(unknown);
     
     if (state == e_station_unknown) {

@@ -210,17 +210,56 @@ static int provision_charge_point_info(
         port_number_2, station_id_2
     );
 
-    ESP_LOGI(TAG, "Send the register message to topic: %s", topic);
+    ESP_LOGD(TAG, "Send the register message to topic: %s", topic);
+    printf("Mapping leds with chargers...\n");
     esp_err_t ret = mn8_app.get_mqtt_agent().publish_message(topic, payload, 1);
-    if (ret != ESP_OK) {
+    if (ret == ESP_ERR_TIMEOUT) {
+        printf("Timeout trying to pair led with station port\n");
+        printf("Try again: Hit the up arrow and hit enter\n");
+    } else if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Failed to pair led with charger%s\nMake sure you have a valid network connection", topic);
-        return 0;
+        return 1;
+    } else {
+        printf("Waiting for the mapping to have been completed...\n");
+        // Give sometimes for the lambda to run to ensure the mapping is in the
+        // database by the time we ask the proxy to refresh
+        vTaskDelay(5000 / portTICK_PERIOD_MS);
     }
 
-    // Give sometimes for the lambda to run.
-    printf("Associating leds with chargers...\n");
-    vTaskDelay(5000 / portTICK_PERIOD_MS);
-    return publish_reset_proxy_message(group_name);
+    printf("next type: chargepoint refresh\n");
+    printf("followed by: chargepoint latest\n");
+
+    // This is somewhat unreliable.  We should have a way to know when the
+    // proxy has refreshed the data.
+    // printf("Asking proxy broker to refresh...\n");
+    // ret = publish_reset_proxy_message(group_name);
+    // if (ret == ESP_ERR_TIMEOUT) {
+    //     printf("Timeout waiting for proxy to refresh\n");
+    //     printf("Try the following command: chargepoint refresh\n");
+    //     printf("Followed by the following command: chargepoint latest\n");
+    // } else if (ret != ESP_OK) {
+    //     ESP_LOGE(TAG, "Failed to refresh the proxy %s, it may need to be manually restarted", group_name);
+    //     return 1;
+    // } else {
+    //     printf("Waiting for proxy to have refreshed...\n");
+    //     vTaskDelay(5000 / portTICK_PERIOD_MS);
+    // }
+
+    // printf("Requesting latest....\n");
+    // memset(topic, 0, sizeof(topic));
+    // memset(payload, 0, sizeof(payload));
+    // snprintf((char *) topic, 64, "%s/latest", mac_address);
+    // snprintf((char *) payload, sizeof(payload), "{}");
+    // ret = mn8_app.get_mqtt_agent().publish_message(topic, payload, 1);
+    // if (ret == ESP_ERR_TIMEOUT) {
+    //     printf("Timeout waiting for proxy to refresh\n");
+    //     printf("Try the following command: chargepoint latest\n");
+    // } else if (ret != ESP_OK) {
+    //     ESP_LOGE(TAG, "Failed to request latest for our thing %s", mac_address);
+    //     return 1;
+    // }
+
+    return 0;
 }
 
 //*****************************************************************************
@@ -301,6 +340,13 @@ static int do_chargepoint_command(int argc, char **argv)
     const uint8_t port_number_1 = chargepoint_command_args.port_number_1->ival[0];
     const char *station_id_2    = chargepoint_command_args.station_id_2->sval[0];
     const uint8_t port_number_2 = chargepoint_command_args.port_number_2->ival[0];
+
+    printf("command: %s\n", command);
+    printf("group_name: %s\n", group_name);
+    printf("station_id_1: %s\n", station_id_1);
+    printf("port_number_1: %d\n", port_number_1);
+    printf("station_id_2: %s\n", station_id_2);
+    printf("port_number_2: %d\n", port_number_2);
 
     ESP_LOGI(TAG, "executing command %s", command);
     if (STR_IS_EQUAL(command, "dump")) {
