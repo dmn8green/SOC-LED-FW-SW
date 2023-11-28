@@ -17,6 +17,8 @@ typedef enum {
     e_mn8_off,                        //?! The device hasn't been provisioned with AWS and with the MN8 cloud.
     e_mn8_connecting,                 //?! At least one interface is connecting to the cloud.
     e_mn8_connected,                  //?! At least one interface is connected to the cloud and the mqtt is also connected.
+    e_mn8_iot_unprovisioned,          //?! The device has been not been provisioned with AWS. 
+    e_mn8_cp_unprovisioned,           //?! The device has been provisioned with AWS but not with the MN8 cloud.
     e_mn8_connection_error,           //?! The interfaces are up but there is no connection.
     e_mn8_disconnecting,              //?! To indicate that both network connections are being disconnected manually.
     e_mn8_disconnected,               //?! The device has been provisioned but is not connected to the cloud. Both interface are down or unconfigured.
@@ -49,10 +51,15 @@ public:
     esp_err_t turn_off(void);
     void handle_event(mn8_event_t event);
 
+    inline mn8_state_t get_current_state(void) { return this->state; }
+    const char* get_current_state_name(void);
+
 protected:
     mn8_state_t off_state              (mn8_event_t event);
     mn8_state_t disconnected_state     (mn8_event_t event);
     mn8_state_t disconnecting_state    (mn8_event_t event);
+    mn8_state_t iot_unprovisioned_state(mn8_event_t event);
+    mn8_state_t cp_unprovisioned_state (mn8_event_t event);
     mn8_state_t connecting_state       (mn8_event_t event);
     mn8_state_t connected_state        (mn8_event_t event);
     mn8_state_t connection_error_state (mn8_event_t event);

@@ -265,9 +265,8 @@ void MqttAgent::taskFunction(void) {
         // Connect to the broker
         ESP_LOGD(TAG, "Connected flag is %s", connected ? "true" : "false");
         if (!connected) {
-            // sleep for a second to ensure the connection is fully up.
-            vTaskDelay(1000 / portTICK_PERIOD_MS);
-
+            // sleep for a little bit to ensure the connection is fully up.
+            vTaskDelay(2000 / portTICK_PERIOD_MS);
 
             ret = this->mqtt_connection.connect_with_retries(this->mqtt_context.get_mqtt_context(), 10);
             if (ret != ESP_OK) {
@@ -290,20 +289,23 @@ void MqttAgent::taskFunction(void) {
                 // pubsub.cleanup_outgoing_publishes();
             }
 
-
             // sleep for a second to ensure the connection is fully up.
-            vTaskDelay(1000 / portTICK_PERIOD_MS);
-
-            this->event_callback(e_mqtt_agent_connected, this->event_callback_context);
+            vTaskDelay(2000 / portTICK_PERIOD_MS);
 
             // This should be in the main app state machine logic.
             // but for testing right now.
             char topic[32];
-            memset(topic, 0x00, 32);
-            snprintf(topic, 32, "%s/ledstate", this->thing_config->get_thing_name());
+            memset(topic, 0x00, sizeof(topic));
+            snprintf(topic, sizeof(topic), "%s/ledstate", this->thing_config->get_thing_name());
             this->subscribe(topic, NULL, NULL);
 
-            snprintf(topic, 32, "%s/ping", this->thing_config->get_thing_name());
+            snprintf(topic, sizeof(topic), "%s/ping", this->thing_config->get_thing_name());
+            this->subscribe(topic, NULL, NULL);
+
+            snprintf(topic, sizeof(topic), "%s/set-config", this->thing_config->get_thing_name());
+            this->subscribe(topic, NULL, NULL);
+
+            snprintf(topic, sizeof(topic), "%s/get-config", this->thing_config->get_thing_name());
             this->subscribe(topic, NULL, NULL);
 
             // todo this should be more stateful. use a delay for now to make
@@ -312,12 +314,14 @@ void MqttAgent::taskFunction(void) {
 
             // Force refreshing the state in case it has changed since we
             // last connected.
-            memset(topic, 0x00, 32);
-            snprintf(topic, 32, "%s/%s", this->thing_config->get_thing_name(), "latest");
+            memset(topic, 0x00, sizeof(topic));
+            snprintf(topic, sizeof(topic), "%s/%s", this->thing_config->get_thing_name(), "latest");
             this->publish_message(topic, "{}", 0);
 
             // xEventGroupSetBits( this->event_group, MQTT_AGENT_CONNECTED_BIT );
             connected = true;
+
+            this->event_callback(e_mqtt_agent_connected, this->event_callback_context);
         }
 
         // poll mqtt for data

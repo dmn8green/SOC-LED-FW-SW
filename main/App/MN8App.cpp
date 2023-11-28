@@ -12,8 +12,11 @@
 
 #include "MN8App.h"
 #include "pin_def.h"
+#include "rev.h"
 
 #include "Utils/FuseMacAddress.h"
+#include "Utils/Colors.h"
+#include "Utils/KeyStore.h"
 
 #include "ArduinoJson.h"
 
@@ -136,8 +139,8 @@ esp_err_t MN8App::setup(void) {
         this->context.get_mqtt_agent().setup(&thing_config);
         this->context.get_mqtt_agent().start();
 
-        this->iot_heartbeat.setup(&this->context.get_mqtt_agent(), &thing_config);
-        this->iot_heartbeat.start();
+        this->context.get_iot_heartbeat().setup(&this->context.get_mqtt_agent(), &thing_config, &this->state_machine);
+        this->context.get_iot_heartbeat().start();
     }
 
     this->context.get_network_connection_agent().start();
@@ -169,6 +172,9 @@ err:
     return ret;
 }
 
+static char topic[64] = {0};
+static char payload[2048] = {0};
+
 //*****************************************************************************
 void MN8App::on_incoming_mqtt( 
     const char* pTopicName,
@@ -178,6 +184,8 @@ void MN8App::on_incoming_mqtt(
     uint16_t packetIdentifier
 ) {
     ESP_LOGI(TAG, "Incoming publish received : %.*s %.*s", topicNameLength, pTopicName, payloadLength, pPayload);
+    KeyStore key_store;
+
     StaticJsonDocument<512> doc;
     DeserializationError error = deserializeJson(doc, pPayload, payloadLength);
     if (error) {
@@ -191,6 +199,11 @@ void MN8App::on_incoming_mqtt(
         return;
     }
 
+    char mac_address[13] = {0};
+    get_fuse_mac_address_string(mac_address);
+    memset(topic, 0, sizeof(topic));
+    memset(payload, 0, sizeof(payload));
+
     if (strnstr(pTopicName, "ledstate", topicNameLength) != NULL) {
         if (root.containsKey("port0")) {
             JsonObject port0 = root["port0"];
@@ -198,9 +211,9 @@ void MN8App::on_incoming_mqtt(
                 const char* state = port0["state"];
                 int charge_percent = port0["charge_percent"];
                 ESP_LOGI(TAG, "port 0 new state : %s", state);
-                        this->get_context().get_led_task_0().set_state(state, charge_percent);
-                    }
-                }
+                this->get_context().get_led_task_0().set_state(state, charge_percent);
+            }
+        }
 
         if (root.containsKey("port1")) {
             JsonObject port1 = root["port1"];
@@ -211,18 +224,43 @@ void MN8App::on_incoming_mqtt(
                 this->get_context().get_led_task_1().set_state(state, charge_percent);
             }
         }
+
+        snprintf((char *) topic, 64, "%s/ack-ledstate", mac_address);
+        strncpy((char *) payload, pPayload, payloadLength);
+
+        this->get_context().get_mqtt_agent().publish_message(topic, payload, 3);
     } else if (strnstr(pTopicName, "ping", topicNameLength) != NULL) {
         ESP_LOGI(TAG, "ping received");
-        char topic[64] = {0};
-        char payload[4] = {0};
 
-        char mac_address[13] = {0};
-        get_fuse_mac_address_string(mac_address);
-
-        memset(topic, 0, sizeof(topic));
-        memset(payload, 0, sizeof(payload));
         snprintf((char *) topic, 64, "%s/pong", mac_address);
-        snprintf((char *) payload, sizeof(payload), "{}");
+        snprintf((char *) payload, sizeof(payload), "{\"version\":\"%d.%d.%d\"}", VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH);
+
+        this->get_context().get_mqtt_agent().publish_message(topic, payload, 3);
+    } else if (strnstr(pTopicName, "reboot", topicNameLength) != NULL) {
+        ESP_LOGI(TAG, "reboot received");
+        esp_restart();
+    } else if (strnstr(pTopicName, "set-config", topicNameLength) != NULL) {
+        key_store.openKeyStore("config", e_rw);
+
+        if (root.containsKey("heartbeat_frequency")) {
+            uint16_t heartbeat_frequency = root["heartbeat_frequency"];
+            ESP_LOGI(TAG, "heartbeat_frequency : %d", heartbeat_frequency);
+            key_store.setKeyValue("heartbeat_frequency", heartbeat_frequency);
+            this->context.get_iot_heartbeat().set_heartbeat_frequency(heartbeat_frequency);
+        }
+    } else if (strnstr(pTopicName, "get-config", topicNameLength) != NULL) {
+        key_store.openKeyStore("config", e_ro);
+
+        uint16_t heartbeat_frequency = this->context.get_iot_heartbeat().get_heartbeat_frequency();
+
+        snprintf((char *) topic, 64, "%s/config", mac_address);
+        snprintf(
+            payload, sizeof(payload),
+            R"({
+                "heartbeat_frequency":"%d",
+            })",
+            heartbeat_frequency
+        );
 
         this->get_context().get_mqtt_agent().publish_message(topic, payload, 3);
     }
@@ -273,14 +311,11 @@ void MN8App::on_mqtt_event(MqttAgent::event_t event) {
     }
 }
 
-
 //*****************************************************************************
 /**
  * @brief Loop function for the MN8App.
  * 
  * This function will be called from the main loop.
- * It will handle the state machine logic?? TBD
- * 
  */
 void MN8App::loop(void) {
     mn8_event_t event;
@@ -289,7 +324,6 @@ void MN8App::loop(void) {
     this->state_machine.turn_on();
 
     while(1) {
-        ESP_LOGI(TAG, "Waiting for event");
         if (xQueueReceive(this->message_queue, &event, xTicksToWait) == pdTRUE) {
             ESP_LOGI(TAG, "Event received : %d", event);
             this->state_machine.handle_event(event);

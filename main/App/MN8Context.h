@@ -5,6 +5,7 @@
 #include "App/NetworkAgent/NetworkConnectionAgent.h"
 #include "App/MqttAgent/MqttAgent.h"
 #include "App/Configuration/ThingConfig.h"
+#include "App/IotHeartbeat.h"
 
 #include "LED/LedTaskSpi.h"
 
@@ -24,6 +25,8 @@ public:
 
     inline ThingConfig& get_thing_config(void) { return this->thing_config; }
 
+    inline IotHeartbeat& get_iot_heartbeat(void) { return this->iot_heartbeat; }
+
 private:
     NetworkConnectionAgent network_connection_agent;
     MqttAgent mqtt_agent;
@@ -32,4 +35,6 @@ private:
 
     LedTaskSpi led_task_0;
     LedTaskSpi led_task_1;
+
+    IotHeartbeat iot_heartbeat;
 };
