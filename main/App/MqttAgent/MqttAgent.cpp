@@ -266,7 +266,7 @@ void MqttAgent::taskFunction(void) {
         ESP_LOGD(TAG, "Connected flag is %s", connected ? "true" : "false");
         if (!connected) {
             // sleep for a little bit to ensure the connection is fully up.
-            vTaskDelay(500 / portTICK_PERIOD_MS);
+            vTaskDelay(2000 / portTICK_PERIOD_MS);
 
             ret = this->mqtt_connection.connect_with_retries(this->mqtt_context.get_mqtt_context(), 10);
             if (ret != ESP_OK) {
@@ -290,7 +290,7 @@ void MqttAgent::taskFunction(void) {
             }
 
             // sleep for a second to ensure the connection is fully up.
-            vTaskDelay(500 / portTICK_PERIOD_MS);
+            vTaskDelay(2000 / portTICK_PERIOD_MS);
 
             // This should be in the main app state machine logic.
             // but for testing right now.
