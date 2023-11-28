@@ -82,5 +82,4 @@ private:
     MN8Context context;
     MN8StateMachine state_machine;
     QueueHandle_t message_queue;
-    IotHeartbeat iot_heartbeat;
 };  // class MN8App

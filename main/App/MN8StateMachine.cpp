@@ -61,6 +61,14 @@ esp_err_t MN8StateMachine::setup(MN8Context* context)
     this->state = e_mn8_unknown_state;
     this->state_handler = &MN8StateMachine::off_state;
 
+    if (!this->context->get_thing_config().is_configured()) {
+        this->state = e_mn8_iot_unprovisioned;
+        this->state_handler = &MN8StateMachine::iot_unprovisioned_state;
+    // } else if (!this->context->get_cp_config().is_configured()) {
+    //     this->state = e_mn8_cp_unprovisioned;
+    //     this->state_handler = &MN8StateMachine::cp_unprovisioned_state;
+    }
+
     return ret;
 }
 
@@ -77,9 +85,26 @@ esp_err_t MN8StateMachine::turn_off(void) {
 }
 
 //*****************************************************************************
+const char* MN8StateMachine::get_current_state_name(void) {
+    switch(this->state) {
+        case e_mn8_off              : return "off";
+        case e_mn8_connecting       : return "connecting";
+        case e_mn8_connected        : return "connected";
+        case e_mn8_iot_unprovisioned: return "iot_unprovisioned";
+        case e_mn8_cp_unprovisioned : return "cp_unprovisioned";
+        case e_mn8_connection_error : return "connection_error";
+        case e_mn8_disconnecting    : return "disconnecting";
+        case e_mn8_disconnected     : return "disconnected";
+        default:
+            return "unknown";
+    }
+}
+
+//*****************************************************************************
 void MN8StateMachine::handle_event(mn8_event_t event) {
     typedef MN8StateMachine SM;
 
+    ESP_LOGI(TAG, "Handling event %d while in state %d", event, this->state);
     mn8_state_t next_state = std::invoke(state_handler, this, event);
     if (next_state != this->state) {
         switch(next_state) {
@@ -100,6 +125,7 @@ void MN8StateMachine::handle_event(mn8_event_t event) {
         // be the same as the next state.
         std::invoke(state_handler, this, event);
     }
+    ESP_LOGI(TAG, "Handled event %d now in state %d", event, this->state);
 }
 
 //*****************************************************************************
@@ -137,6 +163,35 @@ mn8_state_t MN8StateMachine::off_state(mn8_event_t event) {
 
 //*****************************************************************************
 /**
+ * @brief Handle the unprovisioned state.
+ * 
+ * When unprovisioned, there are no possible transition.  Unit must be rebooted
+ * to transition to the connect state.
+ * 
+ * @param event The event to handle.
+ */
+mn8_state_t MN8StateMachine::iot_unprovisioned_state(mn8_event_t event) {
+    // This is an end sstate a reboot is required.
+    this->context->get_led_task_0().set_state("iot_unprovisioned", 0);
+    this->context->get_led_task_1().set_state("iot_unprovisioned", 0);
+
+    switch (event) {
+        case e_mn8_event_turn_on:
+            this->context->get_network_connection_agent().connect();
+            break;
+        default:
+            break;
+    }
+
+    return e_mn8_iot_unprovisioned;
+}
+
+mn8_state_t MN8StateMachine::cp_unprovisioned_state (mn8_event_t event) {
+    return e_mn8_cp_unprovisioned;
+}
+
+//*****************************************************************************
+/**
  * @brief Handle the connecting state.
  * 
  * When connecting, we wait on the network agent and mqtt agent to report a
@@ -149,11 +204,12 @@ mn8_state_t MN8StateMachine::connecting_state(mn8_event_t event) {
 
     if (this->state != e_mn8_connecting) {
         ESP_LOGI(TAG, "Entering connecting state");
+        this->context->get_network_connection_agent().restart();
         this->state = e_mn8_connecting;
     }
 
     switch (event) {
-        case e_mn8_event_net_connected:
+        // case e_mn8_event_net_connected:
         case e_mn8_event_mqtt_connected:
             if (this->context->get_network_connection_agent().is_connected() &&
                 this->context->get_mqtt_agent().is_connected())
@@ -167,7 +223,7 @@ mn8_state_t MN8StateMachine::connecting_state(mn8_event_t event) {
     }
 
     if (next_state != e_mn8_connecting) {
-        ESP_LOGI(TAG, "Leaving connecting state");
+        ESP_LOGI(TAG, "Leaving connecting state %d", next_state);
     }
 
     return next_state;
@@ -190,19 +246,23 @@ mn8_state_t MN8StateMachine::connected_state(mn8_event_t event) {
     if (this->state != e_mn8_connected) {
         ESP_LOGI(TAG, "Entering connected state");
         this->state = e_mn8_connected;
+        this->context->get_iot_heartbeat().send_heartbeat();
     }
 
     switch (event) {
+        case e_mn8_event_mqtt_disconnected:
         case e_mn8_event_lost_mqtt_connection:
-            // Maybe something is wrong with the network/wifi. 
-            // Force a reconnect?
-            this->context->get_network_connection_agent().restart();
-            next_state = e_mn8_connecting;
-            break;
+        case e_mn8_event_net_disconnected:
         case e_mn8_event_lost_network_connection:
-            // This means the network gave up trying to reconnect.
-            // Go to the error state, or maybe reboot after a while?
-            next_state = e_mn8_connection_error;
+            // Maybe something is wrong with the network/wifi. 
+            // Go back to connecting, that will trigger a disconnect and
+            // reconnect. 
+            // TEMP HACK TO USE WHILE TESTING
+            ESP_LOGI(TAG, "Lost connection, going back to connecting");
+            this->context->get_led_task_0().set_state("iot_unprovisioned", 0);
+            this->context->get_led_task_1().set_state("iot_unprovisioned", 0);
+
+            next_state = e_mn8_connecting;
             break;
         default:
             next_state = e_mn8_connected;
@@ -231,6 +291,9 @@ mn8_state_t MN8StateMachine::connection_error_state(mn8_event_t event) {
 
     if (this->state != e_mn8_connection_error) {
         ESP_LOGI(TAG, "Entering connection_error state");
+        this->context->get_led_task_0().set_state("offline", 0);
+        this->context->get_led_task_1().set_state("offline", 0);
+
         this->state = e_mn8_connection_error;
     }
 

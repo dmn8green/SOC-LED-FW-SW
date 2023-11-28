@@ -50,6 +50,7 @@ void NetworkConnectionStateMachine::handle_event(net_conn_agent_event_t event) {
             case e_nc_state_off                 : this->state_handler = &SM::off_state; break;
             case e_nc_state_connecting          : this->state_handler = &SM::connecting_state; break;
             case e_nc_state_connected           : this->state_handler = &SM::connected_state; break;
+            case e_nc_state_disconnecting       : this->state_handler = &SM::disconnecting_state; break;
             case e_nc_state_testing_connection  : this->state_handler = &SM::testing_connection_state; break;
             case e_nc_state_no_connection_error : this->state_handler = &SM::no_connection_error_state; break;
             default:
@@ -110,7 +111,8 @@ net_conn_agent_state_t NetworkConnectionStateMachine::connecting_state(net_conn_
         case e_nc_event_net_connected     : next_state = e_nc_state_connected; break;
         case e_nc_event_net_disconnected  : next_state = e_nc_state_no_connection_error; break;
         case e_nc_event_timeout:
-            ESP_LOGI(TAG, "Network connection state machine timed out, ping");
+            esp_restart();
+            ESP_LOGI(TAG, "Network connection state machine timed out, ping");            
             break;
         default:
             break;
@@ -172,6 +174,7 @@ net_conn_agent_state_t NetworkConnectionStateMachine::disconnecting_state(net_co
         case e_nc_event_net_disconnected  : next_state = e_nc_state_off; break;
         case e_nc_event_timeout:
             ESP_LOGI(TAG, "Network connection state machine timed out, ping");
+            esp_restart();
             break;
         default:
             break;
@@ -200,6 +203,7 @@ net_conn_agent_state_t NetworkConnectionStateMachine::testing_connection_state(n
         case e_nc_event_net_disconnected : next_state = e_nc_state_no_connection_error; break;
         case e_nc_event_timeout:
             ESP_LOGI(TAG, "Network connection state machine timed out, ping");
+            esp_restart();
             break;
         default:
             break;
@@ -237,6 +241,7 @@ net_conn_agent_state_t NetworkConnectionStateMachine::no_connection_error_state(
             break;
         case e_nc_event_timeout:
             ESP_LOGI(TAG, "Network connection state machine timed out, Reboot?");
+            esp_restart();
             break;
         default:
             break;

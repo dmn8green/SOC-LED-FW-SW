@@ -60,12 +60,14 @@ err:
 //*****************************************************************************
 void NetworkConnectionAgent::connect(void) {
     net_conn_agent_event_t next_event = e_nc_event_net_connect;
+    event_callback(e_net_agent_connecting, event_callback_context);
     xQueueSend(this->update_queue, &next_event, portMAX_DELAY);
 }
 
 //*****************************************************************************
 void NetworkConnectionAgent::disconnect(void) {
     net_conn_agent_event_t next_event = e_nc_event_net_disconnect;
+    event_callback(e_net_agent_disconnecting, event_callback_context);
     xQueueSend(this->update_queue, &next_event, portMAX_DELAY);
 }
 
@@ -88,12 +90,14 @@ void NetworkConnectionAgent::onIPEvent(esp_event_base_t event_base, int32_t even
         case IP_EVENT_ETH_GOT_IP:
             ESP_LOGI(TAG, "Connected with IP Address");
             next_event = e_nc_event_net_connected;
+            event_callback(e_net_agent_connected, event_callback_context);
             xQueueSend(this->update_queue, &next_event, portMAX_DELAY);
             break;
         case IP_EVENT_STA_LOST_IP:
         case IP_EVENT_ETH_LOST_IP:
             ESP_LOGI(TAG, "Disconnected from IP Address");
             next_event = e_nc_event_net_disconnected;
+            event_callback(e_net_agent_disconnected, event_callback_context);
             xQueueSend(this->update_queue, &next_event, portMAX_DELAY);
             break;
         default:
