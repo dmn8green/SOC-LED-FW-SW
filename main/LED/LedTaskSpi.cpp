@@ -287,3 +287,20 @@ esp_err_t LedTaskSpi::set_state(const char *new_state, int charge_percent)
 mapped:
     return this->set_pattern(state, charge_percent);
 }
+
+const char* LedTaskSpi::get_state_as_string(void) {
+    switch (this->state_info.state) {
+        case e_station_available:           return "available";
+        case e_station_waiting_for_power:   return "waiting_for_power";
+        case e_station_charging:            return "charging";
+        case e_station_charging_complete:   return "charging_complete";
+        case e_station_out_of_service:      return "out_of_service";
+        case e_station_disable:             return "disable";
+        case e_station_booting_up:          return "booting_up";
+        case e_station_offline:             return "offline";
+        case e_station_reserved:            return "reserved";
+        case e_station_iot_unprovisioned:   return "iot_unprovisioned";
+        case e_station_unknown:             return "unknown";
+        default:                            return "unknown";
+    }
+}

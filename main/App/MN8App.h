@@ -21,6 +21,9 @@
 
 #include "freertos/queue.h"
 
+#define HEARTBEAT_FREQUENCY_MINUTES  (5)
+#define SENSOR_READING_FREQUENCY_SECONDS (5)
+
 /**
  * @brief MN8App class.
  * 
@@ -79,6 +82,7 @@ private:
     esp_err_t setup_and_start_led_tasks(void);
 
 private:
+    bool night_mode = false;
     MN8Context context;
     MN8StateMachine state_machine;
     QueueHandle_t message_queue;
