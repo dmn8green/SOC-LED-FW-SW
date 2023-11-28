@@ -91,6 +91,8 @@ public:
     esp_err_t set_pattern(led_state_t pattern, int charge_percent);
     esp_err_t set_state(const char* new_state, int charge_percent);
 
+    const char* get_state_as_string(void);
+
 protected:
     void vTaskCodeLed(void);
     static void svTaskCodeLed( void * pvParameters ) { ((LedTaskSpi*)pvParameters)->vTaskCodeLed(); }

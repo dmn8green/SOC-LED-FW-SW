@@ -68,6 +68,7 @@ set(COMPONENT_SRCS
     App/MqttAgent/MqttAgent.cpp
     App/MqttAgent/MqttContext.cpp
     App/MqttAgent/MqttConnection.cpp
+    App/MqttAgent/IotThing.cpp
     App/IotHeartbeat.cpp
     App/MN8Context.cpp
     App/MN8StateMachine.cpp

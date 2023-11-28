@@ -20,11 +20,11 @@ static const char* TAG = "iot_heartbeat";
 
 //******************************************************************************
 esp_err_t IotHeartbeat::setup(
-    MqttAgent* mqtt_context, 
+    MN8Context* mn8_context, 
     ThingConfig* thing_config,
     MN8StateMachine *state_machine
 ) {
-    this->mqtt_context = mqtt_context;
+    this->mn8_context = mn8_context;
     this->thing_config = thing_config;
     this->state_machine = state_machine;
 
@@ -32,39 +32,54 @@ esp_err_t IotHeartbeat::setup(
     key_store.openKeyStore("config", e_ro);
     key_store.getKeyValue("heartbeat_frequency", this->heartbeat_frequency);
 
+    this->message_queue = xQueueCreate(10, sizeof(iot_heartbeat_command_t));
+
     return ESP_OK;
 }
 
+//******************************************************************************
 void IotHeartbeat::send_heartbeat(void) {
     ESP_LOGI(TAG, "Sending heartbeat");
+    if (this->mn8_context->get_mqtt_agent().is_connected()) {
+        this->mn8_context->get_iot_thing().send_heartbeat(
+            this->state_machine->get_current_state_name(),
+            this->mn8_context->get_led_task_0().get_state_as_string(),
+            this->mn8_context->get_led_task_1().get_state_as_string(),
+            this->mn8_context->is_night_mode(),
+            this->mn8_context->has_night_sensor()
+        );
+        
+        if (this->mn8_context->has_night_sensor()) {
+            this->mn8_context->get_iot_thing().send_night_mode(this->mn8_context->is_night_mode());
+        }
+    }
+}
 
-    char topic[64] = {0};
-    char payload[128] = {0};
-
-    char mac_address[13] = {0};
-    get_fuse_mac_address_string(mac_address);
-
-    memset(topic, 0, sizeof(topic));
-    memset(payload, 0, sizeof(payload));
-    snprintf((char *) topic, 64, "%s/heartbeat", mac_address);
-    snprintf((char *) payload, sizeof(payload), 
-      R"({
-        "version":"%d.%d.%d",
-        "current_state":"%s",
-      })", 
-      VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH,
-      this->state_machine->get_current_state_name()
-    );
-
-    this->mqtt_context->publish_message(topic, payload, 3);
+void IotHeartbeat::set_night_mode(bool night_mode) {
+    this->mn8_context->set_night_mode(night_mode);
+    iot_heartbeat_command_t command = e_iot_night_mode_changed;
+    xQueueSend(this->message_queue, &command, 0);
 }
 
 //******************************************************************************
 void IotHeartbeat::taskFunction(void) {
     ESP_LOGI(TAG, "Starting IotHeartbeat task");
+    iot_heartbeat_command_t command;
+    TickType_t wait_time = this->heartbeat_frequency * 60 * 1000 / portTICK_PERIOD_MS;
+
     while (1) {
-        vTaskDelay((this->heartbeat_frequency * 60 * 1000) / portTICK_PERIOD_MS);
-        if (this->mqtt_context->is_connected()) {
+        ESP_LOGI(TAG, "Waiting for command or timeout");
+        if (xQueueReceive(this->message_queue, &command, wait_time) == pdTRUE) {
+            switch (command) {
+                case e_iot_night_mode_changed:
+                case e_iot_heartbeat_send:
+                    this->send_heartbeat();
+                    break;
+                default:
+                    ESP_LOGE(TAG, "Unknown command received");
+                    break;
+            }
+        } else {
             this->send_heartbeat();
         }
     }

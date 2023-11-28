@@ -4,6 +4,7 @@
 
 #include "App/NetworkAgent/NetworkConnectionAgent.h"
 #include "App/MqttAgent/MqttAgent.h"
+#include "App/MqttAgent/IotThing.h"
 #include "App/Configuration/ThingConfig.h"
 #include "App/IotHeartbeat.h"
 
@@ -26,6 +27,13 @@ public:
     inline ThingConfig& get_thing_config(void) { return this->thing_config; }
 
     inline IotHeartbeat& get_iot_heartbeat(void) { return this->iot_heartbeat; }
+    inline IotThing& get_iot_thing(void) { return this->iot_thing; }
+
+    inline bool is_night_mode(void) { return this->night_mode; }
+    inline void set_night_mode(bool night_mode) { this->night_mode = night_mode; }
+
+    inline bool has_night_sensor(void) { return this->night_sensor_present; }
+    inline void set_has_night_sensor(bool has_night_sensor) { this->night_sensor_present = has_night_sensor; }
 
 private:
     NetworkConnectionAgent network_connection_agent;
@@ -37,4 +45,9 @@ private:
     LedTaskSpi led_task_1;
 
     IotHeartbeat iot_heartbeat;
+
+    IotThing iot_thing;
+
+    bool night_mode = false;
+    bool night_sensor_present = false;
 };

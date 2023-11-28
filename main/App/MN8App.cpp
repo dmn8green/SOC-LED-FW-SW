@@ -105,6 +105,7 @@ static void configure_gpio_for_light_sensor(void) {
  */
 esp_err_t MN8App::setup(void) {
     esp_err_t ret = ESP_OK;
+    KeyStore key_store;
 
     auto& thing_config = this->context.get_thing_config();
     configure_gpio_for_light_sensor();
@@ -137,9 +138,10 @@ esp_err_t MN8App::setup(void) {
     thing_config.load();
     if (thing_config.is_configured()) {
         this->context.get_mqtt_agent().setup(&thing_config);
+        this->context.get_iot_thing().setup(&thing_config, &this->context.get_mqtt_agent());
         this->context.get_mqtt_agent().start();
 
-        this->context.get_iot_heartbeat().setup(&this->context.get_mqtt_agent(), &thing_config, &this->state_machine);
+        this->context.get_iot_heartbeat().setup(&this->context, &thing_config, &this->state_machine);
         this->context.get_iot_heartbeat().start();
     }
 
@@ -205,6 +207,12 @@ void MN8App::on_incoming_mqtt(
     memset(payload, 0, sizeof(payload));
 
     if (strnstr(pTopicName, "ledstate", topicNameLength) != NULL) {
+        if (root.containsKey("night_mode")) {
+            bool night_mode = root["night_mode"];
+            this->context.set_night_mode(night_mode);
+            Colors::instance().setMode(night_mode ? LED_INTENSITY_LOW : LED_INTENSITY_HIGH);
+        }
+
         if (root.containsKey("port0")) {
             JsonObject port0 = root["port0"];
             if (port0.containsKey("state")) {
@@ -225,17 +233,16 @@ void MN8App::on_incoming_mqtt(
             }
         }
 
-        snprintf((char *) topic, 64, "%s/ack-ledstate", mac_address);
-        strncpy((char *) payload, pPayload, payloadLength);
-
-        this->get_context().get_mqtt_agent().publish_message(topic, payload, 3);
+        this->get_context().get_iot_thing().ack_led_state_change(pPayload);
     } else if (strnstr(pTopicName, "ping", topicNameLength) != NULL) {
         ESP_LOGI(TAG, "ping received");
-
-        snprintf((char *) topic, 64, "%s/pong", mac_address);
-        snprintf((char *) payload, sizeof(payload), "{\"version\":\"%d.%d.%d\"}", VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH);
-
-        this->get_context().get_mqtt_agent().publish_message(topic, payload, 3);
+        this->get_context().get_iot_thing().send_pong(
+            this->state_machine.get_current_state_name(),
+            this->get_context().get_led_task_0().get_state_as_string(),
+            this->get_context().get_led_task_1().get_state_as_string(),
+            this->get_context().is_night_mode(),
+            this->get_context().has_night_sensor()
+        );
     } else if (strnstr(pTopicName, "reboot", topicNameLength) != NULL) {
         ESP_LOGI(TAG, "reboot received");
         esp_restart();
@@ -323,6 +330,8 @@ void MN8App::loop(void) {
     
     this->state_machine.turn_on();
 
+    bool new_night_mode = false;
+
     while(1) {
         if (xQueueReceive(this->message_queue, &event, xTicksToWait) == pdTRUE) {
             ESP_LOGI(TAG, "Event received : %d", event);
@@ -331,7 +340,17 @@ void MN8App::loop(void) {
 
         int lightSensorState = gpio_get_level((gpio_num_t) LIGHT_SENSOR_GPIO_NUM);
         ESP_LOGD(TAG, "Light sensor state : %d", lightSensorState);
-        Colors::instance().setMode(lightSensorState == 0 ? LED_INTENSITY_LOW : LED_INTENSITY_HIGH);
+
+        // Accessing the freertos mutex fails when called from the main
+        // loop.  So we have to do this here.
+        new_night_mode = lightSensorState == 0;
+        if (night_mode != new_night_mode) {
+            // WE GOT A TRANSITION WE MUST HAVE A SENSOR            
+            this->context.set_has_night_sensor(true);
+            night_mode = new_night_mode;
+            ESP_LOGI(TAG, "Night mode : %d", night_mode);
+            this->context.get_iot_heartbeat().set_night_mode(night_mode);
+        }
     }
 }
 
