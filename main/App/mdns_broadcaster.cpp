@@ -1,6 +1,6 @@
 #include "mdns_broadcaster.h"
 
-#include "utils/FuseMacAddress.h"
+#include "Utils/FuseMacAddress.h"
 
 #include "esp_netif_ip_addr.h"
 #include "esp_mac.h"
