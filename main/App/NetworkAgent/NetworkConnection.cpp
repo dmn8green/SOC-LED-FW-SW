@@ -17,6 +17,8 @@
 #include "esp_check.h"
 #include "pin_def.h"
 
+#include "phy.h"
+
 static const char *TAG = "NetworkConnection";
 
 //*****************************************************************************
@@ -32,11 +34,23 @@ static const char *TAG = "NetworkConnection";
 esp_err_t NetworkConnection::setup(void)
 {
     esp_err_t ret = ESP_OK;
+    eth_speed_t speed = ETH_SPEED_10M;
 
     // Configure core ethernet stuff.  It's ok if it fails, we will just
     // disable the interface.
+    ESP_LOGI(__func__, ">>>>>>> Configuring ethernet stack");
     this->setup_ethernet_stack();
     ESP_GOTO_ON_ERROR(esp_netif_init(), err, TAG, "Failed to initialize netif");
+
+    // ret = emac_esp32_set_speed(this->eth_handle, ETH_SPEED_100M);
+
+    ret = esp_eth_ioctl(this->eth_handle, ETH_CMD_G_SPEED, (void *) &speed);
+    if (ret != ESP_OK) {
+        ESP_LOGE(__func__, "Failed to get ethernet speed");
+        speed = ETH_SPEED_10M;
+    }
+
+    ESP_LOGI(__func__, ">>>>>>> Creating wifi and ethernet connections speed %d", speed);
 
     // Setup the wifi and ethernet connections.  This will create the interfaces
     // and the connections.  If the settings stored in nvs are valid, then the

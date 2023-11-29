@@ -65,6 +65,7 @@ typedef enum {
     e_interface_manual_op,
     e_interface_reset_conf_op,
     e_interface_dump_conf_op,
+    e_interface_eth_phy_reset_op,
     e_unknown_op
 } operation_t;
 
@@ -92,6 +93,10 @@ static bool is_cmd_valid(const char *cmd)
 
     // secret commands
     if (STR_IS_EQUAL(cmd, "reset") || STR_IS_EQUAL(cmd, "dump_conf")) {
+        return true;
+    }
+
+    if (STR_IS_EQUAL(cmd, "eth_phy_reset")) {
         return true;
     }
 
@@ -132,6 +137,7 @@ static operation_t infer_operation_from_args(void) {
     if (STR_IS_EQUAL(command, "dhcp"))       { return e_interface_dhcp_op; }
     if (STR_IS_EQUAL(command, "reset"))      { return e_interface_reset_conf_op; }
     if (STR_IS_EQUAL(command, "dump_conf"))  { return e_interface_dump_conf_op; }
+    if (STR_IS_EQUAL(command, "eth_phy_reset")) { return e_interface_eth_phy_reset_op; }
 
     if (STR_IS_EQUAL(command, "manual")) {
         if (STR_IS_EMPTY(ip) || STR_IS_EMPTY(netmask) || STR_IS_EMPTY(gateway) || STR_IS_EMPTY(dns)) {
@@ -232,6 +238,16 @@ static int print_interface_information_op(Connection *connection)
     return 0;
 }
 
+static int op_interface_phy_reset(Connection *connection)
+{
+    printf("Resetting PHY on interface %s\n", connection->get_name());
+    //esp_eth_handle_t handle = MN8App::instance().get_network_connection_agent().get_eth_handle();
+    gpio_set_level(GPIO_NUM_32, 0);
+    vTaskDelay(100 / portTICK_PERIOD_MS);
+    gpio_set_level(GPIO_NUM_32, 1);
+    return 0;
+}
+
 //*****************************************************************************
 static int ifconfig_cmd(int argc, char **argv)
 {
@@ -257,6 +273,7 @@ static int ifconfig_cmd(int argc, char **argv)
         case e_interface_manual_op:        return op_interface_manual(connection);
         case e_interface_reset_conf_op:    return op_interface_reset_conf(connection);
         case e_interface_dump_conf_op:     return op_interface_dump_conf(connection);
+        case e_interface_eth_phy_reset_op: return op_interface_phy_reset(connection);
         case e_unknown_op:
             printf("Unknown operation\n");
             return 1;

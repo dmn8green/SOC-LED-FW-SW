@@ -40,9 +40,9 @@ protected:
     virtual void taskFunction(void) override;
     
 private:
-    MN8Context* mn8_context;
-    ThingConfig* thing_config;
+    MN8Context* mn8_context = nullptr;
+    ThingConfig* thing_config = nullptr;
     uint16_t heartbeat_frequency = HEARTBEAT_FREQUENCY_MINUTES;
-    MN8StateMachine *state_machine;
+    MN8StateMachine *state_machine = nullptr;
     QueueHandle_t message_queue = nullptr;
 };

@@ -73,6 +73,8 @@ set(COMPONENT_SRCS
     App/MN8Context.cpp
     App/MN8StateMachine.cpp
     App/MN8App.cpp
+    App/mdns_broadcaster.cpp
+    App/udp_server.cpp
     main.cpp
 )
 

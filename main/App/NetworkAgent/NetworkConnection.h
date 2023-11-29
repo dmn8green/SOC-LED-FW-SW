@@ -49,6 +49,7 @@ public:
     inline EthernetConnection* get_ethernet_connection(void) { return this->ethernet_connection; }
 
     Connection* get_connection(const char* interface);
+    esp_eth_handle_t* get_eth_handle(void) { return this->eth_handle; }
 
 protected:
     void setup_ethernet_stack(void);
