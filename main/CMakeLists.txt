@@ -31,6 +31,7 @@ set(COMPONENT_SRCS
     Utils/HSV2RGB.cpp
     Utils/Colors.cpp
     Utils/FreeRTOSTask.cpp
+    Utils/iot_provisioning.cpp
     LED/LedTaskSpi.cpp
     LED/RmtOverSpi.cpp
     #LED/Animations/ChasingAnimation.cpp
@@ -40,7 +41,6 @@ set(COMPONENT_SRCS
     LED/Animations/StaticAnimation.cpp
     LED/Animations/SmoothRatePulseCurve.cpp
     LED/Animations/ChargingAnimation.cpp
-    ReplConsole/Utils/iot.cpp
     ReplConsole/repl_console.cpp
     ReplConsole/cmd_factory_reset.cpp
     ReplConsole/cmd_tasks.cpp
