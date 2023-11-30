@@ -122,6 +122,8 @@ esp_err_t MN8App::setup(void) {
 
     configure_gpio_for_demo();
 
+    this->context.setup();
+
     this->context.get_network_connection_agent().register_event_callback(this->sOn_network_event, this);
     this->context.get_mqtt_agent().register_event_callback(this->sOn_mqtt_event, this);
     this->context.get_mqtt_agent().register_handle_incoming_mqtt(this->sOn_incoming_mqtt, this);
