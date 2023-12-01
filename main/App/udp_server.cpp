@@ -10,6 +10,8 @@
 #include "udp_server.h"
 #include "App/Configuration/ChargePointConfig.h"
 #include "Utils/FuseMacAddress.h"
+#include "Utils/iot_provisioning.h"
+#include "App/Configuration/ThingConfig.h"
 
 #include "rev.h"
 
@@ -62,6 +64,9 @@ static void handle_get_chargepoint_config(JsonObject& root, JsonObject& response
 static void handle_set_chargepoint_config(JsonObject& root, JsonObject& response);
 static void handle_unprovision_chargepoint(JsonObject& root, JsonObject& response);
 static void handle_get_info(JsonObject& root, JsonObject& response);
+static void handle_provision_aws(JsonObject& root, JsonObject& response);
+static void handle_reboot(JsonObject& root, JsonObject& response);
+static void handle_set_led_debug_state(JsonObject& root, JsonObject& response);
 
 //*****************************************************************************
 static void udp_server_task(void *pvParameters)
@@ -163,7 +168,7 @@ esp_err_t start_udp_server(MN8Context* context) {
 //*****************************************************************************
 void udp_server_callback(char *data, int len, char *out, int& out_len) {
     StaticJsonDocument<4096> doc;
-    StaticJsonDocument<8192> docResponse;
+    StaticJsonDocument<4096> docResponse;
     char handling_error[512] = {0};
     char mac_address[13] = {0};
 
@@ -177,7 +182,7 @@ void udp_server_callback(char *data, int len, char *out, int& out_len) {
     DeserializationError error = deserializeJson(doc, data, len);
     if (error) {
         ESP_LOGE(TAG, "deserializeJson() failed: %s", error.c_str());
-        snprintf(handling_error, sizeof(handling_error), "err:deserializeJson() failed: %s", error.c_str());
+        snprintf(handling_error, sizeof(handling_error), "deserializeJson failed %s", error.c_str());
         response["message"] = handling_error;
         goto done;
     } else {
@@ -185,7 +190,7 @@ void udp_server_callback(char *data, int len, char *out, int& out_len) {
         JsonObject root = doc.as<JsonObject>();
         if (!root.containsKey("command")) {
             ESP_LOGE(TAG, "deserializeJson() failed: no cmd specified");
-            snprintf(handling_error, sizeof(handling_error), "err:deserializeJson() failed: no cmd");
+            snprintf(handling_error, sizeof(handling_error), "deserializeJson failed no cmd");
             response["message"] = handling_error;
             goto done;
         }
@@ -212,10 +217,25 @@ void udp_server_callback(char *data, int len, char *out, int& out_len) {
             ESP_LOGI(TAG, "unprovision-chargepoint requested");
             handle_unprovision_chargepoint(root, response);
 
+        } else if (STR_IS_EQUAL(root["command"], "provision-aws")) {
+
+            ESP_LOGI(TAG, "provision-aws requested");
+            handle_provision_aws(root, response);
+
         } else if (STR_IS_EQUAL(root["command"], "get-info")) {
                 
             ESP_LOGI(TAG, "get-info requested");
             handle_get_info(root, response);
+
+        } else if (STR_IS_EQUAL(root["command"], "reboot")) {
+
+                ESP_LOGI(TAG, "reboot requested");
+                handle_reboot(root, response);
+
+        } else if (STR_IS_EQUAL(root["command"], "set-led-debug-state")) {
+                
+                ESP_LOGI(TAG, "set-led-debug-state requested");
+                handle_set_led_debug_state(root, response);
 
         } else {
 
@@ -248,13 +268,13 @@ static void handle_get_chargepoint_config(JsonObject& root, JsonObject& response
     JsonObject led_1 = data.createNestedObject("led_1");
     JsonObject led_2 = data.createNestedObject("led_2");
 
-    VALIDATE_COND(cpConfig.load() == ESP_OK, "Failed to load chargepoint config");
-    
-    if (!cpConfig.is_configured()) {
+    if (cpConfig.load() != ESP_OK || !cpConfig.is_configured()) {
         response["status"] = "ok";
         response["message"] = "Chargepoint not configured";
+        data["is_configured"] = false;
     } else {
         response["status"] = "ok";
+        data["is_configured"] = true;
         data["group_id"] = cpConfig.get_group_id();
 
         led_1["station_id"] = cpConfig.get_led_1_station_id(port_number);
@@ -263,12 +283,6 @@ static void handle_get_chargepoint_config(JsonObject& root, JsonObject& response
         led_2["station_id"] = cpConfig.get_led_2_station_id(port_number);
         led_2["port_number"] = port_number;
     }
-
-    response["status"] = "ok";
-    return;
-
-err:
-    response["status"] = "err";
 }
 
 //*****************************************************************************
@@ -348,8 +362,8 @@ static void handle_get_info(JsonObject& root, JsonObject& response) {
     JsonObject hardware = data.createNestedObject("hardware");
     hardware["mac_address"] = context->get_mac_address();
 
-    JsonObject thing = data.createNestedObject("aws");
-    if (context->get_thing_config().load() == ESP_OK && context->get_thing_config().is_configured()) {
+    JsonObject thing = data.createNestedObject("aws_config");
+    if (context->get_thing_config().is_configured()) {
         thing["is_configured"] = true;
         thing["thing_id"] = context->get_thing_config().get_thing_name();
         thing["endpoint"] = context->get_thing_config().get_endpoint_address();
@@ -357,7 +371,7 @@ static void handle_get_info(JsonObject& root, JsonObject& response) {
         thing["is_configured"] = false;
     }
 
-    JsonObject chargepoint = data.createNestedObject("chargepoint");
+    JsonObject chargepoint = data.createNestedObject("cp_config");
     if (cpConfig.load() == ESP_OK && cpConfig.is_configured()) {
         uint8_t port_number = 0;
 
@@ -378,4 +392,60 @@ static void handle_get_info(JsonObject& root, JsonObject& response) {
 
     response["status"] = "ok";
     return;
+}
+
+//*****************************************************************************
+static void handle_provision_aws(JsonObject& root, JsonObject& response) {
+    ESP_LOGI(TAG, "provision-aws requested");
+
+    JsonObject data = root["data"];
+
+    if (provision_device("", "admin", "secret")) {
+        response["status"] = "ok";
+        response["message"] = "AWS thing provisioned";
+    } else {
+        response["status"] = "err";
+        response["message"] = "Failed to provision AWS thing";
+    }
+}
+
+//*****************************************************************************
+static void handle_reboot(JsonObject& root, JsonObject& response) {
+    ESP_LOGI(TAG, "reboot requested");
+
+    esp_restart();
+}
+
+//*****************************************************************************
+static void handle_set_led_debug_state(JsonObject& root, JsonObject& response) {
+    ESP_LOGI(TAG, "set-led-debug-state requested");
+
+    JsonObject data = root["data"];
+
+    uint16_t led = data["led"];
+    bool state = data["state"];
+    const char* led_state = data["led_state"];
+    char final_state[32] = {0};
+
+    if (state && led_state == nullptr) {
+        snprintf(final_state, sizeof(final_state), "debug_on");
+    } else {
+        snprintf(final_state, sizeof(final_state), "debug_off");
+    }
+
+    switch (led) {
+        case 1:
+            context->get_led_task_0().set_state(final_state, 0);
+            break;
+        case 2:
+            context->get_led_task_1().set_state(final_state, 0);
+            break;
+        default:
+            response["status"] = "err";
+            response["message"] = "Invalid led number";
+            return;
+    }
+
+    response["status"] = "ok";
+    response["message"] = "Led debug state set";
 }
