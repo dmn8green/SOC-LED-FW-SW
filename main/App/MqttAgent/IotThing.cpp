@@ -149,6 +149,20 @@ esp_err_t IotThing::force_refresh_proxy(ChargePointConfig* cp_config) {
     return this->mqtt_agent->publish_message(topic, payload, 3);
 }
 
+esp_err_t IotThing::request_latest_from_proxy(ChargePointConfig* cp_config) {
+    ESP_LOGI(TAG, "Sending request latest from proxy");
+
+    char mac_address[13] = {0};
+    get_fuse_mac_address_string(mac_address);
+
+    memset(topic, 0, sizeof(topic));
+    memset(payload, 0, sizeof(payload));
+    snprintf((char *)topic, 64, "%s/latest", mac_address);
+    snprintf((char *) payload, sizeof(payload), "{}");
+
+    return this->mqtt_agent->publish_message(topic, payload, 3);
+}
+
 esp_err_t IotThing::register_cp_station(ChargePointConfig* cp_config) {
     ESP_LOGI(TAG, "Sending cp provision");
 

@@ -33,6 +33,7 @@ class IotThing : public NoCopy {
         );
 
         esp_err_t force_refresh_proxy(ChargePointConfig* cp_config);
+        esp_err_t request_latest_from_proxy(ChargePointConfig* cp_config);
         esp_err_t register_cp_station(ChargePointConfig* cp_config);
         esp_err_t unregister_cp_station(ChargePointConfig* cp_config);
 

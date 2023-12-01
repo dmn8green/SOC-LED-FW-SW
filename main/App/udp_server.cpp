@@ -67,6 +67,39 @@ static void handle_get_info(JsonObject& root, JsonObject& response);
 static void handle_provision_aws(JsonObject& root, JsonObject& response);
 static void handle_reboot(JsonObject& root, JsonObject& response);
 static void handle_set_led_debug_state(JsonObject& root, JsonObject& response);
+static void handle_refresh_proxy(JsonObject& root, JsonObject& response);
+
+// Not sure how to handle this one yet, or if we even need to trouble shoot from
+// the device.  We could go through the back door and have a specific rest endpoint
+// in aws to ping the device.?
+// 
+// * From the provision UI, user push a get chargepoint latest state button.  
+// * UI send a udp message to this device.
+// * This device will send an mqtt message to the broker to request the latest
+//   state of the chargepoint.
+// * The broker will poll the chargepoint for its status
+// * The broker will send the status to this device via an mqtt message
+// * This device will send the status to the provision UI via udp ?
+// ^^^^^ Not sure how we can easily do this
+//
+// Ideas:
+// 1) Via udp
+// * In the UDP server we keep the address of the client that sent the udp message
+// * When we receive the mqtt message from the broker, we send the udp message to
+//   the client if the udp server is still running.
+// In the client, we use a timeout to bail out if we don't receive the udp message
+// from the device in time.
+//
+// Round trip:
+//    --- (1) udp ---  ---   (2) mqtt   ---
+//    |             |  |                  |
+//    ^             V  ^                  V 
+//   UI            device               broker --- (3) soap ---> chargepoint
+//    ^             V  ^                  V
+//    |             |  |                  |
+//    --- (1) udp ---  ---   (4) mqtt   ---
+static void handle_get_latest_from_proxy(JsonObject& root, JsonObject& response);
+
 
 //*****************************************************************************
 static void udp_server_task(void *pvParameters)
@@ -236,6 +269,16 @@ void udp_server_callback(char *data, int len, char *out, int& out_len) {
                 
                 ESP_LOGI(TAG, "set-led-debug-state requested");
                 handle_set_led_debug_state(root, response);
+
+        } else if (STR_IS_EQUAL(root["command"], "refresh-proxy")) {
+                    
+                    ESP_LOGI(TAG, "refresh-proxy requested");
+                    handle_refresh_proxy(root, response);
+    
+        } else if (STR_IS_EQUAL(root["command"], "get-latest-from-proxy")) {
+                
+                ESP_LOGI(TAG, "get-latest-from-proxy requested");
+                handle_get_latest_from_proxy(root, response);
 
         } else {
 
@@ -448,4 +491,38 @@ static void handle_set_led_debug_state(JsonObject& root, JsonObject& response) {
 
     response["status"] = "ok";
     response["message"] = "Led debug state set";
+}
+
+//*****************************************************************************
+static void handle_refresh_proxy(JsonObject& root, JsonObject& response) {
+    ESP_LOGI(TAG, "refresh-proxy requested");
+
+    VALIDATE_COND(context->get_mqtt_agent().is_connected(), "Not connected to AWS");
+    VALIDATE_COND(cpConfig.load() == ESP_OK, "Failed to load chargepoint config");
+    VALIDATE_COND(cpConfig.is_configured(), "Not configured");
+    VALIDATE_COND(context->get_iot_thing().force_refresh_proxy(&cpConfig) == ESP_OK, "Failed to refresh proxy");
+
+    response["status"] = "ok";
+    response["message"] = "Refreshed proxy";
+    return;
+
+err:
+    response["status"] = "err";
+}
+
+//*****************************************************************************
+static void handle_get_latest_from_proxy(JsonObject& root, JsonObject& response) {
+    ESP_LOGI(TAG, "get-latest-from-proxy requested");
+
+    VALIDATE_COND(context->get_mqtt_agent().is_connected(), "Not connected to AWS");
+    VALIDATE_COND(cpConfig.load() == ESP_OK, "Failed to load chargepoint config");
+    VALIDATE_COND(cpConfig.is_configured(), "Not configured");
+    VALIDATE_COND(context->get_iot_thing().request_latest_from_proxy(&cpConfig) == ESP_OK, "Failed to request latest from proxy");
+
+    response["status"] = "ok";
+    response["message"] = "Requested latest from proxy";
+    return;
+
+err:
+    response["status"] = "err";
 }
