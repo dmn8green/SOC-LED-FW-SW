@@ -71,7 +71,7 @@ void LedTaskSpi::vTaskCodeLed()
             STATIC_ANIM_CASE(e_station_offline,             LED_COLOR_WHITE);
             STATIC_ANIM_CASE(e_station_reserved,            LED_COLOR_ORANGE);
             STATIC_ANIM_CASE(e_station_debug_on,            LED_COLOR_DEBUG_ON);
-            STATIC_ANIM_CASE(e_station_debug_off,           LED_COLOR_DEBUG_OFF);
+            STATIC_ANIM_CASE(e_station_debug_off,           LED_COLOR_BLACK);
             STATIC_ANIM_CASE(e_station_unknown,             LED_COLOR_PURPLE);
             STATIC_ANIM_CASE(e_station_iot_unprovisioned,   LED_COLOR_PURPLE);
             case e_station_charging:

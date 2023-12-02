@@ -27,7 +27,6 @@
 #define COLOR_PURPLE_HIGH 0xFF3DA5
 #define COLOR_BLACK_HIGH  0x000000
 #define COLOR_DEBUG_ON_HIGH    0xFF00FF
-#define COLOR_DEBUG_OFF_HIGH   0x000000
 
 
 #define COLOR_RED_LOW     0x7F0000  // RGB LOW
@@ -40,7 +39,6 @@
 #define COLOR_PURPLE_LOW  0x7F3D65
 #define COLOR_BLACK_LOW   0x000000
 #define COLOR_DEBUG_ON_LOW    0x7F007F
-#define COLOR_DEBUG_OFF_LOW   0x000000
 
 #define COLOR_YELLOW_HSV_HIGH    60, 100,  100
 #define COLOR_BLUE_HSV_HIGH      240, 100, 100
@@ -75,7 +73,6 @@ static std::map<uint32_t, uint32_t> DayColors = {
     { LED_COLOR_PURPLE, COLOR_PURPLE_HIGH},
     { LED_COLOR_BLACK,  COLOR_BLACK_HIGH},
     { LED_COLOR_DEBUG_ON,  COLOR_DEBUG_ON_HIGH},
-    { LED_COLOR_DEBUG_OFF, COLOR_DEBUG_OFF_HIGH}
 };
 
 static std::map<uint32_t, uint32_t> NightColors = {
@@ -89,7 +86,6 @@ static std::map<uint32_t, uint32_t> NightColors = {
     { LED_COLOR_PURPLE, COLOR_PURPLE_LOW},
     { LED_COLOR_BLACK,  COLOR_BLACK_LOW},
     { LED_COLOR_DEBUG_ON,  COLOR_DEBUG_ON_LOW},
-    { LED_COLOR_DEBUG_OFF, COLOR_DEBUG_OFF_LOW}
 };
 
 static const char *TAG = "Colors";
@@ -142,7 +138,7 @@ uint32_t Colors::getRgb (LED_COLOR ledColor)
 {
     uint32_t rgbColor = 0;
 
-    ESP_LOGI(TAG, "getRgb: ledColor = %d intensity %d", ledColor, ledIntensity);
+    //ESP_LOGI(TAG, "getRgb: ledColor = %d intensity %d", ledColor, ledIntensity);
     if (ledIntensity == LED_INTENSITY_LOW)
     {
         rgbColor = NightColors[ledColor];
@@ -151,7 +147,7 @@ uint32_t Colors::getRgb (LED_COLOR ledColor)
     {
         rgbColor = DayColors[ledColor];
     }
-    ESP_LOGI(TAG, "getRgb: rgbColor = %ld", rgbColor);
+    //ESP_LOGI(TAG, "getRgb: rgbColor = %ld", rgbColor);
 
     return rgbColor;
 }
@@ -199,6 +195,7 @@ LED_COLOR Colors::isRgb (uint32_t rgbColor)
         }
     }
 
+    ESP_LOGI(TAG, "isRgb: rgbColor unknown = %ld", rgbColor);
     return LED_COLOR_UNKNOWN;
 }
 
