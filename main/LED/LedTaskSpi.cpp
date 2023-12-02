@@ -70,6 +70,8 @@ void LedTaskSpi::vTaskCodeLed()
             STATIC_ANIM_CASE(e_station_disable,             LED_COLOR_RED);
             STATIC_ANIM_CASE(e_station_offline,             LED_COLOR_WHITE);
             STATIC_ANIM_CASE(e_station_reserved,            LED_COLOR_ORANGE);
+            STATIC_ANIM_CASE(e_station_debug_on,            LED_COLOR_DEBUG_ON);
+            STATIC_ANIM_CASE(e_station_debug_off,           LED_COLOR_BLACK);
             STATIC_ANIM_CASE(e_station_unknown,             LED_COLOR_PURPLE);
             STATIC_ANIM_CASE(e_station_iot_unprovisioned,   LED_COLOR_PURPLE);
             case e_station_charging:
@@ -277,6 +279,8 @@ esp_err_t LedTaskSpi::set_state(const char *new_state, int charge_percent)
     MAP_TO_ENUM(offline);
     MAP_TO_ENUM(reserved);
     MAP_TO_ENUM(iot_unprovisioned);
+    MAP_TO_ENUM(debug_on);
+    MAP_TO_ENUM(debug_off);
     MAP_TO_ENUM(unknown);
     
     if (state == e_station_unknown) {
@@ -300,6 +304,8 @@ const char* LedTaskSpi::get_state_as_string(void) {
         case e_station_offline:             return "offline";
         case e_station_reserved:            return "reserved";
         case e_station_iot_unprovisioned:   return "iot_unprovisioned";
+        case e_station_debug_on:            return "debug_on";
+        case e_station_debug_off:           return "debug_off";
         case e_station_unknown:             return "unknown";
         default:                            return "unknown";
     }

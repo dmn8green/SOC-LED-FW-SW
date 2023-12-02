@@ -1,5 +1,8 @@
 #include "MN8StateMachine.h"
 
+#include "mdns_broadcaster.h"
+#include "udp_server.h"
+
 #include "esp_log.h"
 #include "esp_check.h"
 #include "pin_def.h"
@@ -68,6 +71,9 @@ esp_err_t MN8StateMachine::setup(MN8Context* context)
     //     this->state = e_mn8_cp_unprovisioned;
     //     this->state_handler = &MN8StateMachine::cp_unprovisioned_state;
     }
+
+    initialise_mdns();
+    start_udp_server(this->context);
 
     return ret;
 }

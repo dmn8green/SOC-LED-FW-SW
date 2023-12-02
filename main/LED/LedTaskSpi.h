@@ -45,6 +45,8 @@ typedef enum {
     e_station_offline,             // 07 white   (s)  - Station offline
     e_station_reserved,            // 08 orange  (s)  - Station reserved
     e_station_iot_unprovisioned,   // 09 purple  (s)  - Station not provisioned with AWS
+    e_station_debug_on,            // 10 fushia  (s)  - Debug mode on
+    e_station_debug_off,           // 11 black   (s)  - Debug mode off
     e_station_unknown              // Error state
 } led_state_t;
 

@@ -1,5 +1,5 @@
 #include "IotThing.h"
-
+#include "App/Configuration/ChargePointConfig.h"
 #include "App/Configuration/ThingConfig.h"
 #include "App/MqttAgent/MqttAgent.h"
 
@@ -45,9 +45,7 @@ esp_err_t IotThing::send_night_mode(bool night_mode) {
       night_mode ? "true" : "false"
     );
 
-    this->mqtt_agent->publish_message(topic, payload, 3);
-
-    return ESP_OK;
+    return this->mqtt_agent->publish_message(topic, payload, 3);
 }
 
 esp_err_t IotThing::send_heartbeat(
@@ -82,9 +80,7 @@ esp_err_t IotThing::send_heartbeat(
         has_night_sensor ? "true" : "false"
     );
 
-    this->mqtt_agent->publish_message(topic, payload, 3);
-
-    return ESP_OK;
+    return this->mqtt_agent->publish_message(topic, payload, 3);
 }
 
 esp_err_t IotThing::ack_led_state_change(const char* received_payload) {
@@ -96,9 +92,7 @@ esp_err_t IotThing::ack_led_state_change(const char* received_payload) {
     memset(topic, 0, sizeof(topic));
     snprintf((char *) topic, sizeof(topic), "%s/ack_ledstate", mac_address);
 
-    this->mqtt_agent->publish_message(topic, received_payload, 3);
-
-    return ESP_OK;
+    return this->mqtt_agent->publish_message(topic, received_payload, 3);
 }
 
 esp_err_t IotThing::send_pong(
@@ -133,7 +127,98 @@ esp_err_t IotThing::send_pong(
         has_night_sensor ? "true" : "false"
     );
 
-    this->mqtt_agent->publish_message(topic, payload, 3);
+    return this->mqtt_agent->publish_message(topic, payload, 3);
+}
 
-    return ESP_OK;
+esp_err_t IotThing::force_refresh_proxy(ChargePointConfig* cp_config) {
+    ESP_LOGI(TAG, "Sending refresh to proxy");
+
+    char mac_address[13] = {0};
+    get_fuse_mac_address_string(mac_address);
+
+    memset(topic, 0, sizeof(topic));
+    memset(payload, 0, sizeof(payload));
+    snprintf((char *)topic, 64, "%s/refresh", cp_config->get_group_id());
+    snprintf((char *) payload, sizeof(payload), 
+        R"({
+            "thing_id":"%s"
+        })", 
+        mac_address
+    );
+
+    return this->mqtt_agent->publish_message(topic, payload, 3);
+}
+
+esp_err_t IotThing::request_latest_from_proxy(ChargePointConfig* cp_config) {
+    ESP_LOGI(TAG, "Sending request latest from proxy");
+
+    char mac_address[13] = {0};
+    get_fuse_mac_address_string(mac_address);
+
+    memset(topic, 0, sizeof(topic));
+    memset(payload, 0, sizeof(payload));
+    snprintf((char *)topic, 64, "%s/latest", mac_address);
+    snprintf((char *) payload, sizeof(payload), "{}");
+
+    return this->mqtt_agent->publish_message(topic, payload, 3);
+}
+
+esp_err_t IotThing::register_cp_station(ChargePointConfig* cp_config) {
+    ESP_LOGI(TAG, "Sending cp provision");
+
+    char mac_address[13] = {0};
+    get_fuse_mac_address_string(mac_address);
+
+    uint8_t port_number_1 = 0;
+    const char* station_id_1 = cp_config->get_led_1_station_id(port_number_1);
+
+    uint8_t port_number_2 = 0;
+    const char* station_id_2 = cp_config->get_led_2_station_id(port_number_2);
+
+    memset(topic, 0, sizeof(topic));
+    memset(payload, 0, sizeof(payload));
+    snprintf((char *)topic, 64, "%s/register_station", cp_config->get_group_id());
+    snprintf((char *) payload, sizeof(payload), 
+        R"({
+            "thing_id":"%s",
+            "group_id":"%s",
+            "leds": [{
+                "port": %d,
+                "station": "%s",
+                "led": 0,
+                "last_state": "unknown",
+                "last_charge": 0
+            },{
+                "port": %d,
+                "station": "%s",
+                "led": 1,
+                "last_state": "unknown",
+                "last_charge": 0
+            }]
+        })",
+        mac_address, cp_config->get_group_id(),
+        port_number_1, station_id_1,
+        port_number_2, station_id_2
+    );
+
+    return this->mqtt_agent->publish_message(topic, payload, 3);
+}
+
+esp_err_t IotThing::unregister_cp_station(ChargePointConfig* cp_config) {
+    ESP_LOGI(TAG, "Sending cp unprovisioned");
+
+    char mac_address[13] = {0};
+    get_fuse_mac_address_string(mac_address);
+
+    memset(topic, 0, sizeof(topic));
+    memset(payload, 0, sizeof(payload));
+    snprintf((char *) topic, sizeof(topic), "%s/unregister_station", cp_config->is_configured() ? cp_config->get_group_id(): "unknown");
+    snprintf((char *) payload, sizeof(payload), 
+        R"({
+            "thing_id":"%s"
+        })", 
+        mac_address
+    );
+
+    return this->mqtt_agent->publish_message(topic, payload, 3);
 }

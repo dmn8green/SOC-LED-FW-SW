@@ -24,7 +24,7 @@
 
 #include "cmd_iot.h"
 
-#include "ReplConsole/Utils/iot.h"
+#include "Utils/iot_provisioning.h"
 #include "App/Configuration/ThingConfig.h"
 
 #include <string.h>

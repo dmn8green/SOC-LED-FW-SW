@@ -156,6 +156,7 @@ esp_err_t MqttAgent::publish_message(const char *topic, const char *payload, uin
         ESP_LOGE(TAG, "Failed to take mqtt mutex");
         return ESP_ERR_TIMEOUT;
     }
+    ESP_LOGD(TAG, "!!!!!!!!!!!!!!! publish_message Took mqtt mutex");
 
     mqtt_status = MQTT_Publish( this->mqtt_context.get_mqtt_context(), &packet, packet_id );
     if( mqtt_status != MQTTSuccess )
@@ -171,6 +172,7 @@ esp_err_t MqttAgent::publish_message(const char *topic, const char *payload, uin
 
     // give mutex back
     xSemaphoreGive(this->mqtt_mutex);
+    ESP_LOGD(TAG, "!!!!!!!!!!!!!!! publish_message Gave back mqtt mutex");
 
     return ret;
 }
@@ -219,6 +221,7 @@ esp_err_t MqttAgent::process_mqtt_loop(void) {
         ESP_LOGE(TAG, "Failed to take mqtt mutex");
         return ESP_FAIL;
     }
+    ESP_LOGD(TAG, "!!!!!!!!!!!!!!! process_mqtt_loop Took mqtt mutex");
 
     // Only stay in the loop if there is more incoming data.  This under the hood
     // ends up calling our subscribe callback.
@@ -243,6 +246,7 @@ esp_err_t MqttAgent::process_mqtt_loop(void) {
 
     // give back mutex
     xSemaphoreGive(this->mqtt_mutex);
+    ESP_LOGD(TAG, "!!!!!!!!!!!!!!! process_mqtt_loop Gave back mqtt mutex");
 
     return ret;
 }
@@ -333,6 +337,9 @@ void MqttAgent::taskFunction(void) {
             this->mqtt_connection.disconnect(this->mqtt_context.get_mqtt_context());
             connected = false;
         }
+
+        // Pause for a sec to give time for publish message to grab hold of the mutex.
+        vTaskDelay(100 / portTICK_PERIOD_MS);
     }
 
     vTaskDelete(NULL);

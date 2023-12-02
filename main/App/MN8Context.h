@@ -16,6 +16,8 @@ public:
     ~MN8Context(void) = default;
 
 public:
+    esp_err_t setup(void);
+
     // Accessors
     inline bool is_iot_thing_provisioned(void) { return thing_config.is_configured(); } 
     inline NetworkConnectionAgent& get_network_connection_agent(void) { return this->network_connection_agent; }
@@ -35,6 +37,8 @@ public:
     inline bool has_night_sensor(void) { return this->night_sensor_present; }
     inline void set_has_night_sensor(bool has_night_sensor) { this->night_sensor_present = has_night_sensor; }
 
+    inline const char* get_mac_address(void) { return this->mac_address; }
+
 private:
     NetworkConnectionAgent network_connection_agent;
     MqttAgent mqtt_agent;
@@ -47,6 +51,8 @@ private:
     IotHeartbeat iot_heartbeat;
 
     IotThing iot_thing;
+
+    char mac_address[13] = {0};
 
     bool night_mode = false;
     bool night_sensor_present = false;

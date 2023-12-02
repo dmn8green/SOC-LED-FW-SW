@@ -1,5 +1,6 @@
 ## IDF Component Manager Manifest File
 dependencies:
+  espressif/mdns: "*"
   espressif/led_strip: ">=1.1.0-alpha"
   espressif/esp_secure_cert_mgr: "^2.0.8"
   espressif/cbor:

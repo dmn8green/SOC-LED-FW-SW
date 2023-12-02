@@ -122,6 +122,8 @@ esp_err_t MN8App::setup(void) {
 
     configure_gpio_for_demo();
 
+    this->context.setup();
+
     this->context.get_network_connection_agent().register_event_callback(this->sOn_network_event, this);
     this->context.get_mqtt_agent().register_event_callback(this->sOn_mqtt_event, this);
     this->context.get_mqtt_agent().register_handle_incoming_mqtt(this->sOn_incoming_mqtt, this);
@@ -233,7 +235,8 @@ void MN8App::on_incoming_mqtt(
             }
         }
 
-        this->get_context().get_iot_thing().ack_led_state_change(pPayload);
+        memcpy(payload, pPayload, payloadLength);
+        this->get_context().get_iot_thing().ack_led_state_change(payload);
     } else if (strnstr(pTopicName, "ping", topicNameLength) != NULL) {
         ESP_LOGI(TAG, "ping received");
         this->get_context().get_iot_thing().send_pong(
@@ -343,13 +346,15 @@ void MN8App::loop(void) {
 
         // Accessing the freertos mutex fails when called from the main
         // loop.  So we have to do this here.
-        new_night_mode = lightSensorState == 0;
-        if (night_mode != new_night_mode) {
-            // WE GOT A TRANSITION WE MUST HAVE A SENSOR            
-            this->context.set_has_night_sensor(true);
-            night_mode = new_night_mode;
-            ESP_LOGI(TAG, "Night mode : %d", night_mode);
-            this->context.get_iot_heartbeat().set_night_mode(night_mode);
+        if (this->context.get_thing_config().is_configured()) {
+            new_night_mode = lightSensorState == 0;
+            if (night_mode != new_night_mode) {
+                // WE GOT A TRANSITION WE MUST HAVE A SENSOR            
+                this->context.set_has_night_sensor(true);
+                night_mode = new_night_mode;
+                ESP_LOGI(TAG, "Night mode : %d", night_mode);
+                this->context.get_iot_heartbeat().set_night_mode(night_mode);
+            }
         }
     }
 }

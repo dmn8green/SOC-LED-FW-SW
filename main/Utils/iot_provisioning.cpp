@@ -10,7 +10,7 @@
  */
 //*****************************************************************************
 
-#include "iot.h"
+#include "iot_provisioning.h"
 
 #include "Utils/FuseMacAddress.h"
 #include "App/Configuration/ThingConfig.h"
