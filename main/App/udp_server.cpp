@@ -200,16 +200,19 @@ esp_err_t start_udp_server(MN8Context* context) {
 
 //*****************************************************************************
 void udp_server_callback(char *data, int len, char *out, int& out_len) {
-    StaticJsonDocument<4096> doc;
-    StaticJsonDocument<4096> docResponse;
+    StaticJsonDocument<2048> doc;
+    StaticJsonDocument<2048> docResponse;
     char handling_error[512] = {0};
     char mac_address[13] = {0};
 
     ESP_LOGI(TAG, "udp_server_callback: %s", data);
 
+    get_fuse_mac_address_string(mac_address);
+
     // Create json response and assume it will be not be successful
     JsonObject response = docResponse.createNestedObject("response");
     response["status"] = "err";
+    response["mac_address"] = mac_address;
 
     // Deser the payload. If it fails, return an error
     DeserializationError error = deserializeJson(doc, data, len);
@@ -230,9 +233,7 @@ void udp_server_callback(char *data, int len, char *out, int& out_len) {
 
         ESP_LOGI(TAG, "cmd: %s", (const char*) root["command"]);
 
-        get_fuse_mac_address_string(mac_address);
         response["command"] = root["command"];
-        response["device_id"] = mac_address;
 
         // handle the command
         if (STR_IS_EQUAL(root["command"], "get-chargepoint-config")) {
