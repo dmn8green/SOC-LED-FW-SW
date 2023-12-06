@@ -46,7 +46,7 @@ static const char *TAG = "udp_server";
 static char rx_buffer[4096];
 static char tx_buffer[8192];
 
-static MN8Context* context = nullptr;
+static MN8Context *context = nullptr;
 
 // This is static because it is used in the udp_server_task functions
 // We create a json response and the response point to this object
@@ -59,21 +59,21 @@ static ChargePointConfig cpConfig;
 //*****************************************************************************
 // Forward declarations
 //*****************************************************************************
-static void udp_server_callback(char *data, int len, char *out, int& out_len);
-static void handle_get_chargepoint_config(JsonObject& root, JsonObject& response);
-static void handle_set_chargepoint_config(JsonObject& root, JsonObject& response);
-static void handle_unprovision_chargepoint(JsonObject& root, JsonObject& response);
-static void handle_get_info(JsonObject& root, JsonObject& response);
-static void handle_provision_aws(JsonObject& root, JsonObject& response);
-static void handle_reboot(JsonObject& root, JsonObject& response);
-static void handle_set_led_debug_state(JsonObject& root, JsonObject& response);
-static void handle_refresh_proxy(JsonObject& root, JsonObject& response);
+static void udp_server_callback(char *data, int len, char *out, int &out_len);
+static void handle_get_chargepoint_config(JsonObject &root, JsonObject &response);
+static void handle_set_chargepoint_config(JsonObject &root, JsonObject &response);
+static void handle_unprovision_chargepoint(JsonObject &root, JsonObject &response);
+static void handle_get_info(JsonObject &root, JsonObject &response);
+static void handle_provision_aws(JsonObject &root, JsonObject &response);
+static void handle_reboot(JsonObject &root, JsonObject &response);
+static void handle_set_led_debug_state(JsonObject &root, JsonObject &response);
+static void handle_refresh_proxy(JsonObject &root, JsonObject &response);
 
 // Not sure how to handle this one yet, or if we even need to trouble shoot from
 // the device.  We could go through the back door and have a specific rest endpoint
 // in aws to ping the device.?
-// 
-// * From the provision UI, user push a get chargepoint latest state button.  
+//
+// * From the provision UI, user push a get chargepoint latest state button.
 // * UI send a udp message to this device.
 // * This device will send an mqtt message to the broker to request the latest
 //   state of the chargepoint.
@@ -93,13 +93,12 @@ static void handle_refresh_proxy(JsonObject& root, JsonObject& response);
 // Round trip:
 //    --- (1) udp ---  ---   (2) mqtt   ---
 //    |             |  |                  |
-//    ^             V  ^                  V 
+//    ^             V  ^                  V
 //   UI            device               broker --- (3) soap ---> chargepoint
 //    ^             V  ^                  V
 //    |             |  |                  |
 //    --- (1) udp ---  ---   (4) mqtt   ---
-static void handle_get_latest_from_proxy(JsonObject& root, JsonObject& response);
-
+static void handle_get_latest_from_proxy(JsonObject &root, JsonObject &response);
 
 //*****************************************************************************
 static void udp_server_task(void *pvParameters)
@@ -110,9 +109,11 @@ static void udp_server_task(void *pvParameters)
     int ip_protocol = 0;
     struct sockaddr_in6 dest_addr;
 
-    while (1) {
+    while (1)
+    {
 
-        if (addr_family == AF_INET) {
+        if (addr_family == AF_INET)
+        {
             struct sockaddr_in *dest_addr_ip4 = (struct sockaddr_in *)&dest_addr;
             dest_addr_ip4->sin_addr.s_addr = htonl(INADDR_ANY);
             dest_addr_ip4->sin_family = AF_INET;
@@ -121,7 +122,8 @@ static void udp_server_task(void *pvParameters)
         }
 
         int sock = socket(addr_family, SOCK_DGRAM, ip_protocol);
-        if (sock < 0) {
+        if (sock < 0)
+        {
             ESP_LOGE(TAG, "Unable to create socket: errno %d", errno);
             break;
         }
@@ -134,7 +136,8 @@ static void udp_server_task(void *pvParameters)
         // setsockopt (sock, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof timeout);
 
         int err = bind(sock, (struct sockaddr *)&dest_addr, sizeof(dest_addr));
-        if (err < 0) {
+        if (err < 0)
+        {
             ESP_LOGE(TAG, "Socket unable to bind: errno %d", errno);
         }
         ESP_LOGI(TAG, "Socket bound, port %d", PORT);
@@ -142,22 +145,28 @@ static void udp_server_task(void *pvParameters)
         struct sockaddr_storage source_addr; // Large enough for both IPv4 or IPv6
         socklen_t socklen = sizeof(source_addr);
 
-        while (1) {
+        while (1)
+        {
             ESP_LOGI(TAG, "Waiting for data");
             memset(rx_buffer, 0, sizeof(rx_buffer));
             int len = recvfrom(sock, rx_buffer, sizeof(rx_buffer) - 1, 0, (struct sockaddr *)&source_addr, &socklen);
 
             // Error occurred during receiving
-            if (len < 0) {
+            if (len < 0)
+            {
                 ESP_LOGE(TAG, "recvfrom failed: errno %d", errno);
                 break;
             }
             // Data received
-            else {
+            else
+            {
                 // Get the sender's ip address as string
-                if (source_addr.ss_family == PF_INET) {
+                if (source_addr.ss_family == PF_INET)
+                {
                     inet_ntoa_r(((struct sockaddr_in *)&source_addr)->sin_addr, addr_str, sizeof(addr_str) - 1);
-                } else if (source_addr.ss_family == PF_INET6) {
+                }
+                else if (source_addr.ss_family == PF_INET6)
+                {
                     inet6_ntoa_r(((struct sockaddr_in6 *)&source_addr)->sin6_addr, addr_str, sizeof(addr_str) - 1);
                 }
 
@@ -165,7 +174,8 @@ static void udp_server_task(void *pvParameters)
                 ESP_LOGI(TAG, "Received %d bytes from %s:", len, addr_str);
                 ESP_LOGI(TAG, "%s: %d", rx_buffer, strlen(rx_buffer));
 
-                if (strlen(rx_buffer) > 1) {
+                if (strlen(rx_buffer) > 1)
+                {
                     memset(tx_buffer, 0, sizeof(tx_buffer));
                     tx_len = sizeof(tx_buffer);
                     udp_server_callback(rx_buffer, len, tx_buffer, tx_len);
@@ -175,14 +185,16 @@ static void udp_server_task(void *pvParameters)
                 tx_buffer[strlen(tx_buffer)] = '\n';
 
                 int err = sendto(sock, tx_buffer, strlen(tx_buffer), 0, (struct sockaddr *)&source_addr, sizeof(source_addr));
-                if (err < 0) {
+                if (err < 0)
+                {
                     ESP_LOGE(TAG, "Error occurred during sending: errno %d", errno);
                     break;
                 }
             }
         }
 
-        if (sock != -1) {
+        if (sock != -1)
+        {
             ESP_LOGE(TAG, "Shutting down socket and restarting...");
             shutdown(sock, 0);
             close(sock);
@@ -192,14 +204,16 @@ static void udp_server_task(void *pvParameters)
 }
 
 //*****************************************************************************
-esp_err_t start_udp_server(MN8Context* context) {
+esp_err_t start_udp_server(MN8Context *context)
+{
     ::context = context;
-    xTaskCreate(udp_server_task, "udp_server", 16536, (void*)AF_INET, 5, NULL);
+    xTaskCreate(udp_server_task, "udp_server", 16536, (void *)AF_INET, 5, NULL);
     return ESP_OK;
 }
 
 //*****************************************************************************
-void udp_server_callback(char *data, int len, char *out, int& out_len) {
+void udp_server_callback(char *data, int len, char *out, int &out_len)
+{
     StaticJsonDocument<2048> doc;
     StaticJsonDocument<2048> docResponse;
     char handling_error[512] = {0};
@@ -216,78 +230,91 @@ void udp_server_callback(char *data, int len, char *out, int& out_len) {
 
     // Deser the payload. If it fails, return an error
     DeserializationError error = deserializeJson(doc, data, len);
-    if (error) {
+    if (error)
+    {
         ESP_LOGE(TAG, "deserializeJson() failed: %s", error.c_str());
         snprintf(handling_error, sizeof(handling_error), "deserializeJson failed %s", error.c_str());
         response["message"] = handling_error;
         goto done;
-    } else {
+    }
+    else
+    {
         // Payload is valid json, check if it contains a command
         JsonObject root = doc.as<JsonObject>();
-        if (!root.containsKey("command")) {
+        if (!root.containsKey("command"))
+        {
             ESP_LOGE(TAG, "deserializeJson() failed: no cmd specified");
             snprintf(handling_error, sizeof(handling_error), "deserializeJson failed no cmd");
             response["message"] = handling_error;
             goto done;
         }
 
-        ESP_LOGI(TAG, "cmd: %s", (const char*) root["command"]);
+        ESP_LOGI(TAG, "cmd: %s", (const char *)root["command"]);
 
         response["command"] = root["command"];
 
         // handle the command
-        if (STR_IS_EQUAL(root["command"], "get-chargepoint-config")) {
+        if (STR_IS_EQUAL(root["command"], "get-chargepoint-config"))
+        {
 
             ESP_LOGI(TAG, "get-chargepoint-config requested");
             handle_get_chargepoint_config(root, response);
-
-        } else if (STR_IS_EQUAL(root["command"], "set-chargepoint-config")) {
+        }
+        else if (STR_IS_EQUAL(root["command"], "set-chargepoint-config"))
+        {
 
             ESP_LOGI(TAG, "set-chargepoint-config requested");
             handle_set_chargepoint_config(root, response);
-
-        } else if (STR_IS_EQUAL(root["command"], "unprovision-chargepoint")) {
+        }
+        else if (STR_IS_EQUAL(root["command"], "unprovision-chargepoint"))
+        {
 
             ESP_LOGI(TAG, "unprovision-chargepoint requested");
             handle_unprovision_chargepoint(root, response);
-
-        } else if (STR_IS_EQUAL(root["command"], "provision-aws")) {
+        }
+        else if (STR_IS_EQUAL(root["command"], "provision-aws"))
+        {
 
             ESP_LOGI(TAG, "provision-aws requested");
             handle_provision_aws(root, response);
+        }
+        else if (STR_IS_EQUAL(root["command"], "get-info"))
+        {
 
-        } else if (STR_IS_EQUAL(root["command"], "get-info")) {
-                
             ESP_LOGI(TAG, "get-info requested");
             handle_get_info(root, response);
+        }
+        else if (STR_IS_EQUAL(root["command"], "reboot"))
+        {
 
-        } else if (STR_IS_EQUAL(root["command"], "reboot")) {
+            ESP_LOGI(TAG, "reboot requested");
+            handle_reboot(root, response);
+        }
+        else if (STR_IS_EQUAL(root["command"], "set-led-debug-state"))
+        {
 
-                ESP_LOGI(TAG, "reboot requested");
-                handle_reboot(root, response);
+            ESP_LOGI(TAG, "set-led-debug-state requested");
+            handle_set_led_debug_state(root, response);
+        }
+        else if (STR_IS_EQUAL(root["command"], "refresh-proxy"))
+        {
 
-        } else if (STR_IS_EQUAL(root["command"], "set-led-debug-state")) {
-                
-                ESP_LOGI(TAG, "set-led-debug-state requested");
-                handle_set_led_debug_state(root, response);
+            ESP_LOGI(TAG, "refresh-proxy requested");
+            handle_refresh_proxy(root, response);
+        }
+        else if (STR_IS_EQUAL(root["command"], "get-latest-from-proxy"))
+        {
 
-        } else if (STR_IS_EQUAL(root["command"], "refresh-proxy")) {
-                    
-                    ESP_LOGI(TAG, "refresh-proxy requested");
-                    handle_refresh_proxy(root, response);
-    
-        } else if (STR_IS_EQUAL(root["command"], "get-latest-from-proxy")) {
-                
-                ESP_LOGI(TAG, "get-latest-from-proxy requested");
-                handle_get_latest_from_proxy(root, response);
+            ESP_LOGI(TAG, "get-latest-from-proxy requested");
+            handle_get_latest_from_proxy(root, response);
+        }
+        else
+        {
 
-        } else {
-
-            ESP_LOGI(TAG, "unknown command: %s", (const char*) root["command"]);
+            ESP_LOGI(TAG, "unknown command: %s", (const char *)root["command"]);
             snprintf(handling_error, sizeof(handling_error), "err:unknown command");
             response["message"] = handling_error;
             goto done;
-
         }
 
         response["status"] = "ok";
@@ -302,21 +329,31 @@ done:
 // Command handling functions
 //*****************************************************************************
 
-#define VALIDATE_COND(cond, msg) if (!(cond)) { response["status"] = "err"; response["message"] = msg; goto err; }
+#define VALIDATE_COND(cond, msg)    \
+    if (!(cond))                    \
+    {                               \
+        response["status"] = "err"; \
+        response["message"] = msg;  \
+        goto err;                   \
+    }
 
 //*****************************************************************************
-static void handle_get_chargepoint_config(JsonObject& root, JsonObject& response) {
+static void handle_get_chargepoint_config(JsonObject &root, JsonObject &response)
+{
     ESP_LOGI(TAG, "get-chargepoint-config requested");
     uint8_t port_number = 0;
     JsonObject data = response.createNestedObject("data");
     JsonObject led_1 = data.createNestedObject("led_1");
     JsonObject led_2 = data.createNestedObject("led_2");
 
-    if (cpConfig.load() != ESP_OK || !cpConfig.is_configured()) {
+    if (cpConfig.load() != ESP_OK || !cpConfig.is_configured())
+    {
         response["status"] = "ok";
         response["message"] = "Chargepoint not configured";
         data["is_configured"] = false;
-    } else {
+    }
+    else
+    {
         response["status"] = "ok";
         data["is_configured"] = true;
         data["group_id"] = cpConfig.get_group_id();
@@ -330,16 +367,17 @@ static void handle_get_chargepoint_config(JsonObject& root, JsonObject& response
 }
 
 //*****************************************************************************
-static void handle_set_chargepoint_config(JsonObject& root, JsonObject& response) {
+static void handle_set_chargepoint_config(JsonObject &root, JsonObject &response)
+{
     ESP_LOGI(TAG, "set-chargepoint-config requested");
 
     JsonObject data = root["data"];
 
-    const char* group_id         = data["group_id"];
-    const char* led_1_station_id = data["led_1"]["station_id"];
-    uint8_t led_1_port_number    = data["led_1"]["port_number"];
-    const char* led_2_station_id = data["led_2"]["station_id"];
-    uint8_t led_2_port_number    = data["led_2"]["port_number"];
+    const char *group_id = data["group_id"];
+    const char *led_1_station_id = data["led_1"]["station_id"];
+    uint8_t led_1_port_number = data["led_1"]["port_number"];
+    const char *led_2_station_id = data["led_2"]["station_id"];
+    uint8_t led_2_port_number = data["led_2"]["port_number"];
 
     ESP_LOGI(TAG, "group_id         : %s", group_id ? group_id : "null");
     ESP_LOGI(TAG, "led_1_station_id : %s", led_1_station_id ? led_1_station_id : "null");
@@ -354,12 +392,14 @@ static void handle_set_chargepoint_config(JsonObject& root, JsonObject& response
 
     cpConfig.set_chargepoint_info(group_id, led_1_station_id, led_1_port_number, led_2_station_id, led_2_port_number);
 
-    if (context->get_iot_thing().register_cp_station(&cpConfig) != ESP_OK) {
+    if (context->get_iot_thing().register_cp_station(&cpConfig) != ESP_OK)
+    {
         response["message"] = "Failed to broadcast chargepoint config over mqtt";
         goto err;
     }
 
-    if (cpConfig.save() != ESP_OK) {
+    if (cpConfig.save() != ESP_OK)
+    {
         ESP_LOGE(TAG, "Failed to save chargepoint config");
         response["message"] = "Failed to save chargepoint config";
 
@@ -377,7 +417,8 @@ err:
 }
 
 //*****************************************************************************
-static void handle_unprovision_chargepoint(JsonObject& root, JsonObject& response) {
+static void handle_unprovision_chargepoint(JsonObject &root, JsonObject &response)
+{
     ESP_LOGI(TAG, "unprovision-chargepoint requested");
 
     VALIDATE_COND(context->get_mqtt_agent().is_connected(), "Not connected to AWS");
@@ -395,7 +436,8 @@ err:
 }
 
 //*****************************************************************************
-static void handle_get_info(JsonObject& root, JsonObject& response) {
+static void handle_get_info(JsonObject &root, JsonObject &response)
+{
     ESP_LOGI(TAG, "get-info requested");
 
     JsonObject data = response.createNestedObject("data");
@@ -407,16 +449,20 @@ static void handle_get_info(JsonObject& root, JsonObject& response) {
     hardware["mac_address"] = context->get_mac_address();
 
     JsonObject thing = data.createNestedObject("aws_config");
-    if (context->get_thing_config().is_configured()) {
+    if (context->get_thing_config().is_configured())
+    {
         thing["is_configured"] = true;
         thing["thing_id"] = context->get_thing_config().get_thing_name();
         thing["endpoint"] = context->get_thing_config().get_endpoint_address();
-    } else {
+    }
+    else
+    {
         thing["is_configured"] = false;
     }
 
     JsonObject chargepoint = data.createNestedObject("cp_config");
-    if (cpConfig.load() == ESP_OK && cpConfig.is_configured()) {
+    if (cpConfig.load() == ESP_OK && cpConfig.is_configured())
+    {
         uint8_t port_number = 0;
 
         chargepoint["is_configured"] = true;
@@ -427,10 +473,14 @@ static void handle_get_info(JsonObject& root, JsonObject& response) {
 
         led_1["station_id"] = cpConfig.get_led_1_station_id(port_number);
         led_1["port_number"] = port_number;
+        led_1["state"] = context->get_led_task_0().get_state_as_string();
 
         led_2["station_id"] = cpConfig.get_led_2_station_id(port_number);
         led_2["port_number"] = port_number;
-    } else {
+        led_2["state"] = context->get_led_task_1().get_state_as_string();
+    }
+    else
+    {
         chargepoint["is_configured"] = false;
     }
 
@@ -439,55 +489,65 @@ static void handle_get_info(JsonObject& root, JsonObject& response) {
 }
 
 //*****************************************************************************
-static void handle_provision_aws(JsonObject& root, JsonObject& response) {
+static void handle_provision_aws(JsonObject &root, JsonObject &response)
+{
     ESP_LOGI(TAG, "provision-aws requested");
 
     JsonObject data = root["data"];
 
-    if (provision_device("", "admin", "secret")) {
+    if (provision_device("", "admin", "secret"))
+    {
         response["status"] = "ok";
         response["message"] = "AWS thing provisioned";
-    } else {
+    }
+    else
+    {
         response["status"] = "err";
         response["message"] = "Failed to provision AWS thing";
     }
 }
 
 //*****************************************************************************
-static void handle_reboot(JsonObject& root, JsonObject& response) {
+static void handle_reboot(JsonObject &root, JsonObject &response)
+{
     ESP_LOGI(TAG, "reboot requested");
 
     esp_restart();
 }
 
 //*****************************************************************************
-static void handle_set_led_debug_state(JsonObject& root, JsonObject& response) {
+static void handle_set_led_debug_state(JsonObject &root, JsonObject &response)
+{
     ESP_LOGI(TAG, "set-led-debug-state requested");
 
     JsonObject data = root["data"];
 
     uint16_t led = data["led"];
     bool state = data["state"];
-    const char* led_state = data["led_state"];
+    const char *led_state = data["led_state"];
     char final_state[32] = {0};
 
-    if (state && led_state == nullptr) {
+    if (state && led_state == nullptr)
+    {
         snprintf(final_state, sizeof(final_state), "debug_on");
-    } else {
+    }
+    else
+    {
         snprintf(final_state, sizeof(final_state), "debug_off");
     }
 
-    switch (led) {
-        case 1:
-            context->get_led_task_0().set_state(final_state, 0);
-            break;
-        case 2:
-            context->get_led_task_1().set_state(final_state, 0);
-            break;
-        default:
-            response["status"] = "err";
-            response["message"] = "Invalid led number";
-            return;
+    switch (led)
+    {
+    case 1:
+        context->get_led_task_0().set_state(final_state, 0);
+        break;
+    case 2:
+        context->get_led_task_1().set_state(final_state, 0);
+        break;
+    default:
+        response["status"] = "err";
+        response["message"] = "Invalid led number";
+        return;
     }
 
     response["status"] = "ok";
@@ -495,7 +555,8 @@ static void handle_set_led_debug_state(JsonObject& root, JsonObject& response) {
 }
 
 //*****************************************************************************
-static void handle_refresh_proxy(JsonObject& root, JsonObject& response) {
+static void handle_refresh_proxy(JsonObject &root, JsonObject &response)
+{
     ESP_LOGI(TAG, "refresh-proxy requested");
 
     VALIDATE_COND(context->get_mqtt_agent().is_connected(), "Not connected to AWS");
@@ -512,7 +573,8 @@ err:
 }
 
 //*****************************************************************************
-static void handle_get_latest_from_proxy(JsonObject& root, JsonObject& response) {
+static void handle_get_latest_from_proxy(JsonObject &root, JsonObject &response)
+{
     ESP_LOGI(TAG, "get-latest-from-proxy requested");
 
     VALIDATE_COND(context->get_mqtt_agent().is_connected(), "Not connected to AWS");
