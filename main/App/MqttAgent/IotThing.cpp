@@ -215,9 +215,11 @@ esp_err_t IotThing::unregister_cp_station(ChargePointConfig* cp_config) {
     snprintf((char *) topic, sizeof(topic), "%s/unregister_station", cp_config->is_configured() ? cp_config->get_group_id(): "unknown");
     snprintf((char *) payload, sizeof(payload), 
         R"({
-            "thing_id":"%s"
+            "thing_id":"%s",
+            "group_id":"%s"
         })", 
-        mac_address
+        mac_address,
+        cp_config->is_configured() ? cp_config->get_group_id(): "unknown"
     );
 
     return this->mqtt_agent->publish_message(topic, payload, 3);
