@@ -11,6 +11,7 @@
 #include "App/Configuration/ChargePointConfig.h"
 #include "Utils/FuseMacAddress.h"
 #include "Utils/iot_provisioning.h"
+#include "Utils/KeyStore.h"
 #include "App/Configuration/ThingConfig.h"
 
 #include "rev.h"
@@ -68,6 +69,7 @@ static void handle_provision_aws(JsonObject &root, JsonObject &response);
 static void handle_reboot(JsonObject &root, JsonObject &response);
 static void handle_set_led_debug_state(JsonObject &root, JsonObject &response);
 static void handle_refresh_proxy(JsonObject &root, JsonObject &response);
+static void handle_factory_reset(JsonObject &root, JsonObject &response);
 
 // Not sure how to handle this one yet, or if we even need to trouble shoot from
 // the device.  We could go through the back door and have a specific rest endpoint
@@ -308,6 +310,12 @@ void udp_server_callback(char *data, int len, char *out, int &out_len)
             ESP_LOGI(TAG, "get-latest-from-proxy requested");
             handle_get_latest_from_proxy(root, response);
         }
+        else if (STR_IS_EQUAL(root["command"], "factory-reset"))
+        {
+
+            ESP_LOGI(TAG, "factory-reset requested");
+            handle_factory_reset(root, response);
+        }
         else
         {
 
@@ -493,8 +501,6 @@ static void handle_provision_aws(JsonObject &root, JsonObject &response)
 {
     ESP_LOGI(TAG, "provision-aws requested");
 
-    JsonObject data = root["data"];
-
     if (provision_device("", "admin", "secret"))
     {
         response["status"] = "ok";
@@ -586,6 +592,26 @@ static void handle_get_latest_from_proxy(JsonObject &root, JsonObject &response)
     response["message"] = "Requested latest from proxy";
     return;
 
+err:
+    response["status"] = "err";
+}
+
+//*****************************************************************************
+static void handle_factory_reset(JsonObject &root, JsonObject &response)
+{
+    KeyStore store;
+    ESP_LOGI(TAG, "factory-reset requested");
+
+    if (store.erasePartition() == ESP_OK) {
+        response["message"] = "Factory reset";
+    } else {
+        response["message"] = "Failed to factory reset";
+        goto err;
+    }
+
+    response["status"] = "ok";
+    response["message"] = "Factory reset";
+    return;
 err:
     response["status"] = "err";
 }
