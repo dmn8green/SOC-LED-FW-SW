@@ -6,22 +6,28 @@ dependencies:
       type: service
     version: 0.6.0~1
   espressif/esp_secure_cert_mgr:
-    component_hash: 4a9586b0804c6853a4b59e26b5f23e38126d4838156ca2c14087cc4a6d232b35
+    component_hash: a20007d67e65a000670ab77e45d7554c943eb8dcb0abeada0a57dd9adac3a703
     source:
       service_url: https://api.components.espressif.com/
       type: service
-    version: 2.4.0
+    version: 2.4.1
   espressif/led_strip:
     component_hash: ed1d5c6113fa545e20c7be17e6e7c09d43b18fcb43068e2b2b27a412de6a405a
     source:
       service_url: https://api.components.espressif.com/
       type: service
     version: 2.5.2
+  espressif/mdns:
+    component_hash: 810ec139689ae93bf42520d05de4855fbb68f7140ef67797d91d8d61829589cb
+    source:
+      service_url: https://api.components.espressif.com/
+      type: service
+    version: 1.2.2
   idf:
     component_hash: null
     source:
       type: idf
     version: 5.0.3
-manifest_hash: 8b1ce8a5569364ff503f1e3e2a7855b813195d0ecc22449434e4f82e179a83e8
+manifest_hash: 2ffdd6685e75ac6cdbc042d2a30b00c889397c3f03afaede47e9c3edddec4212
 target: esp32
 version: 1.0.0
