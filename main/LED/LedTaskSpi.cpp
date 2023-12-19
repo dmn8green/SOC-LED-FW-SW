@@ -29,7 +29,7 @@ static const char *TAG = "LedTaskSpi";
 // Gotta love meta programming.
 #define STATIC_ANIM_CASE(x, colorRgb) \
     case x: \
-        ESP_LOGI(TAG, "%d: Switching to static anim state " #x " with the color " #colorRgb, this->led_number); \
+        ESP_LOGI(TAG, "%d: Switching to static anim state " #x " with the color " #colorRgb, this->led_bar_number); \
         this->static_animation.reset(colors.getRgb(colorRgb)); \
         this->animation = &this->static_animation; \
         break;
@@ -51,7 +51,7 @@ void LedTaskSpi::vTaskCodeLed()
     LED_INTENSITY current_intensity = Colors::instance().getMode();
     esp_err_t ret = ESP_OK;
     
-    ESP_LOGI(TAG, "Starting LED task %d", this->led_number);
+    ESP_LOGI(TAG, "Starting LED task %d", this->led_bar_number);
     this->intensity = current_intensity;
 
     do
@@ -59,7 +59,7 @@ void LedTaskSpi::vTaskCodeLed()
         if (state_changed)
         {
             Colors& colors = Colors::instance();
-            ESP_LOGI(TAG, "%d: State changed", this->led_number);
+            ESP_LOGI(TAG, "%d: State changed", this->led_bar_number);
             ESP_LOGI(TAG, "New state is %d", this->state_info.state);
             switch (state_info.state)
             {
@@ -75,7 +75,7 @@ void LedTaskSpi::vTaskCodeLed()
             STATIC_ANIM_CASE(e_station_unknown,             LED_COLOR_PURPLE);
             STATIC_ANIM_CASE(e_station_iot_unprovisioned,   LED_COLOR_PURPLE);
             case e_station_charging:
-                ESP_LOGI(TAG, "%d: Charging", this->led_number);
+                ESP_LOGI(TAG, "%d: Charging", this->led_bar_number);
                 if (this->animation == &this->charging_animation) {
                     this->charging_animation.set_charge_percent(state_info.charge_percent);
                     break;
@@ -88,7 +88,7 @@ void LedTaskSpi::vTaskCodeLed()
                 break;
             case e_station_booting_up:
                 {
-                    //ESP_LOGI(TAG, "%d: Station is booting up", this->led_number);
+                    //ESP_LOGI(TAG, "%d: Station is booting up", this->led_bar_number);
                     COLOR_HSV *pHsv = colors.getHsv(LED_COLOR_YELLOW);
                     this->pulsing_animation.reset(pHsv, 0, 20, false, &smooth_rate_pulse_curve);
                     this->animation = &this->pulsing_animation;
@@ -96,7 +96,7 @@ void LedTaskSpi::vTaskCodeLed()
                 break;
 
             default:
-                ESP_LOGE(TAG, "%d: Unknown state %d", this->led_number, state_info.state);
+                ESP_LOGE(TAG, "%d: Unknown state %d", this->led_bar_number, state_info.state);
                 break;
             }
 
@@ -104,21 +104,21 @@ void LedTaskSpi::vTaskCodeLed()
 
             // TODO: FIGURE OUT WHAT TO DO IF WE CAN'T CHANGE THE LED STATE
             if (ret != ESP_OK) {
-                ESP_LOGE(TAG, "%d: Failed to show state %d", this->led_number, state_info.state);
+                ESP_LOGE(TAG, "%d: Failed to show state %d", this->led_bar_number, state_info.state);
             }
         }
 
         if (this->animation != NULL) {
-            this->animation->refresh(this->led_pixels, 0, LED_STRIP_PIXEL_COUNT);
+            this->animation->refresh(this->led_pixels, 0, this->led_count);
             this->rmt_over_spi.write_led_value_to_strip(this->led_pixels);
             queue_timeout = this->animation->get_rate() / portTICK_PERIOD_MS;
-            ESP_LOGD(TAG, "%d: Queue timeout: %ld", this->led_number, queue_timeout);
+            ESP_LOGD(TAG, "%d: Queue timeout: %ld", this->led_bar_number, queue_timeout);
         }
 
         // We use the queue to get the new state of the station.  We also use the queue to
         // to control the refresh rate of the LED strip.
         if (xQueueReceive(this->state_update_queue, &updated_state, queue_timeout) == pdTRUE) {
-            ESP_LOGD(TAG, "%d: Switching to state %d", this->led_number, updated_state.state);
+            ESP_LOGD(TAG, "%d: Switching to state %d", this->led_bar_number, updated_state.state);
             if (state_info.state != updated_state.state || 
                 state_info.charge_percent != updated_state.charge_percent
             ) {
@@ -128,9 +128,12 @@ void LedTaskSpi::vTaskCodeLed()
                 state_changed = false;
             }
         } else {
-            ESP_LOGD(TAG, "%d: Timeout", this->led_number);
+            ESP_LOGD(TAG, "%d: Timeout", this->led_bar_number);
+
+            // I don't like that this is a singleton.  Should have pushed the message through a queue.
+            // Design of light sensor was an after thought.
             current_intensity = Colors::instance().getMode();
-            ESP_LOGD(TAG, "%d: Current intensity %d prev intensity %d", this->led_number, current_intensity, this->intensity);
+            ESP_LOGD(TAG, "%d: Current intensity %d prev intensity %d", this->led_bar_number, current_intensity, this->intensity);
 
             if (current_intensity != this->intensity) {
                 this->intensity = current_intensity;
@@ -148,18 +151,19 @@ void LedTaskSpi::vTaskCodeLed()
  * 
  * This function sets up the LED task.
  * 
- * @param led_number 
+ * @param led_bar_number 
  * @param gpio_pin 
  * @param spinum 
  * @return esp_err_t 
  */
-esp_err_t LedTaskSpi::setup(int led_number, int gpio_pin, spi_host_device_t spinum)
+esp_err_t LedTaskSpi::setup(int led_bar_number, int gpio_pin, spi_host_device_t spinum, int led_count)
 {
     esp_err_t ret = ESP_OK;
 
-    this->led_number = led_number;
+    this->led_bar_number = led_bar_number;
     this->gpio_pin = gpio_pin;
-    this->led_pixels = (uint8_t *)malloc(LED_STRIP_PIXEL_COUNT * 3);
+    this->led_count = led_count;
+    this->led_pixels = (uint8_t *)malloc(this->led_count * 3);
 
     ESP_GOTO_ON_FALSE(
         this->led_pixels, ESP_ERR_NO_MEM, 
@@ -167,7 +171,7 @@ esp_err_t LedTaskSpi::setup(int led_number, int gpio_pin, spi_host_device_t spin
     );
 
     ESP_GOTO_ON_ERROR(
-        this->rmt_over_spi.setup(spinum, gpio_pin, LED_STRIP_PIXEL_COUNT), 
+        this->rmt_over_spi.setup(spinum, gpio_pin, this->led_count), 
         err_exit, TAG, "Failed to setup RMT over SPI"
     );
 
@@ -189,7 +193,7 @@ err_exit:
 esp_err_t LedTaskSpi::start(void)
 {
     char name[16] = {0};
-    snprintf(name, 16, "LED%d", this->led_number);
+    snprintf(name, 16, "LED%d", this->led_bar_number);
     xTaskCreatePinnedToCore(
         LedTaskSpi::svTaskCodeLed, // Function to implement the task
         name,                      // Name of the task
@@ -284,7 +288,7 @@ esp_err_t LedTaskSpi::set_state(const char *new_state, int charge_percent)
     MAP_TO_ENUM(unknown);
     
     if (state == e_station_unknown) {
-        ESP_LOGE(TAG, "%d: Unknown state %s", this->led_number, new_state);
+        ESP_LOGE(TAG, "%d: Unknown state %s", this->led_bar_number, new_state);
         return ESP_FAIL;
     }
 

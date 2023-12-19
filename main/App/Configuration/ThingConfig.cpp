@@ -248,12 +248,16 @@ esp_err_t ThingConfig::reset(void) {
     }
 
     store.eraseKey("thingName", false);
-    store.eraseKey("certificateArn");
-    store.eraseKey("certificateId");
-    store.eraseKey("certificatePem");
-    store.eraseKey("privateKey");
-    store.eraseKey("publicKey");
-    store.eraseKey("endpointAddress");
+    store.eraseKey("certificateArn", false);
+    store.eraseKey("certificateId", false);
+    store.eraseKey("certificatePem", false);
+    store.eraseKey("privateKey", false);
+    store.eraseKey("publicKey", false);
+    store.eraseKey("endpointAddress", false);
+
+    // Don't care if this fails.
+    store.commit();
+    this->isConfigured = false;
 
     return ESP_OK;
 }

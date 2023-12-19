@@ -62,6 +62,7 @@ set(COMPONENT_SRCS
     Network/Configuration/EthConfiguration.cpp
     App/Configuration/ThingConfig.cpp
     App/Configuration/ChargePointConfig.cpp
+    App/Configuration/SiteConfig.cpp
     App/NetworkAgent/NetworkConnection.cpp
     App/NetworkAgent/NetworkConnectionAgent.cpp
     App/NetworkAgent/NetworkConnectionStateMachine.cpp

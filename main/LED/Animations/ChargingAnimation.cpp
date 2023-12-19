@@ -144,6 +144,8 @@ int ChargingAnimation::refresh(uint8_t* led_pixels, int start_pixel, int led_cou
     // At full animation (or without animation), number of LEDs lit for this charge level
     // this is the top of our second segment
     int charged_led_count = (((led_count * adjusted_charge_pct) / 100));
+    // ESP_LOGI(TAG, "LED count: %d, charge percent: %ld, adjusted charge percent: %d, charged LED count: %d",
+    //         led_count, charge_percent, adjusted_charge_pct, charged_led_count);
 
     // Fill in all needed segments. First one's easy
     int filled_leds = base.refresh (led_pixels, 0, CHARGE_BASE_LED_CNT);
