@@ -11,6 +11,7 @@
 //*****************************************************************************
 
 #include "MN8App.h"
+#include "LED/Led.h"
 #include "pin_def.h"
 #include "rev.h"
 
@@ -108,7 +109,10 @@ esp_err_t MN8App::setup(void) {
     KeyStore key_store;
 
     auto& thing_config = this->context.get_thing_config();
+
     configure_gpio_for_light_sensor();
+
+    this->context.setup();
 
     // Do this as early as possible to have feedback.
     ESP_GOTO_ON_ERROR(this->setup_and_start_led_tasks(), err, TAG, "Failed to setup and start led tasks");;
@@ -121,8 +125,6 @@ esp_err_t MN8App::setup(void) {
     ESP_GOTO_ON_ERROR(esp_event_loop_create_default(), err, TAG, "Failed to create event loop");
 
     configure_gpio_for_demo();
-
-    this->context.setup();
 
     this->context.get_network_connection_agent().register_event_callback(this->sOn_network_event, this);
     this->context.get_mqtt_agent().register_event_callback(this->sOn_mqtt_event, this);
@@ -137,7 +139,6 @@ esp_err_t MN8App::setup(void) {
     this->context.get_network_connection_agent().start();
     
     // MQTT starter config stuff. Only start mqtt stack if thing is configured.
-    thing_config.load();
     if (thing_config.is_configured()) {
         this->context.get_mqtt_agent().setup(&thing_config);
         this->context.get_iot_thing().setup(&thing_config, &this->context.get_mqtt_agent());
@@ -165,11 +166,16 @@ esp_err_t MN8App::setup_and_start_led_tasks(void) {
     esp_err_t ret = ESP_OK;
     auto & led_task_0 = this->context.get_led_task_0();
     auto & led_task_1 = this->context.get_led_task_1();
+    auto& site_config = this->context.get_site_config();
 
-    ESP_GOTO_ON_ERROR(led_task_0.setup(0, RMT_LED_STRIP0_GPIO_NUM, HSPI_HOST), err, TAG, "Failed to setup led task 0");
+    ESP_LOGI(TAG, "LED length : %d", site_config.get_led_length());
+    int led_count = site_config.get_led_length() == LED_FULL_SIZE ? LED_STRIP_PIXEL_COUNT : LED_STRIP_SHORT_PIXEL_COUNT;
+    ESP_LOGI(TAG, "LED count : %d", led_count);
+
+    ESP_GOTO_ON_ERROR(led_task_0.setup(0, RMT_LED_STRIP0_GPIO_NUM, HSPI_HOST, led_count), err, TAG, "Failed to setup led task 0");
     ESP_GOTO_ON_ERROR(led_task_0.start(), err, TAG, "Failed to start led task 0");
 
-    ESP_GOTO_ON_ERROR(led_task_1.setup(1, RMT_LED_STRIP1_GPIO_NUM, VSPI_HOST), err, TAG, "Failed to setup led task 1");
+    ESP_GOTO_ON_ERROR(led_task_1.setup(1, RMT_LED_STRIP1_GPIO_NUM, VSPI_HOST, led_count), err, TAG, "Failed to setup led task 1");
     ESP_GOTO_ON_ERROR(led_task_1.start(), err, TAG, "Failed to start led task 1");
 
 err:

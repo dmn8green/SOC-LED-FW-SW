@@ -5,8 +5,11 @@
 #include "App/NetworkAgent/NetworkConnectionAgent.h"
 #include "App/MqttAgent/MqttAgent.h"
 #include "App/MqttAgent/IotThing.h"
-#include "App/Configuration/ThingConfig.h"
 #include "App/IotHeartbeat.h"
+
+#include "App/Configuration/ThingConfig.h"
+#include "App/Configuration/ChargePointConfig.h"
+#include "App/Configuration/SiteConfig.h"
 
 #include "LED/LedTaskSpi.h"
 
@@ -27,6 +30,8 @@ public:
     inline LedTaskSpi& get_led_task_1(void) { return this->led_task_1; }
 
     inline ThingConfig& get_thing_config(void) { return this->thing_config; }
+    inline SiteConfig& get_site_config(void) { return this->site_config; }
+    inline ChargePointConfig& get_charge_point_config(void) { return this->charge_point_config; }
 
     inline IotHeartbeat& get_iot_heartbeat(void) { return this->iot_heartbeat; }
     inline IotThing& get_iot_thing(void) { return this->iot_thing; }
@@ -44,6 +49,8 @@ private:
     MqttAgent mqtt_agent;
 
     ThingConfig thing_config;
+    SiteConfig site_config;
+    ChargePointConfig charge_point_config;
 
     LedTaskSpi led_task_0;
     LedTaskSpi led_task_1;

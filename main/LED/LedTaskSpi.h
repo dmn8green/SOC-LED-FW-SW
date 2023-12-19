@@ -22,7 +22,6 @@
 #include "freertos/task.h"
 #include "freertos/queue.h"
 
-// #include "Animations/ChasingAnimation.h"
 #include "Animations/ChargingAnimation.h"
 #include "Animations/StaticAnimation.h"
 #include "Animations/SmoothRatePulseCurve.h"
@@ -47,6 +46,7 @@ typedef enum {
     e_station_iot_unprovisioned,   // 09 purple  (s)  - Station not provisioned with AWS
     e_station_debug_on,            // 10 fushia  (s)  - Debug mode on
     e_station_debug_off,           // 11 black   (s)  - Debug mode off
+    e_debug_charging,              // 12 blue    (p)  - Debug charging
     e_station_unknown              // Error state
 } led_state_t;
 
@@ -80,13 +80,15 @@ typedef struct {
  * It is responsible to generate the LED pattern based on the state of the 
  * station.
  * 
+ * @note We do not allow to change the led count mid way.  When the UI changes
+ * the count, it must reboot the device after.
  */
 class LedTaskSpi : public NoCopy {
 public:
     LedTaskSpi(void) = default;
     ~LedTaskSpi(void) = default;
     
-    esp_err_t setup(int led_number, int gpio_pin, spi_host_device_t spi);
+    esp_err_t setup(int led_bar_number, int gpio_pin, spi_host_device_t spi, int led_count);
     esp_err_t start(void);
     esp_err_t resume(void);
     esp_err_t suspend(void);
@@ -101,8 +103,10 @@ protected:
 
 private:
 
-    int led_number;
+    int led_bar_number;
     int gpio_pin;
+    int led_count;
+
     uint8_t* led_pixels;
     led_state_info_t state_info;
     LED_INTENSITY intensity = LED_INTENSITY_HIGH;
@@ -111,7 +115,6 @@ private:
     QueueHandle_t state_update_queue;
 
     BaseAnimation* animation = nullptr;
-    // ChasingAnimation chasing_animation;
     ChargingAnimation charging_animation;
     StaticAnimation static_animation;
     SmoothRatePulseCurve smooth_rate_pulse_curve;
