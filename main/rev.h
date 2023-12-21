@@ -1,8 +1,8 @@
 #pragma once
 
 #define VERSION_MAJOR 2
-#define VERSION_MINOR 6
-#define VERSION_PATCH 0
+#define VERSION_MINOR 7
+#define VERSION_PATCH 1
 
 #define STR_HELPER(x) #x
 #define STR(x) STR_HELPER(x)

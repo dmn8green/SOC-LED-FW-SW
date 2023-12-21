@@ -41,7 +41,8 @@ static struct {
     struct arg_str *command = nullptr;
     struct arg_int *pattern = nullptr;
     struct arg_int *strip_idx = nullptr;
-    struct arg_int *led_length = nullptr;    
+    struct arg_int *led_length = nullptr;
+    struct arg_int *charge = nullptr;
     struct arg_end *end;
 } led_args;
 
@@ -115,18 +116,18 @@ static int on_off(int stripIndex)
     return 0;
 }
 
-static int on_pattern(int stripIndex, int pattern)
+static int on_pattern(int stripIndex, int pattern, int charge)
 {
     ESP_LOGI(TAG, "Setting pattern %d", pattern);
 
     MN8App& app = MN8App::instance();
     if (stripIndex == 0) {
-        app.get_led_task_0().set_pattern((led_state_t) pattern, 50);
-        app.get_led_task_1().set_pattern((led_state_t) pattern, 50);
+        app.get_led_task_0().set_pattern((led_state_t) pattern, charge);
+        app.get_led_task_1().set_pattern((led_state_t) pattern, charge);
     } else if (stripIndex == 1) {
-        app.get_led_task_0().set_pattern((led_state_t) pattern, 50);
+        app.get_led_task_0().set_pattern((led_state_t) pattern, charge);
     } else if (stripIndex == 2) {
-        app.get_led_task_1().set_pattern((led_state_t) pattern, 50);
+        app.get_led_task_1().set_pattern((led_state_t) pattern, charge);
     } else {
         ESP_LOGE(TAG, "Invalid strip index %d", stripIndex);
         return 1;
@@ -178,6 +179,7 @@ static int led_task(int argc, char **argv)
 
     int stripIndex = led_args.strip_idx->ival[0];
     int pattern = led_args.pattern->ival[0];
+    int charge = led_args.charge->ival[0];
     int led_length = led_args.led_length->ival[0];
 
     if (led_args.strip_idx->count == 0) {
@@ -197,7 +199,7 @@ static int led_task(int argc, char **argv)
         case e_off_op:
             return on_off(stripIndex);
         case e_pattern_op:
-            return on_pattern(stripIndex, pattern);
+            return on_pattern(stripIndex, pattern, charge);
         case e_set_length_op:
             return on_set_length(led_length);
         case e_info_op:
@@ -215,6 +217,7 @@ void register_led(void)
     led_args.command = arg_str1(NULL, NULL, "<on/off/pattern/sed-length/info>", "Command to execute");
     led_args.pattern = arg_int0("p", "pattern", "<p>", "Index to the desired pattern, 0 by default");
     led_args.strip_idx = arg_int0("s", "strip", "<1/2>", "Which strip to control. If no value is given, both strips will be controlled");
+    led_args.charge = arg_int0("c", "charge", "<0-100>", "Charge percentage. 0 by default");
     led_args.led_length = arg_int0("l", "length", "<60/100>", "Set the length of the LED strip. 60 or 100. 100 by default");
     led_args.end = arg_end(1);
 
