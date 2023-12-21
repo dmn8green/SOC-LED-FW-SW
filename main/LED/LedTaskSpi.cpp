@@ -76,15 +76,13 @@ void LedTaskSpi::vTaskCodeLed()
             STATIC_ANIM_CASE(e_station_iot_unprovisioned,   LED_COLOR_PURPLE);
             case e_station_charging:
                 ESP_LOGI(TAG, "%d: Charging", this->led_bar_number);
-                if (this->animation == &this->charging_animation) {
-                    this->charging_animation.set_charge_percent(state_info.charge_percent);
-                    break;
+                if (this->animation != &this->charging_animation_white_bubble) {
+                    this->charging_animation_white_bubble.reset(colors.getRgb(LED_COLOR_BLUE),
+                        colors.getRgb(LED_COLOR_WHITE),
+                        colors.getRgb(LED_COLOR_WHITE), 50);
+                    this->animation = &this->charging_animation_white_bubble;
                 }
-                this->charging_animation.reset(colors.getRgb(LED_COLOR_BLUE),
-                    colors.getRgb(LED_COLOR_WHITE),
-                    colors.getRgb(LED_COLOR_BLUE), 100);
-                this->charging_animation.set_charge_percent(state_info.charge_percent);
-                this->animation = &this->charging_animation;
+                this->charging_animation_white_bubble.set_charge_percent(state_info.charge_percent);
                 break;
             case e_station_booting_up:
                 {

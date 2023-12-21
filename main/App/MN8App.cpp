@@ -236,7 +236,7 @@ void MN8App::on_incoming_mqtt(
             if (port1.containsKey("state")) {
                 const char* state = port1["state"];
                 int charge_percent = port1["charge_percent"];
-                ESP_LOGI(TAG, "port 2 new state : %s", state);
+                ESP_LOGI(TAG, "port 1 new state : %s", state);
                 this->get_context().get_led_task_1().set_state(state, charge_percent);
             }
         }

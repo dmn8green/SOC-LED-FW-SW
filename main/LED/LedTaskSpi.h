@@ -26,6 +26,7 @@
 #include "Animations/StaticAnimation.h"
 #include "Animations/SmoothRatePulseCurve.h"
 #include "Animations/PulsingAnimation.h"
+#include "Animations/ChargingAnimationWhiteBubble.h"
 
 //******************************************************************************
 /**
@@ -119,6 +120,7 @@ private:
     StaticAnimation static_animation;
     SmoothRatePulseCurve smooth_rate_pulse_curve;
     PulsingAnimation pulsing_animation;
+    ChargingAnimationWhiteBubble charging_animation_white_bubble;
 
     RmtOverSpi rmt_over_spi;
 };

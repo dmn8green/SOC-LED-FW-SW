@@ -1,6 +1,7 @@
 {
     "files.associations": {
         "*.symlink": "shellscript",
+        "*.h": "c",
         "led_strip_encoder.h": "c",
         "string": "cpp",
         "regex": "cpp",
@@ -27,7 +28,8 @@
         "bitset": "cpp",
         "memory": "cpp",
         "random": "cpp",
-        "future": "cpp"
+        "future": "cpp",
+        "any": "c"
     },
     "peacock.remoteColor": "#007fff"
 }

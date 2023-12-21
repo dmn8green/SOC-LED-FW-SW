@@ -41,6 +41,7 @@ set(COMPONENT_SRCS
     LED/Animations/StaticAnimation.cpp
     LED/Animations/SmoothRatePulseCurve.cpp
     LED/Animations/ChargingAnimation.cpp
+    LED/Animations/ChargingAnimationWhiteBubble.cpp
     ReplConsole/repl_console.cpp
     ReplConsole/cmd_factory_reset.cpp
     ReplConsole/cmd_tasks.cpp
