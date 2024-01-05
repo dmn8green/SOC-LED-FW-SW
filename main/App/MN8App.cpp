@@ -243,6 +243,10 @@ void MN8App::on_incoming_mqtt(
 
         memcpy(payload, pPayload, payloadLength);
         this->get_context().get_iot_thing().ack_led_state_change(payload);
+
+        // Right here we could send a message to state machine to pet a watchdog
+        // in the state maching if watch dog hasn't been pet in a while we would
+        // go to proxy connection lost.
     } else if (strnstr(pTopicName, "ping", topicNameLength) != NULL) {
         ESP_LOGI(TAG, "ping received");
         this->get_context().get_iot_thing().send_pong(

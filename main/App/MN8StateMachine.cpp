@@ -67,9 +67,6 @@ esp_err_t MN8StateMachine::setup(MN8Context* context)
     if (!this->context->get_thing_config().is_configured()) {
         this->state = e_mn8_iot_unprovisioned;
         this->state_handler = &MN8StateMachine::iot_unprovisioned_state;
-    // } else if (!this->context->get_cp_config().is_configured()) {
-    //     this->state = e_mn8_cp_unprovisioned;
-    //     this->state_handler = &MN8StateMachine::cp_unprovisioned_state;
     }
 
     initialise_mdns();
@@ -115,6 +112,7 @@ void MN8StateMachine::handle_event(mn8_event_t event) {
     if (next_state != this->state) {
         switch(next_state) {
             case e_mn8_off              : this->state_handler = &SM::off_state; break;
+            case e_mn8_cp_unprovisioned : this->state_handler = &SM::cp_unprovisioned_state; break;
             case e_mn8_connecting       : this->state_handler = &SM::connecting_state; break;
             case e_mn8_connected        : this->state_handler = &SM::connected_state; break;
             case e_mn8_connection_error : this->state_handler = &SM::connection_error_state; break;
@@ -192,7 +190,18 @@ mn8_state_t MN8StateMachine::iot_unprovisioned_state(mn8_event_t event) {
     return e_mn8_iot_unprovisioned;
 }
 
+//*****************************************************************************
+// stuck here until configured and rebooted
 mn8_state_t MN8StateMachine::cp_unprovisioned_state (mn8_event_t event) {
+    // This is an end sstate a reboot is required.
+    this->context->get_led_task_0().set_state("cp_unprovisioned", 0);
+    this->context->get_led_task_1().set_state("cp_unprovisioned", 0);
+
+    switch (event) {
+        default:
+            break;
+    }
+
     return e_mn8_cp_unprovisioned;
 }
 
@@ -220,7 +229,14 @@ mn8_state_t MN8StateMachine::connecting_state(mn8_event_t event) {
             if (this->context->get_network_connection_agent().is_connected() &&
                 this->context->get_mqtt_agent().is_connected())
             {
-                next_state = e_mn8_connected;
+                if (!this->context->get_charge_point_config().is_configured()) {
+                    // chargepoint is not configure.  We will not be able to do anything
+                    // useful.  Go to chargepoint unprovisioned state.
+                    ESP_LOGI(TAG, "ChargePoint is not provisioned");
+                    next_state = e_mn8_cp_unprovisioned;
+                } else {
+                    next_state = e_mn8_connected;
+                }
             }
             
             break;
@@ -253,6 +269,10 @@ mn8_state_t MN8StateMachine::connected_state(mn8_event_t event) {
         ESP_LOGI(TAG, "Entering connected state");
         this->state = e_mn8_connected;
         this->context->get_iot_heartbeat().send_heartbeat();
+
+        // turn off breathing pattern, we will get a new one from the broker.
+        this->context->get_led_task_0().set_state("waiting_4_first_state", 0);
+        this->context->get_led_task_1().set_state("waiting_4_first_state", 0);
     }
 
     switch (event) {
@@ -265,8 +285,8 @@ mn8_state_t MN8StateMachine::connected_state(mn8_event_t event) {
             // reconnect. 
             // TEMP HACK TO USE WHILE TESTING
             ESP_LOGI(TAG, "Lost connection, going back to connecting");
-            this->context->get_led_task_0().set_state("iot_unprovisioned", 0);
-            this->context->get_led_task_1().set_state("iot_unprovisioned", 0);
+            this->context->get_led_task_0().set_state("no_connection", 0);
+            this->context->get_led_task_1().set_state("no_connection", 0);
 
             next_state = e_mn8_connecting;
             break;

@@ -579,7 +579,7 @@ static void handle_factory_reset(JsonObject &root, JsonObject &response)
     }
 
     if (thing_config.is_configured()) {
-        unprovision_device(nullptr, "admin", "secret");
+        unprovision_device("", "admin", "secret");
     }
 
     if (store.erasePartition() == ESP_OK) {

@@ -69,6 +69,8 @@ void LedTaskSpi::vTaskCodeLed()
             STATIC_ANIM_CASE(e_station_out_of_service,      LED_COLOR_RED);
             STATIC_ANIM_CASE(e_station_disable,             LED_COLOR_RED);
             STATIC_ANIM_CASE(e_station_offline,             LED_COLOR_WHITE);
+            STATIC_ANIM_CASE(e_station_no_connection,       LED_COLOR_BLACK);
+            STATIC_ANIM_CASE(e_station_waiting_4_first_state, LED_COLOR_WHITE);
             STATIC_ANIM_CASE(e_station_reserved,            LED_COLOR_ORANGE);
             STATIC_ANIM_CASE(e_station_debug_on,            LED_COLOR_DEBUG_ON);
             STATIC_ANIM_CASE(e_station_debug_off,           LED_COLOR_BLACK);
@@ -83,6 +85,14 @@ void LedTaskSpi::vTaskCodeLed()
                     this->animation = &this->charging_animation_white_bubble;
                 }
                 this->charging_animation_white_bubble.set_charge_percent(state_info.charge_percent);
+                break;
+            case e_station_cp_unprovisioned:
+                {
+                    ESP_LOGI(TAG, "%d: CP unprovisioned", this->led_bar_number);
+                    COLOR_HSV *pHsv = colors.getHsv(LED_COLOR_BLUE);
+                    this->pulsing_animation.reset(pHsv, 0, 20, false, &smooth_rate_pulse_curve);
+                    this->animation = &this->pulsing_animation;
+                }
                 break;
             case e_station_booting_up:
                 {
@@ -281,6 +291,9 @@ esp_err_t LedTaskSpi::set_state(const char *new_state, int charge_percent)
     MAP_TO_ENUM(offline);
     MAP_TO_ENUM(reserved);
     MAP_TO_ENUM(iot_unprovisioned);
+    MAP_TO_ENUM(cp_unprovisioned);
+    MAP_TO_ENUM(waiting_4_first_state);
+    MAP_TO_ENUM(no_connection);
     MAP_TO_ENUM(debug_on);
     MAP_TO_ENUM(debug_off);
     MAP_TO_ENUM(unknown);
@@ -306,8 +319,11 @@ const char* LedTaskSpi::get_state_as_string(void) {
         case e_station_offline:             return "offline";
         case e_station_reserved:            return "reserved";
         case e_station_iot_unprovisioned:   return "iot_unprovisioned";
+        case e_station_cp_unprovisioned:    return "cp_unprovisioned";
         case e_station_debug_on:            return "debug_on";
         case e_station_debug_off:           return "debug_off";
+        case e_station_no_connection:       return "no_connection";
+        case e_station_waiting_4_first_state: return "waiting_4_first_state";
         case e_station_unknown:             return "unknown";
         default:                            return "unknown";
     }
