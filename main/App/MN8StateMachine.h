@@ -38,6 +38,7 @@ typedef enum {
     e_mn8_event_mqtt_disconnected,
     e_mn8_event_lost_network_connection,
     e_mn8_event_lost_mqtt_connection,
+    e_mn8_message_from_proxy
 } mn8_event_t;
 
 class MN8StateMachine : public NoCopy {

@@ -64,6 +64,13 @@ err:
  * @brief Setup the ethernet stack.
  * 
  * This function will setup the ethernet stack, internal drivers etc...
+ * 
+ * @todo If you want to support the prototype board in Sandy Springs, then you
+ * need to specify the phy info as an arg.  First try with the real board
+ * settings and if it fails, try with the prototype board settings.
+ * 
+ * Then add a function in here to allow main to not use light sensor if the
+ * prototype board is detected.
  */
 void NetworkConnection::setup_ethernet_stack(void) {
     this->has_ethernet_phy = eth_init(&this->eth_handle) == ESP_OK;

@@ -47,7 +47,10 @@ typedef enum {
     e_station_iot_unprovisioned,   // 09 purple  (s)  - Station not provisioned with AWS
     e_station_debug_on,            // 10 fushia  (s)  - Debug mode on
     e_station_debug_off,           // 11 black   (s)  - Debug mode off
-    e_debug_charging,              // 12 blue    (p)  - Debug charging
+    e_station_cp_unprovisioned,    // 12 purple  (p)  - ChargePoint not provisioned with AWS
+    e_station_waiting_4_first_state, // 13 white  (s)  - Waiting for first state
+    e_station_no_connection,       // 14 black   (s)  - No connection
+    e_debug_charging,              // 14 blue    (p)  - Debug charging
     e_station_unknown              // Error state
 } led_state_t;
 
