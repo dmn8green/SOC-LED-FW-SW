@@ -297,20 +297,71 @@ void MqttAgent::taskFunction(void) {
             vTaskDelay(2000 / portTICK_PERIOD_MS);
 
             // This should be in the main app state machine logic.
-            // but for testing right now.
+            // but for right now it is here.
+
+#define SUBSCRIBE_TOPIC(buf, t) \
+    memset(buf, 0x00, sizeof(buf)); \
+    snprintf(buf, sizeof(topic), "%s/%s", this->thing_config->get_thing_name(), t); \
+    if (this->subscribe(buf, NULL, NULL) != ESP_OK) { \
+        ESP_LOGE(TAG, "Failed to subscribe to topic %s", buf); \
+        this->mqtt_connection.disconnect(this->mqtt_context.get_mqtt_context()); \
+        this->event_callback(e_mqtt_agent_disconnected, this->event_callback_context); \
+        vTaskDelay(1000 / portTICK_PERIOD_MS); \
+        continue; \
+    }
+
             char topic[32];
-            memset(topic, 0x00, sizeof(topic));
-            snprintf(topic, sizeof(topic), "%s/ledstate", this->thing_config->get_thing_name());
-            this->subscribe(topic, NULL, NULL);
+            SUBSCRIBE_TOPIC(topic, "ledstate");
+            SUBSCRIBE_TOPIC(topic, "ping");
+            SUBSCRIBE_TOPIC(topic, "set-config");
+            SUBSCRIBE_TOPIC(topic, "get-config");
+            SUBSCRIBE_TOPIC(topic, "reboot");
+            
+            // memset(topic, 0x00, sizeof(topic));
+            // snprintf(topic, sizeof(topic), "%s/ledstate", this->thing_config->get_thing_name());
+            // if (this->subscribe(topic, NULL, NULL) != ESP_OK) {
+            //     ESP_LOGE(TAG, "Failed to subscribe to topic %s", topic);
+            //     this->event_callback(e_mqtt_agent_disconnected, this->event_callback_context);
+            //     this->mqtt_connection.disconnect(this->mqtt_context.get_mqtt_context());
+            //     vTaskDelay(1000 / portTICK_PERIOD_MS);
+            //     continue;
+            // }
 
-            snprintf(topic, sizeof(topic), "%s/ping", this->thing_config->get_thing_name());
-            this->subscribe(topic, NULL, NULL);
+            // snprintf(topic, sizeof(topic), "%s/ping", this->thing_config->get_thing_name());
+            // if (this->subscribe(topic, NULL, NULL) != ESP_OK) {
+            //     ESP_LOGE(TAG, "Failed to subscribe to topic %s", topic);
+            //     this->event_callback(e_mqtt_agent_disconnected, this->event_callback_context);
+            //     this->mqtt_connection.disconnect(this->mqtt_context.get_mqtt_context());
+            //     vTaskDelay(1000 / portTICK_PERIOD_MS);
+            //     continue;
+            // }
 
-            snprintf(topic, sizeof(topic), "%s/set-config", this->thing_config->get_thing_name());
-            this->subscribe(topic, NULL, NULL);
+            // snprintf(topic, sizeof(topic), "%s/set-config", this->thing_config->get_thing_name());
+            // if (this->subscribe(topic, NULL, NULL) != ESP_OK) {
+            //     ESP_LOGE(TAG, "Failed to subscribe to topic %s", topic);
+            //     this->event_callback(e_mqtt_agent_disconnected, this->event_callback_context);
+            //     this->mqtt_connection.disconnect(this->mqtt_context.get_mqtt_context());
+            //     vTaskDelay(1000 / portTICK_PERIOD_MS);
+            //     continue;
+            // }
 
-            snprintf(topic, sizeof(topic), "%s/get-config", this->thing_config->get_thing_name());
-            this->subscribe(topic, NULL, NULL);
+            // snprintf(topic, sizeof(topic), "%s/get-config", this->thing_config->get_thing_name());
+            // if (this->subscribe(topic, NULL, NULL) != ESP_OK) {
+            //     ESP_LOGE(TAG, "Failed to subscribe to topic %s", topic);
+            //     this->event_callback(e_mqtt_agent_disconnected, this->event_callback_context);
+            //     this->mqtt_connection.disconnect(this->mqtt_context.get_mqtt_context());
+            //     vTaskDelay(1000 / portTICK_PERIOD_MS);
+            //     continue;
+            // }
+
+            // snprintf(topic, sizeof(topic), "%s/reboot", this->thing_config->get_thing_name());
+            // if (this->subscribe(topic, NULL, NULL) != ESP_OK) {
+            //     ESP_LOGE(TAG, "Failed to subscribe to topic %s", topic);
+            //     this->event_callback(e_mqtt_agent_disconnected, this->event_callback_context);
+            //     this->mqtt_connection.disconnect(this->mqtt_context.get_mqtt_context());
+            //     vTaskDelay(1000 / portTICK_PERIOD_MS);
+            //     continue;
+            // }
 
             // todo this should be more stateful. use a delay for now to make
             // sure the subscribe happened before we publish we need data.
