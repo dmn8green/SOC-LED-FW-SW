@@ -1,5 +1,5 @@
 {
     "scripts": {
-        "release-code": "git archive --format=zip --prefix=mn8-light-controller-firmware/ HEAD > ../mn8-light-controller-firmware.zip"
+      "release-code": "git-archive-all --prefix=mn8-light-controller-firmware/ --force-submodules ../mn8-light-controller-firmware.zip"
     }
 }
