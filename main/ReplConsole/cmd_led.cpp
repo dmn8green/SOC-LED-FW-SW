@@ -181,6 +181,7 @@ static int led_task(int argc, char **argv)
     int pattern = led_args.pattern->ival[0];
     int charge = led_args.charge->ival[0];
     int led_length = led_args.led_length->ival[0];
+    ESP_LOGI(TAG, "Strip index: %d, pattern: %d, charge: %d, led_length: %d", stripIndex, pattern, charge, led_length);
 
     if (led_args.strip_idx->count == 0) {
         ESP_LOGI(TAG, "No strip index given, controlling both strips");
@@ -190,6 +191,11 @@ static int led_task(int argc, char **argv)
     if (led_args.pattern->count == 0) {
         ESP_LOGI(TAG, "No pattern given, using pattern 0");
         pattern = 0;
+    }
+
+    if (led_args.charge->count == 0) {
+        ESP_LOGI(TAG, "No charge given, using 0");
+        charge = 0;
     }
 
     operation_t op = infer_operation_from_args();

@@ -305,7 +305,6 @@ void MqttAgent::taskFunction(void) {
     if (this->subscribe(buf, NULL, NULL) != ESP_OK) { \
         ESP_LOGE(TAG, "Failed to subscribe to topic %s", buf); \
         this->mqtt_connection.disconnect(this->mqtt_context.get_mqtt_context()); \
-        this->event_callback(e_mqtt_agent_disconnected, this->event_callback_context); \
         vTaskDelay(1000 / portTICK_PERIOD_MS); \
         continue; \
     }
