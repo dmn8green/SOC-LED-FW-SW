@@ -616,6 +616,8 @@ static void handle_set_site_info(JsonObject &root, JsonObject &response)
 
     site_config.set_site_name(site_name);
     site_config.set_led_length(led_length);
+    context->get_led_task_0().set_state("debug_off", 0);
+    context->get_led_task_1().set_state("debug_off", 0);
 
     if (site_config.save() != ESP_OK)
     {
@@ -647,6 +649,8 @@ static void handle_set_led_length(JsonObject &root, JsonObject &response)
     VALIDATE_COND(led_length != 60 || led_length != 100, "must be 60 or 100");
 
     site_config.set_led_length(led_length);
+    context->get_led_task_0().set_state("debug_off", 0);
+    context->get_led_task_1().set_state("debug_off", 0);
 
     if (site_config.save() != ESP_OK)
     {

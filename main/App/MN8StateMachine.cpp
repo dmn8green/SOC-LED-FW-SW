@@ -240,6 +240,7 @@ mn8_state_t MN8StateMachine::connecting_state(mn8_event_t event) {
             }
             
             break;
+        
         default:
             next_state = e_mn8_connecting;
     }
