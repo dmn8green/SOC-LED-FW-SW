@@ -51,7 +51,7 @@ public:
     inline uint32_t get_rate(void) { return this->rate; }
     inline void set_rate(uint32_t rate) { this->rate = rate; }
 
-    virtual void reset(void) { this->rate = 2000; }
+    void reset(void) { this->rate = 2000; }
 
 private:
     // changed from max to 2 seconds to force the led to update when plugged in.
