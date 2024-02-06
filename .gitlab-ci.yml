@@ -5,7 +5,7 @@ stages:
 build:
   stage: build
 
-  image: espressif/idf:release-v5.1
+  image: espressif/idf:release-v5.0
 
   variables:
     GIT_SUBMODULE_STRATEGY: recursive
