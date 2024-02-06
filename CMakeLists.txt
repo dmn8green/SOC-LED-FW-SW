@@ -9,6 +9,7 @@ set(EXTRA_COMPONENT_DIRS
 
 
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
+
 # include_directories(BEFORE "${CMAKE_CURRENT_LIST_DIR}/main")
 
 project(led_strip)

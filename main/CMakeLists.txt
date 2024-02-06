@@ -22,6 +22,7 @@ set(COMPONENT_REQUIRES
     driver
     ArduinoJson
     soc
+    esp_https_server
 )
 
 #set(COMPONENT_PRIV_REQUIRES )
@@ -77,12 +78,12 @@ set(COMPONENT_SRCS
     App/MN8App.cpp
     App/mdns_broadcaster.cpp
     App/udp_server.cpp
+    App/web_server.cpp
     main.cpp
 )
 
 set(COMPONENT_ADD_INCLUDEDIRS
     "."
 )
-
 
 register_component()
