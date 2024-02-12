@@ -33,6 +33,7 @@ set(COMPONENT_SRCS
     Utils/Colors.cpp
     Utils/FreeRTOSTask.cpp
     Utils/iot_provisioning.cpp
+    Utils/Updater.cpp
     LED/LedTaskSpi.cpp
     LED/RmtOverSpi.cpp
     #LED/Animations/ChasingAnimation.cpp

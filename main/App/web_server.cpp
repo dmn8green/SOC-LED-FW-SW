@@ -3,12 +3,53 @@
 #include "esp_err.h"
 #include "LED/Animations/ChargingAnimation.h"
 
+static const char *TAG = "web_server";
+
+const char* serverIndex = R"(
+    <script src='https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js'></script>
+    <form method='POST' action='#' enctype='multipart/form-data' id='upload_form'>
+        <input type='file' name='update'>
+            <input type='submit' value='Update'>
+    </form>
+    <div id='prg'>progress: 0%</div>
+    <script>
+        $('form').submit(function(e){
+            e.preventDefault();
+            var form = $('#upload_form')[0];
+            var data = new FormData(form);
+            $.ajax({
+                url: '/update',
+                type: 'POST',
+                data: data,
+                contentType: false,
+                processData:false,
+                xhr: function() {
+                    var xhr = new window.XMLHttpRequest();
+                    xhr.upload.addEventListener('progress', function(evt) {
+                        if (evt.lengthComputable) {
+                            var per = evt.loaded / evt.total;
+                            $('#prg').html('progress: ' + Math.round(per*100) + '%');
+                        }
+                    }, false);
+                    window.location.href ='/uri';
+                    return xhr;
+                },
+                success:function(d, s) {
+                    console.log('successok !') 
+                },
+                error: function (a, b, c) {
+                }
+            });
+        });
+    </script>
+ )";
+
 /* Our URI handler function to be called during GET /uri request */
 esp_err_t get_handler(httpd_req_t *req)
 {
     /* Send a simple response */
     const char resp[] = "URI GET Response";
-    httpd_resp_send(req, resp, HTTPD_RESP_USE_STRLEN);
+    httpd_resp_send(req, serverIndex, HTTPD_RESP_USE_STRLEN);
     return ESP_OK;
 }
 
@@ -22,6 +63,7 @@ esp_err_t post_handler(httpd_req_t *req)
      * content length would give length of string */
     char content[100];
 
+    ESP_LOGI(TAG, "Content length: %d", req->content_len);
     /* Truncate if content length larger than the buffer */
     size_t recv_size = MIN(req->content_len, sizeof(content));
 
@@ -47,6 +89,57 @@ esp_err_t post_handler(httpd_req_t *req)
     return ESP_OK;
 }
 
+esp_err_t update_handler(httpd_req_t *req)
+{
+    // server.on("/update", HTTP_POST, []() {
+    //     server.sendHeader("Connection", "close");
+    //     server.send(200, "text/plain", (Update.hasError()) ? "FAIL" : "OK");
+    //     ESP.restart();
+    // }, []() {
+    //     Serial.println("OTA started ");
+    //     HTTPUpload& upload = server.upload();
+    //     if (upload.status == UPLOAD_FILE_START) {
+    //       Serial.printf("Update: %s\n", upload.filename.c_str());
+    //       if (!Update.begin(UPDATE_SIZE_UNKNOWN)) { //start with max available size
+    //         Update.printError(Serial);
+    //       }
+    //     } else if (upload.status == UPLOAD_FILE_WRITE) {
+    //       /* flashing firmware to ESP*/
+    //       if (Update.write(upload.buf, upload.currentSize) != upload.currentSize) {
+    //         Update.printError(Serial);
+    //       }
+    //     } else if (upload.status == UPLOAD_FILE_END) {
+    //       if (Update.end(true)) { //true to set the size to the current progress
+    //         Serial.printf("Update Success: %u\nRebooting...\n", upload.totalSize);
+    //       } else {
+    //         Update.printError(Serial);
+    //       }
+    //     }
+    //   });
+    
+    char content[100];
+    ESP_LOGI(TAG, "Content length: %d", req->content_len);
+    size_t left_to_recv = req->content_len; // MIN(req->content_len, sizeof(content));
+    while (left_to_recv > 0)
+    {
+        size_t to_recv = MIN(left_to_recv, sizeof(content));
+        int ret = httpd_req_recv(req, content, to_recv);
+        if (ret <= 0)
+        {
+            if (ret == HTTPD_SOCK_ERR_TIMEOUT)
+            {
+                httpd_resp_send_408(req);
+            }
+            return ESP_FAIL;
+        }
+        ESP_LOGI(TAG, "Read data: %.*s", ret, content);
+        left_to_recv -= ret;
+    }
+    const char resp[] = "OK";
+    httpd_resp_send(req, resp, HTTPD_RESP_USE_STRLEN);
+    return ESP_OK;
+}
+
 /* URI handler structure for GET /uri */
 httpd_uri_t uri_get = {
     .uri = "/uri",
@@ -59,6 +152,12 @@ httpd_uri_t uri_post = {
     .uri = "/uri",
     .method = HTTP_POST,
     .handler = post_handler,
+    .user_ctx = NULL};
+
+httpd_uri_t uri_update = {
+    .uri = "/update",
+    .method = HTTP_POST,
+    .handler = update_handler,
     .user_ctx = NULL};
 
 /* Function for starting the webserver */
@@ -76,6 +175,7 @@ httpd_handle_t start_webserver(void)
         /* Register URI handlers */
         httpd_register_uri_handler(server, &uri_get);
         httpd_register_uri_handler(server, &uri_post);
+        httpd_register_uri_handler(server, &uri_update);
     }
     /* If server failed to start, handle will be NULL */
     return server;
