@@ -1,55 +1,40 @@
+// references:
+// https://mischianti.org/esp32-ota-update-with-web-browser-firmware-filesystem-and-authentication-1/#google_vignette
+
 #include "web_server.h"
 #include "esp_log.h"
 #include "esp_err.h"
 #include "LED/Animations/ChargingAnimation.h"
+#include "Utils/Updater.h"
 
 static const char *TAG = "web_server";
 
-const char* serverIndex = R"(
-    <script src='https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js'></script>
-    <form method='POST' action='#' enctype='multipart/form-data' id='upload_form'>
-        <input type='file' name='update'>
-            <input type='submit' value='Update'>
-    </form>
-    <div id='prg'>progress: 0%</div>
-    <script>
-        $('form').submit(function(e){
-            e.preventDefault();
-            var form = $('#upload_form')[0];
-            var data = new FormData(form);
-            $.ajax({
-                url: '/update',
-                type: 'POST',
-                data: data,
-                contentType: false,
-                processData:false,
-                xhr: function() {
-                    var xhr = new window.XMLHttpRequest();
-                    xhr.upload.addEventListener('progress', function(evt) {
-                        if (evt.lengthComputable) {
-                            var per = evt.loaded / evt.total;
-                            $('#prg').html('progress: ' + Math.round(per*100) + '%');
-                        }
-                    }, false);
-                    window.location.href ='/uri';
-                    return xhr;
-                },
-                success:function(d, s) {
-                    console.log('successok !') 
-                },
-                error: function (a, b, c) {
-                }
-            });
-        });
-    </script>
- )";
+static const char serverIndex2[] =
+R"(<!DOCTYPE html>
+     <html lang='en'>
+     <head>
+         <meta charset='utf-8'>
+         <meta name='viewport' content='width=device-width,initial-scale=1'/>
+     </head>
+     <body>
+     <form method='POST' action='' enctype='multipart/form-data'>
+         Firmware:<br>
+         <input type='file' accept='.bin,.bin.gz' name='firmware'>
+         <input type='submit' value='Update Firmware'>
+     </form>
+     <form method='POST' action='' enctype='multipart/form-data'>
+         FileSystem:<br>
+         <input type='file' accept='.bin,.bin.gz,.image' name='filesystem'>
+         <input type='submit' value='Update FileSystem'>
+     </form>
+     </body>
+     </html>)";
 
 /* Our URI handler function to be called during GET /uri request */
 esp_err_t get_handler(httpd_req_t *req)
 {
     /* Send a simple response */
-    const char resp[] = "URI GET Response";
-    httpd_resp_send(req, serverIndex, HTTPD_RESP_USE_STRLEN);
+    httpd_resp_send(req, serverIndex2, HTTPD_RESP_USE_STRLEN);
     return ESP_OK;
 }
 
@@ -89,69 +74,73 @@ esp_err_t post_handler(httpd_req_t *req)
     return ESP_OK;
 }
 
+#define ONE_KB (1024)
+#define ONE_MB (ONE_KB)
+uint8_t update_buffer[16*ONE_KB];
+
 esp_err_t update_handler(httpd_req_t *req)
 {
-    // server.on("/update", HTTP_POST, []() {
-    //     server.sendHeader("Connection", "close");
-    //     server.send(200, "text/plain", (Update.hasError()) ? "FAIL" : "OK");
-    //     ESP.restart();
-    // }, []() {
-    //     Serial.println("OTA started ");
-    //     HTTPUpload& upload = server.upload();
-    //     if (upload.status == UPLOAD_FILE_START) {
-    //       Serial.printf("Update: %s\n", upload.filename.c_str());
-    //       if (!Update.begin(UPDATE_SIZE_UNKNOWN)) { //start with max available size
-    //         Update.printError(Serial);
-    //       }
-    //     } else if (upload.status == UPLOAD_FILE_WRITE) {
-    //       /* flashing firmware to ESP*/
-    //       if (Update.write(upload.buf, upload.currentSize) != upload.currentSize) {
-    //         Update.printError(Serial);
-    //       }
-    //     } else if (upload.status == UPLOAD_FILE_END) {
-    //       if (Update.end(true)) { //true to set the size to the current progress
-    //         Serial.printf("Update Success: %u\nRebooting...\n", upload.totalSize);
-    //       } else {
-    //         Update.printError(Serial);
-    //       }
-    //     }
-    //   });
+    char* ptr = (char*) update_buffer;
+    esp_err_t ret = ESP_OK;
+    bool done = false;
     
-    char content[100];
-    ESP_LOGI(TAG, "Content length: %d", req->content_len);
-    size_t left_to_recv = req->content_len; // MIN(req->content_len, sizeof(content));
-    while (left_to_recv > 0)
-    {
-        size_t to_recv = MIN(left_to_recv, sizeof(content));
-        int ret = httpd_req_recv(req, content, to_recv);
-        if (ret <= 0)
-        {
-            if (ret == HTTPD_SOCK_ERR_TIMEOUT)
-            {
+    uint32_t total_size = req->content_len;
+    uint32_t left_to_recv = req->content_len;
+    uint32_t bytes_written = 0;
+
+    FwUpdater& updater = FwUpdater::instance();
+
+    ret = updater.begin(total_size);
+    if ( ret != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to begin update");
+        goto err;
+    }
+
+    ESP_LOGI(TAG, "Content length: %ld", total_size);
+    while (bytes_written < total_size) {
+        size_t to_recv = MIN(left_to_recv, sizeof(update_buffer));
+        int ret = httpd_req_recv(req, ptr, to_recv);
+        if (ret <= 0) {
+            if (ret == HTTPD_SOCK_ERR_TIMEOUT) {
+                ESP_LOGE(TAG, "Socket timeout, retrying");
                 httpd_resp_send_408(req);
             }
             return ESP_FAIL;
         }
-        ESP_LOGI(TAG, "Read data: %.*s", ret, content);
+
+        updater.write(update_buffer, ret);
+
         left_to_recv -= ret;
+        bytes_written += ret;
     }
-    const char resp[] = "OK";
+    ESP_LOGI(TAG, "bytes_written: %ld", bytes_written);
+
+    ret = updater.end();
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to end update");
+        goto err;
+    }
+
+    {
+        const char resp[] = "OK";
+        ESP_LOGI(TAG, "Update complete");
+        httpd_resp_send(req, resp, HTTPD_RESP_USE_STRLEN);
+        return ESP_OK;
+    }
+
+err:
+    const char resp[] = "Failed";
+    updater.abort();
+    ESP_LOGI(TAG, "Update failed");
     httpd_resp_send(req, resp, HTTPD_RESP_USE_STRLEN);
-    return ESP_OK;
+    return ret;
 }
 
 /* URI handler structure for GET /uri */
 httpd_uri_t uri_get = {
-    .uri = "/uri",
+    .uri = "/update",
     .method = HTTP_GET,
     .handler = get_handler,
-    .user_ctx = NULL};
-
-/* URI handler structure for POST /uri */
-httpd_uri_t uri_post = {
-    .uri = "/uri",
-    .method = HTTP_POST,
-    .handler = post_handler,
     .user_ctx = NULL};
 
 httpd_uri_t uri_update = {
@@ -174,7 +163,6 @@ httpd_handle_t start_webserver(void)
     {
         /* Register URI handlers */
         httpd_register_uri_handler(server, &uri_get);
-        httpd_register_uri_handler(server, &uri_post);
         httpd_register_uri_handler(server, &uri_update);
     }
     /* If server failed to start, handle will be NULL */

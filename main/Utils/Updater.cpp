@@ -7,346 +7,144 @@
 #include "esp_log.h"
 
 #include <memory.h>
+#include <esp_timer.h>
 
 static const char *TAG = "Updater";
 
-// clang-format off
-static const char *_err2str(uint8_t _error)
+//****************************************************************************************
+esp_err_t FwUpdater::begin(uint32_t size)
 {
-    if      (_error == UPDATE_ERROR_OK)             { return ("No Error"); }
-    else if (_error == UPDATE_ERROR_WRITE)          { return ("Flash Write Failed"); }
-    else if (_error == UPDATE_ERROR_ERASE)          { return ("Flash Erase Failed"); }
-    else if (_error == UPDATE_ERROR_READ)           { return ("Flash Read Failed"); }
-    else if (_error == UPDATE_ERROR_SPACE)          { return ("Not Enough Space"); }
-    else if (_error == UPDATE_ERROR_SIZE)           { return ("Bad Size Given"); }
-    else if (_error == UPDATE_ERROR_STREAM)         { return ("Stream Read Timeout"); }
-    else if (_error == UPDATE_ERROR_MD5)            { return ("MD5 Check Failed"); }
-    else if (_error == UPDATE_ERROR_MAGIC_BYTE)     { return ("Wrong Magic Byte"); }
-    else if (_error == UPDATE_ERROR_ACTIVATE)       { return ("Could Not Activate The Firmware"); }
-    else if (_error == UPDATE_ERROR_NO_PARTITION)   { return ("Partition Could Not be Found"); }
-    else if (_error == UPDATE_ERROR_BAD_ARGUMENT)   { return ("Bad Argument"); }
-    else if (_error == UPDATE_ERROR_ABORT)          { return ("Aborted"); }
-    return ("UNKNOWN");
-}
-// clang-format on
+    esp_err_t err = 0;
 
-FwUpdater::FwUpdater(token) 
-    : _error(0)
-    , _buffer(0)
-    , _bufferLen(0)
-    , _size(0)
-    , _progress_callback(NULL)
-    , _progress(0)
-    , _paroffset(0)
-    , _command(U_FLASH)
-    , _partition(NULL)
-{}
-
-static bool _partitionIsBootable(const esp_partition_t *partition)
-{
-    uint8_t buf[ENCRYPTED_BLOCK_SIZE];
-    if (!partition) { 
-        return false;
-    }
-    if (esp_partition_read(partition, 0, (uint32_t *)buf, ENCRYPTED_BLOCK_SIZE) != ESP_OK) {
-        return false;
-    }
-    if (buf[0] != ESP_IMAGE_HEADER_MAGIC) {
-        return false;
-    }
-    return true;
-}
-
-bool FwUpdater::_enablePartition(const esp_partition_t *partition)
-{
-    if (!partition) {
-        return false;
-    }
-
-    return esp_partition_write(partition, 0, (uint32_t *)_skipBuffer, ENCRYPTED_BLOCK_SIZE) == ESP_OK;
-}
-
-
-FwUpdater &FwUpdater::onProgress(fn_progress_callback_t fn)
-{
-    _progress_callback = fn;
-    return *this;
-}
-
-void FwUpdater::_reset()
-{
-    if (_buffer) {
-        delete[] _buffer;
-    }
-
-    _buffer = 0;
-    _bufferLen = 0;
-    _progress = 0;
-    _size = 0;
-    _command = U_FLASH;
-}
-
-bool FwUpdater::canRollBack()
-{
-    if (_buffer) { // Update is running
-        return false;
-    }
-
-    const esp_partition_t *partition = esp_ota_get_next_update_partition(NULL);
-    return _partitionIsBootable(partition);
-}
-
-bool FwUpdater::rollBack()
-{
-    if (_buffer) { // Update is running
-        return false;
-    }
-    const esp_partition_t *partition = esp_ota_get_next_update_partition(NULL);
-    return _partitionIsBootable(partition) && !esp_ota_set_boot_partition(partition);
-}
-
-bool FwUpdater::begin(size_t size, int command, const char *label)
-{
-    if (_size > 0)
-    {
+    if (this->update_partition != nullptr) {
         ESP_LOGI(TAG, "Update already running");
         return false;
     }
 
-    _reset();
-    _error = 0;
-    // _target_md5 = emptyString;
-    // _md5 = MD5Builder();
-
     if (size == 0) {
-        _error = UPDATE_ERROR_SIZE;
+        ESP_LOGE(TAG, "Size is 0 no updates possible");
         return false;
     }
 
-    if (command == U_FLASH) {
-        _partition = esp_ota_get_next_update_partition(NULL);
-        if (!_partition)
-        {
-            _error = UPDATE_ERROR_NO_PARTITION;
-            return false;
-        }
-        ESP_LOGD(TAG, "OTA Partition: %s", _partition->label);
-    }
-    else if (command == U_SPIFFS) {
-        _partition = esp_partition_find_first(ESP_PARTITION_TYPE_DATA, ESP_PARTITION_SUBTYPE_DATA_SPIFFS, label);
-        _paroffset = 0;
-        if (!_partition) {
-            _partition = esp_partition_find_first(ESP_PARTITION_TYPE_DATA, ESP_PARTITION_SUBTYPE_DATA_FAT, NULL);
-            _paroffset = 0x1000; // Offset for ffat, assuming size is already corrected
-            if (!_partition) {
-                _error = UPDATE_ERROR_NO_PARTITION;
-                return false;
-            }
-        }
-    }
-    else {
-        _error = UPDATE_ERROR_BAD_ARGUMENT;
-        ESP_LOGE(TAG, "bad command %u", command);
+    this->update_size = 0;
+    this->update_handle = 0;
+    this->bytes_written = 0;
+
+    this->update_partition = esp_ota_get_next_update_partition(NULL);
+    if (this->update_partition == nullptr) {
+        ESP_LOGE(TAG, "Partition could not be found");
         return false;
+    }
+    ESP_LOGI(TAG,"Update firmware command");
+
+    err = esp_ota_begin(update_partition, OTA_WITH_SEQUENTIAL_WRITES, &this->update_handle);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "esp_ota_begin failed (%s)", esp_err_to_name(err));
+        esp_ota_abort(this->update_handle);
     }
 
     if (size == UPDATE_SIZE_UNKNOWN) {
-        size = _partition->size;
-    } else if (size > _partition->size) {
-        _error = UPDATE_ERROR_SIZE;
-        ESP_LOGE(TAG, "too large %d > %lu", size, _partition->size);
-        return false;
+        size = this->update_partition->size;
+    } else if (size > this->update_partition->size) {
+        ESP_LOGE(TAG, "too large %lu > %lu", size, this->update_partition->size);
+        return ESP_ERR_INVALID_SIZE;
     }
-
-    // initialize
-    _buffer = (uint8_t *)malloc(SPI_FLASH_SEC_SIZE);
-    if (!_buffer) {
-        ESP_LOGE(TAG, "malloc failed");
-        return false;
-    }
-
-    _size = size;
-    _command = command;
-    // _md5.begin();
-    return true;
+    this->update_size = size;
+    ESP_LOGI(TAG, "Updater beginned, size: %lu handle %ld", size, this->update_handle);
+    return ESP_OK;
 }
 
-void FwUpdater::_abort(uint8_t err)
+//****************************************************************************************
+esp_err_t FwUpdater::write(uint8_t *data, size_t len)
 {
-    _reset();
-    _error = err;
+    esp_err_t ret = ESP_OK;
+    uint8_t percentWritten = 0;
+    uint32_t usecTimeCount = 0;
+    uint32_t prev_usecTimeCount = 0;
+
+    ESP_LOGI(TAG, "Byte written %lu, update size %lu", this->bytes_written, this->update_size);
+    if (len > this->update_size - this->bytes_written) {
+        ESP_LOGE(TAG, "too large %d > %lu", len, this->update_size - this->bytes_written);
+        return ESP_ERR_INVALID_SIZE;
+    }
+
+    prev_usecTimeCount = (uint32_t)(esp_timer_get_time() & 0x00000000ffffffff);
+
+    ESP_LOGI(TAG, "Writing %d bytes handle %ld", len, this->update_handle);
+    ret = esp_ota_write( update_handle, data, len);
+    if (ret != ESP_OK) {
+        esp_ota_abort(update_handle);
+        ESP_LOGE(TAG, "esp_ota_write failed");
+        goto err;
+    }
+
+    this->bytes_written += len;
+
+    // percentWritten = (this->bytes_written * 99) / this->update_size;
+    // usecTimeCount = (uint32_t)(esp_timer_get_time() & 0x00000000ffffffff);
+    // ESP_LOGI(TAG, "esp_ota_write time %lu percent written %u",
+    //                  usecTimeCount - prev_usecTimeCount, percentWritten);
+    // this->progress_callback(percentWritten);
+
+err:
+    return ret;
 }
 
+//****************************************************************************************
+esp_err_t FwUpdater::end(bool evenIfRemaining)
+{
+    esp_err_t ret = ESP_OK;
+
+    if (this->update_partition == nullptr) {
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    if (this->bytes_written != this->update_size) {
+        if (!evenIfRemaining) {
+            return ESP_ERR_INVALID_SIZE;
+        }
+    }
+
+    // End the update
+    ret = esp_ota_end(this->update_handle);
+    if (ret != ESP_OK) {
+        if (ret == ESP_ERR_OTA_VALIDATE_FAILED) {
+            ESP_LOGE(TAG, "Image validation failed, image is corrupted");
+        } else {
+            ESP_LOGE(TAG, "esp_ota_end failed (%s)!", esp_err_to_name(ret));
+        }
+        goto err;
+    }
+    ESP_LOGI(TAG, "esp_ota_end succeeded");
+
+    // Set the partition as bootable
+    ret = esp_ota_set_boot_partition(this->update_partition);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "esp_ota_set_boot_partition failed (%s)!", esp_err_to_name(ret));
+        goto err;
+    }
+    ESP_LOGI(TAG, "esp_ota_set_boot_partition succeeded");
+
+err:
+    // Clear the update
+    this->update_partition = nullptr;
+    this->update_size = 0;
+    this->update_handle = 0;
+    this->bytes_written = 0;
+
+    return ret;
+}
+
+
+//****************************************************************************************
 void FwUpdater::abort()
 {
-    _abort(UPDATE_ERROR_ABORT);
+    this->update_partition = nullptr;
+    if (this->update_handle) {
+        esp_ota_abort(this->update_handle);
+    }
+    this->update_size = 0;
+    this->update_handle = 0;
+    this->bytes_written = 0;
 }
 
-bool FwUpdater::_writeBuffer()
-{
-    // first bytes of new firmware
-    uint8_t skip = 0;
-    if (!_progress && _command == U_FLASH) {
-        // check magic
-        if (_buffer[0] != ESP_IMAGE_HEADER_MAGIC) {
-            _abort(UPDATE_ERROR_MAGIC_BYTE);
-            return false;
-        }
-
-        // Stash the first 16 bytes of data and set the offset so they are
-        // not written at this point so that partially written firmware
-        // will not be bootable
-        skip = ENCRYPTED_BLOCK_SIZE;
-        _skipBuffer = (uint8_t *)malloc(skip);
-        if (!_skipBuffer) {
-            ESP_LOGE(TAG, "malloc failed");
-            return false;
-        }
-        memcpy(_skipBuffer, _buffer, skip);
-    }
-    if (!_progress && _progress_callback) {
-        _progress_callback(0, _size);
-    }
-    if (esp_partition_erase_range(_partition, _progress, SPI_FLASH_SEC_SIZE) != ESP_OK) {
-        _abort(UPDATE_ERROR_ERASE);
-        return false;
-    }
-    if (esp_partition_write(_partition, _progress + skip, (uint32_t *)_buffer + skip / sizeof(uint32_t), _bufferLen - skip) != ESP_OK) {
-        _abort(UPDATE_ERROR_WRITE);
-        return false;
-    }
-
-    // restore magic or md5 will fail
-    if (!_progress && _command == U_FLASH) {
-        _buffer[0] = ESP_IMAGE_HEADER_MAGIC;
-    }
-
-    // _md5.add(_buffer, _bufferLen);
-    _progress += _bufferLen;
-    _bufferLen = 0;
-    if (_progress_callback) {
-        _progress_callback(_progress, _size);
-    }
-    return true;
-}
-
-bool FwUpdater::_verifyHeader(uint8_t data)
-{
-    if (_command == U_FLASH) {
-        if (data != ESP_IMAGE_HEADER_MAGIC) {
-            _abort(UPDATE_ERROR_MAGIC_BYTE);
-            return false;
-        }
-        return true;
-    } else if (_command == U_SPIFFS) {
-        return true;
-    }
-    return false;
-}
-
-bool FwUpdater::_verifyEnd()
-{
-    if (_command == U_FLASH) {
-        if (!_enablePartition(_partition) || !_partitionIsBootable(_partition)) {
-            _abort(UPDATE_ERROR_READ);
-            return false;
-        }
-
-        if (esp_ota_set_boot_partition(_partition)) {
-            _abort(UPDATE_ERROR_ACTIVATE);
-            return false;
-        }
-        _reset();
-        return true;
-    } else if (_command == U_SPIFFS) {
-        _reset();
-        return true;
-    }
-    return false;
-}
-
-// bool Updater::setMD5(const char *expected_md5)
-// {
-//     if (strlen(expected_md5) != 32)
-//     {
-//         return false;
-//     }
-//     _target_md5 = expected_md5;
-//     return true;
-// }
-
-bool FwUpdater::end(bool evenIfRemaining)
-{
-    if (hasError() || _size == 0) {
-        return false;
-    }
-
-    if (!isFinished() && !evenIfRemaining) {
-        ESP_LOGE(TAG, "premature end: res:%u, pos:%u/%u", getError(), progress(), _size);
-        _abort(UPDATE_ERROR_ABORT);
-        return false;
-    }
-
-    if (evenIfRemaining) {
-        if (_bufferLen > 0) {
-            _writeBuffer();
-        }
-        _size = progress();
-    }
-
-    // _md5.calculate();
-    // if (_target_md5.length())
-    // {
-    //     if (_target_md5 != _md5.toString())
-    //     {
-    //         _abort(UPDATE_ERROR_MD5);
-    //         return false;
-    //     }
-    // }
-
-    return _verifyEnd();
-}
-
-size_t FwUpdater::write(uint8_t *data, size_t len)
-{
-    if (hasError() || !isRunning()) {
-        return 0;
-    }
-
-    if (len > remaining()) {
-        _abort(UPDATE_ERROR_SPACE);
-        return 0;
-    }
-
-    size_t left = len;
-
-    while ((_bufferLen + left) > SPI_FLASH_SEC_SIZE) {
-        size_t toBuff = SPI_FLASH_SEC_SIZE - _bufferLen;
-        memcpy(_buffer + _bufferLen, data + (len - left), toBuff);
-        _bufferLen += toBuff;
-        if (!_writeBuffer())
-        {
-            return len - left;
-        }
-        left -= toBuff;
-    }
-    memcpy(_buffer + _bufferLen, data + (len - left), left);
-    _bufferLen += left;
-    if (_bufferLen == remaining()) {
-        if (!_writeBuffer())
-        {
-            return len - left;
-        }
-    }
-    return len;
-}
-
-// void Updater::printError(Print &out)
-// {
-//     out.println(_err2str(_error));
-// }
-
-const char * FwUpdater::errorString()
-{
-    return _err2str(_error);
-}

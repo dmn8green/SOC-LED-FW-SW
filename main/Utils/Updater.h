@@ -3,40 +3,25 @@
 #include "Singleton.h"
 
 #include <functional>
-#include "esp_partition.h"
 
-#define UPDATE_ERROR_OK (0)
-#define UPDATE_ERROR_WRITE (1)
-#define UPDATE_ERROR_ERASE (2)
-#define UPDATE_ERROR_READ (3)
-#define UPDATE_ERROR_SPACE (4)
-#define UPDATE_ERROR_SIZE (5)
-#define UPDATE_ERROR_STREAM (6)
-#define UPDATE_ERROR_MD5 (7)
-#define UPDATE_ERROR_MAGIC_BYTE (8)
-#define UPDATE_ERROR_ACTIVATE (9)
-#define UPDATE_ERROR_NO_PARTITION (10)
-#define UPDATE_ERROR_BAD_ARGUMENT (11)
-#define UPDATE_ERROR_ABORT (12)
+#include "esp_partition.h"
+#include "esp_err.h"
+#include "esp_log.h"
+#include "esp_ota_ops.h"
 
 #define UPDATE_SIZE_UNKNOWN 0xFFFFFFFF
-
-#define U_FLASH 0
-#define U_SPIFFS 100
-#define U_AUTH 200
-
 #define ENCRYPTED_BLOCK_SIZE 16
 
 class FwUpdater : public Singleton<FwUpdater>
 {
 public:
-    FwUpdater(token);
+    FwUpdater(token) {};
     ~FwUpdater(void) = default;
 
 public:
-    typedef std::function<void(size_t, size_t)> fn_progress_callback_t;
+    typedef std::function<void(uint8_t)> fn_progress_callback_t;
 
-    FwUpdater &onProgress(fn_progress_callback_t fn);
+    inline FwUpdater &register_progress_callback(fn_progress_callback_t fn) { progress_callback = fn; return *this; } 
 
     //****************************************************************************************
     /**
@@ -45,14 +30,10 @@ public:
      * Call this to check the space needed for the update
      *
      * @param  size: size of the update
-     * @param  command: U_FLASH, U_SPIFFS, U_AUTH
-     * @param  ledPin: pin to control the led
-     * @param  ledOn: led on state
-     * @param  label: label of the partition to update
      *
-     * @retval true if the update can be started, false if not enough space
+     * @retval ESP_OK if the write was successful, ESP_FAIL if not
      */
-    bool begin(size_t size = UPDATE_SIZE_UNKNOWN, int command = U_FLASH, const char *label = NULL);
+    esp_err_t begin(uint32_t size = UPDATE_SIZE_UNKNOWN);
 
     //****************************************************************************************
     /**
@@ -60,15 +41,12 @@ public:
      *
      * Writes a buffer to the flash and increments the address, returns the amount written
      *
-     * @param  size: size of the update
-     * @param  command: U_FLASH, U_SPIFFS, U_AUTH
-     * @param  ledPin: pin to control the led
-     * @param  ledOn: led on state
-     * @param  label: label of the partition to update
+     * @param  data: pointer to the data to write
+     * @param  len: length of the data to write
      *
-     * @retval the amount written
+     * @retval ESP_OK if the write was successful, ESP_FAIL if not
      */
-    size_t write(uint8_t *data, size_t len);
+    esp_err_t write(uint8_t *data, size_t len);
 
     //****************************************************************************************
     /**
@@ -82,9 +60,9 @@ public:
      *
      * @param  evenIfRemaining: if true, the update will be ended even if there are remaining bytes
      *
-     * @retval true if the update was successful, false if not
+     * @retval ESP_OK if the write was successful, ESP_FAIL if not
      */
-    bool end(bool evenIfRemaining = false);
+    esp_err_t end(bool evenIfRemaining = false);
 
     //****************************************************************************************
     /**
@@ -96,70 +74,12 @@ public:
      */
     void abort();
 
-    const char *errorString();
-
-    // /*
-    //   sets the expected MD5 for the firmware (hexString)
-    // */
-    // bool setMD5(const char *expected_md5);
-
-    // /*
-    //   returns the MD5 String of the successfully ended firmware
-    // */
-    // String md5String(void) { return _md5.toString(); }
-
-    // /*
-    //   populated the result with the md5 bytes of the successfully ended firmware
-    // */
-    // void md5(uint8_t *result) { return _md5.getBytes(result); }
-
-    // Helpers
-    inline uint8_t getError() { return _error; }
-    inline void clearError() { _error = UPDATE_ERROR_OK; }
-    inline bool hasError() { return _error != UPDATE_ERROR_OK; }
-    inline bool isRunning() { return _size > 0; }
-    inline bool isFinished() { return _progress == _size; }
-    inline size_t size() { return _size; }
-    inline size_t progress() { return _progress; }
-    inline size_t remaining() { return _size - _progress; }
-
-    /*
-      check if there is a firmware on the other OTA partition that you can bootinto
-    */
-    //****************************************************************************************
-    /**
-     * @brief  Check if there is a firmware on the other OTA partition that you can boot into
-     *
-     * @retval true if there is a firmware on the other OTA partition that you can boot into, false if not
-     */
-    bool canRollBack(void);
-
-    //****************************************************************************************
-    /**
-     * @brief  Set the other OTA partition as bootable (reboot to enable)
-     *
-     * @retval true if the other OTA partition was set as bootable, false if not
-     */
-    bool rollBack();
-
 private:
-    void _reset();
-    void _abort(uint8_t err);
-    bool _writeBuffer();
-    bool _verifyHeader(uint8_t data);
-    bool _verifyEnd();
-    bool _enablePartition(const esp_partition_t *partition);
-
-    uint8_t _error;
-    uint8_t *_buffer;
-    uint8_t *_skipBuffer;
-    size_t _bufferLen;
-    size_t _size;
-    fn_progress_callback_t _progress_callback;
-    uint32_t _progress;
-    uint32_t _paroffset;
-    uint32_t _command;
-    const esp_partition_t *_partition;
+    const esp_partition_t * update_partition = nullptr;
+    uint32_t update_size = 0;
+    uint32_t bytes_written = 0;
+    esp_ota_handle_t update_handle = 0;
+    fn_progress_callback_t progress_callback = nullptr;
 
     // String _target_md5;
     // MD5Builder _md5;
