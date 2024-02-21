@@ -1,3 +1,10 @@
+## v2.7.8 (2024-02-20)
+
+### Fix
+
+- Fix what would be an issue with newer compiler
+- Adding a webserver to support firmware update
+
 ## v2.7.7 (2024-01-19)
 
 ### Fix
