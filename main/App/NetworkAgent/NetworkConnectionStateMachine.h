@@ -21,6 +21,7 @@ typedef enum {
     e_nc_state_disconnecting,         //?! To indicate that at least one network connection is disconnecting
     e_nc_state_testing_connection,    //?! To indicate that at least one network connection is testing the connection
     e_nc_state_no_connection_error,   //?! To indicate that both network connections are disconnected, network error
+    e_nc_state_restarting,
     e_nc_state_unknown
 } net_conn_agent_state_t;
 
@@ -32,7 +33,8 @@ typedef enum {
     e_nc_event_net_disconnected,
     e_nc_event_timeout,
     e_nc_event_wifi_down,
-    e_nc_event_eth_down
+    e_nc_event_eth_down,
+    e_nc_event_restart
 } net_conn_agent_event_t;
 
 //******************************************************************************
@@ -57,6 +59,7 @@ protected:
     net_conn_agent_state_t disconnecting_state(net_conn_agent_event_t event);
     net_conn_agent_state_t testing_connection_state(net_conn_agent_event_t event);
     net_conn_agent_state_t no_connection_error_state(net_conn_agent_event_t event);
+    net_conn_agent_state_t restarting_state(net_conn_agent_event_t event);
 
 private:
     NetworkConnection* connection = nullptr;

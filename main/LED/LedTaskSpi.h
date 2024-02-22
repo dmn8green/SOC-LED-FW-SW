@@ -92,7 +92,7 @@ public:
     LedTaskSpi(void) = default;
     ~LedTaskSpi(void) = default;
     
-    esp_err_t setup(int led_bar_number, int gpio_pin, spi_host_device_t spi, int led_count);
+    esp_err_t setup(int led_bar_number, int gpio_pin, spi_host_device_t spi, int led_count, bool disable_connecting_leds);
     esp_err_t start(void);
     esp_err_t resume(void);
     esp_err_t suspend(void);
@@ -124,6 +124,7 @@ private:
     SmoothRatePulseCurve smooth_rate_pulse_curve;
     PulsingAnimation pulsing_animation;
     ChargingAnimationWhiteBubble charging_animation_white_bubble;
+    bool disable_connecting_leds = false;
 
     RmtOverSpi rmt_over_spi;
 };

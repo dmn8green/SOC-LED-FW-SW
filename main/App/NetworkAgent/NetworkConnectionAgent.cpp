@@ -113,9 +113,10 @@ void NetworkConnectionAgent::onEthEvent(esp_event_base_t event_base, int32_t eve
     net_conn_agent_event_t next_event;
     switch (event) {
         case ETHERNET_EVENT_CONNECTED:
-            ESP_LOGI(TAG, "Ethernet Connected");
-            next_event = e_nc_event_net_connected;
-            xQueueSend(this->update_queue, &next_event, portMAX_DELAY);
+            // wait til we got an IP address
+            // ESP_LOGI(TAG, "Ethernet Connected");
+            // next_event = e_nc_event_net_connected;
+            // xQueueSend(this->update_queue, &next_event, portMAX_DELAY);
             break;
         case ETHERNET_EVENT_DISCONNECTED:
             ESP_LOGI(TAG, "Ethernet Disconnected");
@@ -151,9 +152,10 @@ void NetworkConnectionAgent::onWifiEvent(esp_event_base_t event_base, int32_t ev
             ESP_LOGI(TAG, "Wifi Stopped");
             break;
         case WIFI_EVENT_STA_CONNECTED:
-            ESP_LOGI(TAG, "Wifi Connected");
-            next_event = e_nc_event_net_connected;
-            xQueueSend(this->update_queue, &next_event, portMAX_DELAY);
+            // wait til we got an IP address
+            // ESP_LOGI(TAG, "Wifi Connected");
+            // next_event = e_nc_event_net_connected;
+            // xQueueSend(this->update_queue, &next_event, portMAX_DELAY);
             break;
         case WIFI_EVENT_STA_DISCONNECTED:
             next_event = e_nc_event_net_disconnected;

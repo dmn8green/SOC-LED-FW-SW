@@ -164,7 +164,7 @@ void LedTaskSpi::vTaskCodeLed()
  * @param spinum 
  * @return esp_err_t 
  */
-esp_err_t LedTaskSpi::setup(int led_bar_number, int gpio_pin, spi_host_device_t spinum, int led_count)
+esp_err_t LedTaskSpi::setup(int led_bar_number, int gpio_pin, spi_host_device_t spinum, int led_count, bool disable_connecting_leds)
 {
     esp_err_t ret = ESP_OK;
 
@@ -172,6 +172,7 @@ esp_err_t LedTaskSpi::setup(int led_bar_number, int gpio_pin, spi_host_device_t 
     this->gpio_pin = gpio_pin;
     this->led_count = led_count;
     this->led_pixels = (uint8_t *)malloc(this->led_count * 3);
+    this->disable_connecting_leds = disable_connecting_leds;
 
     ESP_GOTO_ON_FALSE(
         this->led_pixels, ESP_ERR_NO_MEM, 
@@ -184,7 +185,11 @@ esp_err_t LedTaskSpi::setup(int led_bar_number, int gpio_pin, spi_host_device_t 
     );
 
     this->state_update_queue = xQueueCreate(10, sizeof(led_state_info_t));
-    this->state_info.state = e_station_booting_up;
+    if (!disable_connecting_leds) {
+        this->state_info.state = e_station_booting_up;
+    } else {
+        this->state_info.state = e_station_no_connection;
+    }
 
 err_exit:
     return ret;

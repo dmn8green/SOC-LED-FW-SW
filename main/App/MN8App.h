@@ -79,7 +79,7 @@ protected:
 
 
 private:
-    esp_err_t setup_and_start_led_tasks(void);
+    esp_err_t setup_and_start_led_tasks(bool disable_connecting_leds);
 
 private:
     bool night_mode = false;

@@ -108,6 +108,11 @@ esp_err_t MN8App::setup(void) {
     esp_err_t ret = ESP_OK;
     KeyStore key_store;
 
+    bool reseted_due_to_network_error = false;
+    if (esp_reset_reason() == ESP_RST_SW) {
+        reseted_due_to_network_error = true;
+    }
+
     auto& thing_config = this->context.get_thing_config();
 
     configure_gpio_for_light_sensor();
@@ -115,7 +120,7 @@ esp_err_t MN8App::setup(void) {
     this->context.setup();
 
     // Do this as early as possible to have feedback.
-    ESP_GOTO_ON_ERROR(this->setup_and_start_led_tasks(), err, TAG, "Failed to setup and start led tasks");;
+    ESP_GOTO_ON_ERROR(this->setup_and_start_led_tasks(reseted_due_to_network_error), err, TAG, "Failed to setup and start led tasks");;
 
     // This has to be done early as well.
     ESP_GOTO_ON_ERROR(initialize_nvs(), err, TAG, "Failed to initialize NVS");
@@ -162,7 +167,7 @@ err:
  * 
  * @return esp_err_t 
  */
-esp_err_t MN8App::setup_and_start_led_tasks(void) {
+esp_err_t MN8App::setup_and_start_led_tasks(bool disable_connecting_leds) {
     esp_err_t ret = ESP_OK;
     auto & led_task_0 = this->context.get_led_task_0();
     auto & led_task_1 = this->context.get_led_task_1();
@@ -172,10 +177,10 @@ esp_err_t MN8App::setup_and_start_led_tasks(void) {
     int led_count = site_config.get_led_length() == LED_FULL_SIZE ? LED_STRIP_PIXEL_COUNT : LED_STRIP_SHORT_PIXEL_COUNT;
     ESP_LOGI(TAG, "LED count : %d", led_count);
 
-    ESP_GOTO_ON_ERROR(led_task_0.setup(0, RMT_LED_STRIP0_GPIO_NUM, HSPI_HOST, led_count), err, TAG, "Failed to setup led task 0");
+    ESP_GOTO_ON_ERROR(led_task_0.setup(0, RMT_LED_STRIP0_GPIO_NUM, HSPI_HOST, led_count, disable_connecting_leds), err, TAG, "Failed to setup led task 0");
     ESP_GOTO_ON_ERROR(led_task_0.start(), err, TAG, "Failed to start led task 0");
 
-    ESP_GOTO_ON_ERROR(led_task_1.setup(1, RMT_LED_STRIP1_GPIO_NUM, VSPI_HOST, led_count), err, TAG, "Failed to setup led task 1");
+    ESP_GOTO_ON_ERROR(led_task_1.setup(1, RMT_LED_STRIP1_GPIO_NUM, VSPI_HOST, led_count, disable_connecting_leds), err, TAG, "Failed to setup led task 1");
     ESP_GOTO_ON_ERROR(led_task_1.start(), err, TAG, "Failed to start led task 1");
 
 err:
