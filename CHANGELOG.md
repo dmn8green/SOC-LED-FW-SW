@@ -1,3 +1,13 @@
+## v2.8.0 (2024-02-22)
+
+### Feat
+
+- When a device reboots due to a network issue, it won't be breating yellow, it will show no light
+
+### Fix
+
+- Adding a webserver to support firmware update build: removed cicd.  esp32 broke the build process in newer esp package and our code won't compile in docker anymore, no time to create a different package
+
 ## v2.7.8 (2024-02-20)
 
 ### Fix
