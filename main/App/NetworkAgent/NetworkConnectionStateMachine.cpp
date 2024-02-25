@@ -153,10 +153,12 @@ net_conn_agent_state_t NetworkConnectionStateMachine::connected_state(net_conn_a
             // Get hostname to test connection
             struct hostent *hp;
             struct in_addr **addr;
-            hp = gethostbyname("testing32");
-            if(hp == NULL){
+            hp = gethostbyname("www.google.com");
+            if (hp == NULL){
                 ESP_LOGI(TAG,"Cannot resolve  host ");
                 next_state = e_nc_state_restarting;
+            } else {
+                ESP_LOGI(TAG,"WE ARE STILL CONNECTED >>>>> Google Host name: %s", hp->h_name);
             }
             break;
         default:
