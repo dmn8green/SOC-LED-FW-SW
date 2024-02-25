@@ -1,3 +1,9 @@
+## v2.9.0 (2024-02-24)
+
+### Feat
+
+- On loss of connectivity, after a reboot leds will stay dark
+
 ## v2.8.0 (2024-02-22)
 
 ### Feat
