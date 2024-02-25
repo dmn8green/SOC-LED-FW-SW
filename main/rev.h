@@ -1,8 +1,8 @@
 #pragma once
 
 #define VERSION_MAJOR 2
-#define VERSION_MINOR 7
-#define VERSION_PATCH 9
+#define VERSION_MINOR 8
+#define VERSION_PATCH 2
 
 
 
