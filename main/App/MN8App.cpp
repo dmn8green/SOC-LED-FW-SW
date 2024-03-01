@@ -220,6 +220,8 @@ void MN8App::on_incoming_mqtt(
     memset(payload, 0, sizeof(payload));
 
     if (strnstr(pTopicName, "ledstate", topicNameLength) != NULL) {
+        last_received_led_state = Time::instance().upTimeS();
+
         if (root.containsKey("night_mode")) {
             bool night_mode = root["night_mode"];
             this->context.set_night_mode(night_mode);
@@ -343,17 +345,30 @@ void MN8App::on_mqtt_event(MqttAgent::event_t event) {
  * This function will be called from the main loop.
  */
 void MN8App::loop(void) {
+    ESP_LOGI(TAG, ">>>>>>>>>>>>>>>>>>>>>>>>>>>>> Starting state machine");
     mn8_event_t event;
     TickType_t xTicksToWait = 5000/portTICK_PERIOD_MS;
     
     this->state_machine.turn_on();
 
     bool new_night_mode = false;
+    last_received_led_state = Time::instance().upTimeS();
 
     while(1) {
         if (xQueueReceive(this->message_queue, &event, xTicksToWait) == pdTRUE) {
             ESP_LOGI(TAG, "Event received : %d", event);
             this->state_machine.handle_event(event);
+        }
+
+        // Check if we have not received any message from proxy in a bit.
+        ESP_LOGI(TAG, "Last received led state : %llu", last_received_led_state);
+        ESP_LOGI(TAG, "Now is : %llu", Time::instance().upTimeS());
+        ESP_LOGI(TAG, "Timeout : %llu", timeout_no_comm_from_proxy.count());
+        if (Time::instance().upTimeS() - last_received_led_state >= timeout_no_comm_from_proxy.count()) {
+            // Turn off LED.
+            ESP_LOGE(TAG, "No communication from proxy");
+            this->context.get_led_task_0().set_state("no_connection", 0);
+            this->context.get_led_task_1().set_state("no_connection", 0);
         }
 
         int lightSensorState = gpio_get_level((gpio_num_t) LIGHT_SENSOR_GPIO_NUM);

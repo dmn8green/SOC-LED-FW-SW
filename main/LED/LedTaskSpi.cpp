@@ -79,11 +79,13 @@ void LedTaskSpi::vTaskCodeLed()
             case e_station_charging:
                 ESP_LOGI(TAG, "%d: Charging", this->led_bar_number);
                 if (this->animation != &this->charging_animation_white_bubble) {
-                    this->charging_animation_white_bubble.reset(colors.getRgb(LED_COLOR_BLUE),
-                        colors.getRgb(LED_COLOR_WHITE),
-                        colors.getRgb(LED_COLOR_WHITE), 50);
                     this->animation = &this->charging_animation_white_bubble;
                 }
+
+                this->charging_animation_white_bubble.reset(colors.getRgb(LED_COLOR_BLUE),
+                    colors.getRgb(LED_COLOR_WHITE),
+                    colors.getRgb(LED_COLOR_WHITE), 50);
+
                 this->charging_animation_white_bubble.set_charge_percent(state_info.charge_percent);
                 break;
             case e_station_cp_unprovisioned:
@@ -313,23 +315,42 @@ mapped:
 }
 
 const char* LedTaskSpi::get_state_as_string(void) {
+    #define ENUM_TO_STRING(x) case e_station_##x: return #x;
+    
     switch (this->state_info.state) {
-        case e_station_available:           return "available";
-        case e_station_waiting_for_power:   return "waiting_for_power";
-        case e_station_charging:            return "charging";
-        case e_station_charging_complete:   return "charging_complete";
-        case e_station_out_of_service:      return "out_of_service";
-        case e_station_disable:             return "disable";
-        case e_station_booting_up:          return "booting_up";
-        case e_station_offline:             return "offline";
-        case e_station_reserved:            return "reserved";
-        case e_station_iot_unprovisioned:   return "iot_unprovisioned";
-        case e_station_cp_unprovisioned:    return "cp_unprovisioned";
-        case e_station_debug_on:            return "debug_on";
-        case e_station_debug_off:           return "debug_off";
-        case e_station_no_connection:       return "no_connection";
-        case e_station_waiting_4_first_state: return "waiting_4_first_state";
-        case e_station_unknown:             return "unknown";
-        default:                            return "unknown";
+        ENUM_TO_STRING(available);
+        ENUM_TO_STRING(waiting_for_power);
+        ENUM_TO_STRING(charging);
+        ENUM_TO_STRING(charging_complete);
+        ENUM_TO_STRING(out_of_service);
+        ENUM_TO_STRING(disable);
+        ENUM_TO_STRING(booting_up);
+        ENUM_TO_STRING(offline);
+        ENUM_TO_STRING(reserved);
+        ENUM_TO_STRING(iot_unprovisioned);
+        ENUM_TO_STRING(cp_unprovisioned);
+        ENUM_TO_STRING(waiting_4_first_state);
+        ENUM_TO_STRING(no_connection);
+        ENUM_TO_STRING(debug_on);
+        ENUM_TO_STRING(debug_off);
+        ENUM_TO_STRING(unknown);
+        default: return "unknown";
+        // case e_station_available:           return "available";
+        // case e_station_waiting_for_power:   return "waiting_for_power";
+        // case e_station_charging:            return "charging";
+        // case e_station_charging_complete:   return "charging_complete";
+        // case e_station_out_of_service:      return "out_of_service";
+        // case e_station_disable:             return "disable";
+        // case e_station_booting_up:          return "booting_up";
+        // case e_station_offline:             return "offline";
+        // case e_station_reserved:            return "reserved";
+        // case e_station_iot_unprovisioned:   return "iot_unprovisioned";
+        // case e_station_cp_unprovisioned:    return "cp_unprovisioned";
+        // case e_station_debug_on:            return "debug_on";
+        // case e_station_debug_off:           return "debug_off";
+        // case e_station_no_connection:       return "no_connection";
+        // case e_station_waiting_4_first_state: return "waiting_4_first_state";
+        // case e_station_unknown:             return "unknown";
+        // default:                            return "unknown";
     }
 }

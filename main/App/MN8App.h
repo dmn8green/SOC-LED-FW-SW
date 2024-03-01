@@ -21,6 +21,10 @@
 
 #include "freertos/queue.h"
 
+#include "Utils/Time.h"
+
+#include <chrono>
+
 #define HEARTBEAT_FREQUENCY_MINUTES  (5)
 #define SENSOR_READING_FREQUENCY_SECONDS (5)
 
@@ -82,6 +86,9 @@ private:
     esp_err_t setup_and_start_led_tasks(bool disable_connecting_leds);
 
 private:
+    uint64_t last_received_led_state = Time::instance().now();
+    std::chrono::seconds timeout_no_comm_from_proxy = std::chrono::minutes(15);
+
     bool night_mode = false;
     MN8Context context;
     MN8StateMachine state_machine;
