@@ -87,7 +87,7 @@ private:
 
 private:
     uint64_t last_received_led_state = Time::instance().now();
-    std::chrono::seconds timeout_no_comm_from_proxy = std::chrono::minutes(15);
+    std::chrono::seconds timeout_no_comm_from_proxy = std::chrono::minutes(5);
 
     bool night_mode = false;
     MN8Context context;
