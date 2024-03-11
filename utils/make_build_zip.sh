@@ -15,7 +15,7 @@ build=$(echo "$rev" | grep PATCH\  | $sed 's/#[a-zA-Z _]*PATCH\s*\([0-9]*\)/\1/'
 echo $build
 env=$(echo "$rev" | grep ENV | $sed 's/#[a-zA-Z _]*ENV\s*\([0-9]*\)/\1/' | xargs)
 echo $env
-version=$major.$minor.$build-$env
+version=$major.$minor.$build
 echo "$version"
 
 pkg_folder="MN8-$version"
