@@ -1,6 +1,10 @@
 stages:
   - build
   - utest
+  - publish
+
+variables:
+  ZIPPED_FW_FILE: MN8-*.zip
 
 build:
   stage: build
@@ -12,6 +16,11 @@ build:
 
   script:
     - idf.py build
+    - ./utils/make_build_zip.sh
+
+  artifacts:
+    paths: 
+      - ${ZIPPED_FW_FILE}
 
 utest:
   stage: utest
@@ -28,3 +37,19 @@ utest:
     - cmake --build .
     - ./led-test
 
+publish:
+  stage: publish
+  
+  image: alpine:latest
+
+  before_script:
+    - apk update
+    - apk add curl
+  
+  script:
+    - 'package=${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/firmware/${CI_COMMIT_REF_NAME}-$(date +%y%m%d-%H%M%S)'
+    - 'curl --header "JOB-TOKEN: $CI_JOB_TOKEN" --upload-file ${ZIPPED_FW_FILE} "${package}/"'
+
+  rules:
+    - if: $CI_COMMIT_REF_NAME == $CI_DEFAULT_BRANCH
+      when: always
