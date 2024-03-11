@@ -361,9 +361,9 @@ void MN8App::loop(void) {
         }
 
         // Check if we have not received any message from proxy in a bit.
-        ESP_LOGI(TAG, "Last received led state : %llu", last_received_led_state);
-        ESP_LOGI(TAG, "Now is : %llu", Time::instance().upTimeS());
-        ESP_LOGI(TAG, "Timeout : %llu", timeout_no_comm_from_proxy.count());
+      // ESP_LOGI(TAG, "Last received led state : %llu", last_received_led_state);
+        // ESP_LOGI(TAG, "Now is : %llu", Time::instance().upTimeS());
+        //ESP_LOGI(TAG, "Timeout : %llu", timeout_no_comm_from_proxy.count());
         if (Time::instance().upTimeS() - last_received_led_state >= timeout_no_comm_from_proxy.count()) {
             // Turn off LED.
             ESP_LOGE(TAG, "No communication from proxy");
