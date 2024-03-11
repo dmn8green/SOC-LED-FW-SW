@@ -3,7 +3,7 @@
 #define VERSION_MAJOR 2
 #define VERSION_MINOR 8
 #define VERSION_PATCH 5
-#define VERSION_ENV   LOCAL
+#define VERSION_ENV   
 
 
 
